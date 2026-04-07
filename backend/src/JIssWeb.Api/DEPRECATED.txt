@@ -1,0 +1,1 @@
+此项目已从 JIssWeb.sln 移除。请使用 JIssWeb.User.Api、JIssWeb.Customer.Api、JIssWeb.Model.Api、JIssWeb.Accounting.Api、JIssWeb.Report.Api 五个服务。保留本目录仅作迁移参考，可安全删除。

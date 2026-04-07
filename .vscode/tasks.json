@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-backend",
+      "command": "dotnet",
+      "type": "process",
+      "args": ["build", "${workspaceFolder}/backend/src/JIssWeb.sln", "-c", "Debug"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": { "reveal": "silent", "panel": "shared" },
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

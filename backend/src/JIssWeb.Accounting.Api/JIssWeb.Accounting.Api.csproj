@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JIssWeb.Common\JIssWeb.Common.csproj" />
+    <ProjectReference Include="..\JIssWeb.Application\JIssWeb.Application.csproj" />
+    <ProjectReference Include="..\JIssWeb.Infrastructure\JIssWeb.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
