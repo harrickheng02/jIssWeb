@@ -1,9 +1,13 @@
 using System.Text;
+using System.Text.Json;
+using JIssWeb.Common;
 using JIssWeb.Common.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -50,6 +54,7 @@ public static class WebApiHostExtensions
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
+                options.MapInboundClaims = false;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -59,6 +64,40 @@ public static class WebApiHostExtensions
                     ValidIssuer = jwt.Issuer,
                     ValidAudience = jwt.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtIdentityValidation");
+                        var sub = context.Principal?.FindFirst("sub")?.Value;
+                        var userId = context.Principal?.FindFirst("userId")?.Value;
+                        if (string.IsNullOrWhiteSpace(sub))
+                        {
+                            logger.LogWarning("JWT missing sub claim");
+                            context.Fail("invalid_token_sub_missing");
+                            return Task.CompletedTask;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(userId) && !string.Equals(sub, userId, StringComparison.Ordinal))
+                        {
+                            logger.LogWarning("JWT sub/userId mismatch sub={Sub} userId={UserId}", sub, userId);
+                            context.Fail("invalid_token_identity_mismatch");
+                            return Task.CompletedTask;
+                        }
+
+                        return Task.CompletedTask;
+                    },
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json; charset=utf-8";
+                        var body = JsonSerializer.Serialize(ApiResult.Fail("未授权", "UNAUTHORIZED"));
+                        await context.Response.WriteAsync(body);
+                    }
                 };
             });
 

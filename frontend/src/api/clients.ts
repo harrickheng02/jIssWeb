@@ -29,7 +29,29 @@ export const modelApi = createClient('/api-model')
 export const accountingApi = createClient('/api-accounting')
 export const reportApi = createClient('/api-report')
 
-export async function fetchDevToken() {
-  const { data } = await userApi.post<ApiResult<string>>('/api/auth/token')
+export interface AuthTokenPair {
+  accessToken: string
+  accessTokenExpiresAtUtc: string
+  refreshToken: string
+  refreshTokenExpiresAtUtc: string
+}
+
+export async function register(email: string, password: string) {
+  const { data } = await userApi.post<ApiResult<AuthTokenPair>>('/api/auth/register', { email, password })
+  return data
+}
+
+export async function login(email: string, password: string) {
+  const { data } = await userApi.post<ApiResult<AuthTokenPair>>('/api/auth/login', { email, password })
+  return data
+}
+
+export async function refresh(refreshToken: string) {
+  const { data } = await userApi.post<ApiResult<AuthTokenPair>>('/api/auth/refresh', { refreshToken })
+  return data
+}
+
+export async function revoke(refreshToken: string) {
+  const { data } = await userApi.post<ApiResult<string>>('/api/auth/revoke', { refreshToken })
   return data
 }

@@ -1,6 +1,40 @@
-@JIssWeb.User.Api_HostAddress = http://localhost:5200
+@JIssWeb.User.Api_HostAddress = http://127.0.0.1:5097
+@email = demo@jissweb.local
+@password = P@ssw0rd123
+@accessToken =
+@refreshToken =
 
-GET {{JIssWeb.User.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### 注册
+POST {{JIssWeb.User.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
 
-###
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 登录
+POST {{JIssWeb.User.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 刷新
+POST {{JIssWeb.User.Api_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 吊销
+POST {{JIssWeb.User.Api_HostAddress}}/api/auth/revoke
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}

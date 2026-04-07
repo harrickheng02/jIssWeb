@@ -23,7 +23,10 @@ public static class DependencyInjection
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             var redis = sp.GetRequiredService<IOptions<RedisSettings>>().Value;
-            return ConnectionMultiplexer.Connect(redis.ConnectionString);
+            var opts = ConfigurationOptions.Parse(redis.ConnectionString);
+            if (!string.IsNullOrEmpty(redis.Password))
+                opts.Password = redis.Password;
+            return ConnectionMultiplexer.Connect(opts);
         });
 
         return services;

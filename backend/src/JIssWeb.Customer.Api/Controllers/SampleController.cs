@@ -1,4 +1,5 @@
 using JIssWeb.Common;
+using JIssWeb.Common.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,5 +11,5 @@ public class SampleController : ControllerBase
 {
     [HttpGet("me")]
     [Authorize]
-    public ApiResult<string> Me() => ApiResult<string>.Ok("customer-authorized");
+    public ApiResult<string> Me() => ApiResult<string>.Ok($"customer:{User.GetUserId()}");
 }

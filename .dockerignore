@@ -1,0 +1,14 @@
+.git
+**/.git
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.vs
+*.user
+*.log
+.env
+.env.*
+!.env.example
+openspec/changes
+.cursor

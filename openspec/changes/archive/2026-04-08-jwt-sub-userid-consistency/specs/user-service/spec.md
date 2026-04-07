@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: JWT issuance surface
 
@@ -16,6 +16,8 @@ The user service API SHALL expose token issuance endpoints for login and refresh
 - **THEN** the newly issued access token SHALL preserve the same user identity key in `sub`
 - **AND** if `userId` claim is present, it SHALL be exactly equal to `sub`
 
+## ADDED Requirements
+
 ### Requirement: Refresh token and blacklist support
 The user service SHALL provide refresh token issuance and rotation, and SHALL enforce Redis-backed blacklist or revocation checks before issuing new access tokens.
 
@@ -26,21 +28,3 @@ The user service SHALL provide refresh token issuance and rotation, and SHALL en
 #### Scenario: Successful refresh rotation
 - **WHEN** a refresh request is accepted
 - **THEN** the previous refresh token session SHALL be invalidated according to service policy and a new refresh token SHALL be issued
-
-### Requirement: JWT validation on protected routes
-
-The user service SHALL configure JWT bearer authentication such that protected routes reject missing or invalid tokens with HTTP 401.
-
-#### Scenario: Missing bearer token
-
-- **WHEN** a client calls a protected endpoint without an `Authorization: Bearer` header
-- **THEN** the response status SHALL be 401
-
-### Requirement: Service identity and routing
-
-The user service SHALL use route prefix `api` and SHALL be deployable as a standalone process with its own documented HTTP port separate from other domain services.
-
-#### Scenario: Health endpoint
-
-- **WHEN** a client sends `GET` to the user service health URL
-- **THEN** the response SHALL be HTTP 200 with the unified envelope indicating success

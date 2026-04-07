@@ -1,0 +1,64 @@
+# 仅依赖：docker compose up -d
+# 含示例 User.Api 镜像：docker compose --profile api up -d --build
+services:
+  mongo:
+    image: mongo:${MONGO_TAG:-7.0}
+    container_name: jissweb-mongo
+    ports:
+      - "${MONGO_PORT:-37017}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: harrickheng
+      MONGO_INITDB_ROOT_PASSWORD: qq!219673605
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "-u", "harrickheng", "-p", "qq!219673605", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  redis:
+    image: redis:${REDIS_TAG:-7-alpine}
+    container_name: jissweb-redis
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "qq!219673605", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  user-api:
+    profiles: ["api"]
+    build:
+      context: .
+      dockerfile: docker/JIssWeb.User.Api.Dockerfile
+    ports:
+      - "${USER_API_PORT:-5097}:5097"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Mongo__ConnectionString: mongodb://harrickheng:qq%21219673605@mongo:27017/?authSource=admin
+      Mongo__DatabaseName: jissweb_user
+      Redis__ConnectionString: redis:6379
+      Redis__Password: qq!219673605
+      Redis__KeyPrefix: "user:"
+      Jwt__Issuer: JIssWeb
+      Jwt__Audience: JIssWeb
+      Jwt__Key: change-me-in-production-use-32-chars-min!!
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
+    name: ${MONGO_VOLUME_NAME:-jissweb_mongo_data}
+  redis_data:
+    name: ${REDIS_VOLUME_NAME:-jissweb_redis_data}
