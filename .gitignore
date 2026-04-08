@@ -7,3 +7,5 @@ obj/
 *.user
 .vs/
 *.log
+.tmpbuild/
+.history/

@@ -1,6 +1,7 @@
 using JIssWeb.Application;
 using JIssWeb.Common.Hosting;
 using JIssWeb.Common.Middleware;
+using JIssWeb.Customer.Api.Mongo;
 using JIssWeb.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddJIssWebCoreApi(builder.Configuration);
 
 var app = builder.Build();
+
+CustomerMongoSetup.EnsureIndexes(app.Services);
 
 if (app.Environment.IsDevelopment())
 {

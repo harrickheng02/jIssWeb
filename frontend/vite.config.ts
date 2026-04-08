@@ -2,12 +2,19 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-function local(port: number, prefix: string) {
-  return {
+function local(port: number, prefix: string, rewrite = true) {
+  const config: {
+    target: string
+    changeOrigin: boolean
+    rewrite?: (path: string) => string
+  } = {
     target: `http://localhost:${port}`,
     changeOrigin: true,
-    rewrite: (path: string) => path.replace(new RegExp(`^${prefix}`), ''),
   }
+  if (rewrite) {
+    config.rewrite = (path: string) => path.replace(new RegExp(`^${prefix}`), '')
+  }
+  return config
 }
 
 export default defineConfig({
@@ -25,6 +32,7 @@ export default defineConfig({
       '/api-model': local(5099, '/api-model'),
       '/api-accounting': local(5100, '/api-accounting'),
       '/api-report': local(5101, '/api-report'),
+      '/api': local(5094, '/api', false),
     },
   },
 })
