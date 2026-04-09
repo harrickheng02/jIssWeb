@@ -22,7 +22,7 @@ const auth = useAuthStore(pinia)
 if (auth.refreshToken) {
   refresh(auth.refreshToken)
     .then((res) => {
-      if (res.success && res.data) auth.applyAuthSession(res.data.accessToken, res.data.refreshToken, auth.rememberMe)
+      if (res.success && res.data) auth.applyAuthSession(res.data.accessToken, res.data.refreshToken)
       else auth.clearAuth()
     })
     .catch(() => auth.clearAuth())

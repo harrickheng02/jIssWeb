@@ -18,7 +18,7 @@ onMounted(async () => {
     try {
       const res = await exchangeVerifySession(code)
       if (res.success && res.data) {
-        auth.applyAuthSession(res.data.accessToken, res.data.refreshToken, true)
+        auth.applyAuthSession(res.data.accessToken, res.data.refreshToken)
         await router.replace('/')
         return
       }
