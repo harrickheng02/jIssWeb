@@ -86,13 +86,13 @@ async function remove(row: CustomerRecord) {
   <div class="page">
     <div v-if="!auth.token" class="hint">
       <el-alert title="请先登录后再访问客档" type="warning" :closable="false" show-icon />
-      <router-link class="link" to="/">去登录</router-link>
+      <router-link class="link" to="/auth">去登录</router-link>
     </div>
     <template v-else>
       <div class="toolbar">
         <el-button type="primary" @click="openCreate">新建客档</el-button>
         <router-link class="link" to="/profile">个人资料</router-link>
-        <router-link class="link" to="/">返回登录</router-link>
+        <router-link class="link" to="/">返回首页</router-link>
       </div>
       <el-table v-loading="loading" :data="list" stripe>
         <el-table-column prop="name" label="名称" />

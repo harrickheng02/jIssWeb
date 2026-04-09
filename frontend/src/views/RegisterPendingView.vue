@@ -74,7 +74,7 @@ onUnmounted(() => {
           {{ resendButtonText }}
         </el-button>
       </el-form>
-      <router-link to="/">返回登录</router-link>
+      <router-link to="/auth">返回登录</router-link>
     </el-card>
   </div>
 </template>
