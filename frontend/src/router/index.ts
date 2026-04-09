@@ -10,6 +10,18 @@ const router = createRouter({
       component: () => import('../views/HomeView.vue'),
     },
     {
+      path: '/auth',
+      name: 'auth',
+      meta: { hideAppShell: true },
+      component: () => import('../views/AuthView.vue'),
+    },
+    {
+      path: '/auth/forgot',
+      name: 'auth-forgot',
+      meta: { hideAppShell: true },
+      component: () => import('../views/ForgotPasswordView.vue'),
+    },
+    {
       path: '/customers',
       name: 'customers',
       component: () => import('../views/CustomersView.vue'),
@@ -38,7 +50,7 @@ router.beforeEach((to) => {
   if (!to.meta.requiresAuth) return true
   const auth = useAuthStore()
   if (auth.token) return true
-  return { name: 'home' }
+  return { name: 'auth' }
 })
 
 export default router
