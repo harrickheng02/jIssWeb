@@ -71,6 +71,19 @@ export async function exchangeVerifySession(verifySession: string) {
   return data
 }
 
+export async function forgotPassword(email: string) {
+  const { data } = await userApi.post<ApiResult<string>>('/auth/forgot-password', { email })
+  return data
+}
+
+export async function completeResetPassword(resetSession: string, password: string) {
+  const { data } = await userApi.post<ApiResult<AuthTokenPair>>('/auth/complete-reset-password', {
+    resetSession,
+    password,
+  })
+  return data
+}
+
 export interface CustomerRecord {
   id: string
   ownerUserId: string

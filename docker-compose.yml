@@ -1,18 +1,31 @@
-# 默认 `docker compose up` / Docker Desktop 启动：mongo、redis、user-api、model-api、frontend-bff、gateway-api
+# 复制 .env.example 为 .env 并填写全部变量；docker compose 从 .env 加载
 # 仅起数据库与缓存：docker compose up -d mongo redis
 services:
   mongo:
     image: mongo:${MONGO_TAG:-7.0}
     container_name: jissweb-mongo
     ports:
-      - "${MONGO_PORT:-37017}:27017"
+      - "${MONGO_PORT}:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: harrickheng
-      MONGO_INITDB_ROOT_PASSWORD: qq!219673605
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "-u", "harrickheng", "-p", "qq!219673605", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "-u",
+          "${MONGO_ROOT_USER}",
+          "-p",
+          "${MONGO_ROOT_PASSWORD}",
+          "--authenticationDatabase",
+          "admin",
+          "--eval",
+          "db.adminCommand('ping').ok",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,13 +35,19 @@ services:
     image: redis:${REDIS_TAG:-7-alpine}
     container_name: jissweb-redis
     ports:
-      - "${REDIS_PORT:-6380}:6379"
+      - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
       - ./docker/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    command:
+      [
+        "redis-server",
+        "/usr/local/etc/redis/redis.conf",
+        "--requirepass",
+        "${REDIS_PASSWORD}",
+      ]
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "qq!219673605", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -39,25 +58,31 @@ services:
       context: .
       dockerfile: docker/JIssWeb.User.Api.Dockerfile
     ports:
-      - "${USER_API_PORT:-5097}:5097"
+      - "${USER_API_PORT}:${USER_API_CONTAINER_PORT}"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      Mongo__ConnectionString: mongodb://harrickheng:qq%21219673605@mongo:27017/?authSource=admin
+      Mongo__ConnectionString: ${MONGO_CONNECTION_STRING}
       Mongo__DatabaseName: jissweb_user
       Redis__ConnectionString: redis:6379
-      Redis__Password: qq!219673605
+      Redis__Password: ${REDIS_PASSWORD}
       Redis__KeyPrefix: "user:"
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
-      Jwt__Key: change-me-in-production-use-32-chars-min!!
-      EmailVerification__Secret: change-me-email-verify-secret
-      EmailVerification__LinkBaseUrl: http://localhost:5097/api/auth/verify-email
-      EmailVerification__SuccessRedirectUrl: http://localhost:5173/register/verified
+      Jwt__Key: ${JWT_KEY}
+      EmailVerification__Secret: ${EMAIL_VERIFICATION_SECRET}
+      EmailVerification__LinkBaseUrl: ${EMAIL_VERIFICATION_LINK_BASE_URL}
+      EmailVerification__SuccessRedirectUrl: ${EMAIL_VERIFICATION_SUCCESS_REDIRECT_URL}
       EmailVerification__TokenTtlMinutes: 30
       EmailVerification__RegisterPerMinuteLimit: 5
       EmailVerification__ResendPerMinuteLimit: 5
       EmailVerification__ResendCooldownSeconds: ${EMAIL_VERIFY_RESEND_COOLDOWN_SECONDS:-60}
       EmailVerification__ResendPerDayLimit: ${EMAIL_VERIFY_RESEND_PER_DAY_LIMIT:-20}
+      PasswordReset__Secret: ${PASSWORD_RESET_SECRET}
+      PasswordReset__LinkBaseUrl: ${PASSWORD_RESET_LINK_BASE_URL}
+      PasswordReset__SuccessRedirectUrl: ${PASSWORD_RESET_SUCCESS_REDIRECT_URL}
+      PasswordReset__TokenTtlMinutes: 30
+      PasswordReset__ForgotPerMinuteLimit: 5
+      PasswordReset__ForgotCooldownSeconds: 60
       SmtpEmail__Enabled: ${SMTP_ENABLED:-false}
       SmtpEmail__Host: ${SMTP_HOST:-}
       SmtpEmail__Port: ${SMTP_PORT:-587}
@@ -84,14 +109,14 @@ services:
       context: .
       dockerfile: docker/JIssWeb.Frontend.Bff.Dockerfile
     ports:
-      - "${FRONTEND_BFF_PORT:-5095}:5095"
+      - "${FRONTEND_BFF_PORT}:${FRONTEND_BFF_CONTAINER_PORT}"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
-      Jwt__Key: change-me-in-production-use-32-chars-min!!
-      DownstreamServices__UserApiBaseUrl: ${BFF_USER_API_URL:-http://user-api:5097}
-      DownstreamServices__CustomerApiBaseUrl: ${BFF_CUSTOMER_API_URL:-http://host.docker.internal:5098}
+      Jwt__Key: ${JWT_KEY}
+      DownstreamServices__UserApiBaseUrl: ${BFF_USER_API_URL}
+      DownstreamServices__CustomerApiBaseUrl: ${BFF_CUSTOMER_API_URL}
     depends_on:
       user-api:
         condition: service_started
@@ -103,17 +128,17 @@ services:
       context: .
       dockerfile: docker/JIssWeb.Model.Api.Dockerfile
     ports:
-      - "${MODEL_API_PORT:-5099}:5099"
+      - "${MODEL_API_PORT}:${MODEL_API_CONTAINER_PORT}"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      Mongo__ConnectionString: mongodb://harrickheng:qq%21219673605@mongo:27017/?authSource=admin
+      Mongo__ConnectionString: ${MONGO_CONNECTION_STRING}
       Mongo__DatabaseName: jissweb_model
       Redis__ConnectionString: redis:6379
-      Redis__Password: qq!219673605
+      Redis__Password: ${REDIS_PASSWORD}
       Redis__KeyPrefix: "model:"
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
-      Jwt__Key: change-me-in-production-use-32-chars-min!!
+      Jwt__Key: ${JWT_KEY}
     depends_on:
       mongo:
         condition: service_healthy
@@ -125,16 +150,16 @@ services:
       context: .
       dockerfile: docker/JIssWeb.Gateway.Api.Dockerfile
     ports:
-      - "${GATEWAY_API_PORT:-5094}:5094"
+      - "${GATEWAY_API_PORT}:${GATEWAY_API_CONTAINER_PORT}"
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
-      Jwt__Key: change-me-in-production-use-32-chars-min!!
-      ReverseProxy__Clusters__user-service__Destinations__d1__Address: ${GATEWAY_USER_API_URL:-http://user-api:5097/}
-      ReverseProxy__Clusters__customer-service__Destinations__d1__Address: ${GATEWAY_CUSTOMER_API_URL:-http://host.docker.internal:5098/}
-      ReverseProxy__Clusters__frontend-bff__Destinations__d1__Address: ${GATEWAY_BFF_URL:-http://frontend-bff:5095/}
-      ReverseProxy__Clusters__model-service__Destinations__d1__Address: ${GATEWAY_MODEL_API_URL:-http://model-api:5099/}
+      Jwt__Key: ${JWT_KEY}
+      ReverseProxy__Clusters__user-service__Destinations__d1__Address: ${GATEWAY_USER_API_URL}
+      ReverseProxy__Clusters__customer-service__Destinations__d1__Address: ${GATEWAY_CUSTOMER_API_URL}
+      ReverseProxy__Clusters__frontend-bff__Destinations__d1__Address: ${GATEWAY_BFF_URL}
+      ReverseProxy__Clusters__model-service__Destinations__d1__Address: ${GATEWAY_MODEL_API_URL}
     depends_on:
       user-api:
         condition: service_started

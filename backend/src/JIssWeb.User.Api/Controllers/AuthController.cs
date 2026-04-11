@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
+using JIssWeb.User.Api;
 using JIssWeb.User.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -23,11 +24,13 @@ public class AuthController : ControllerBase
 {
     private static readonly TimeSpan AccessTokenTtl = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan RefreshTokenTtl = TimeSpan.FromDays(7);
+    /// <summary>与 frontend/src/utils/passwordPolicy.ts <c>isStrongPassword</c> 一致。</summary>
     private static readonly Regex PasswordStrongRegex = new("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$", RegexOptions.Compiled);
 
     private readonly JwtSettings _jwt;
     private readonly RedisSettings _redisSettings;
     private readonly EmailVerificationSettings _emailVerification;
+    private readonly PasswordResetSettings _passwordReset;
     private readonly LoginSecuritySettings _loginSecurity;
     private readonly IMongoCollection<UserAccount> _users;
     private readonly IMongoCollection<RefreshSession> _refreshSessions;
@@ -40,6 +43,7 @@ public class AuthController : ControllerBase
         IOptions<MongoSettings> mongoOptions,
         IOptions<RedisSettings> redisOptions,
         IOptions<EmailVerificationSettings> emailVerificationOptions,
+        IOptions<PasswordResetSettings> passwordResetOptions,
         IOptions<LoginSecuritySettings> loginSecurityOptions,
         IMongoClient mongoClient,
         IConnectionMultiplexer redis,
@@ -49,6 +53,7 @@ public class AuthController : ControllerBase
         _jwt = jwtOptions.Value;
         _redisSettings = redisOptions.Value;
         _emailVerification = emailVerificationOptions.Value;
+        _passwordReset = passwordResetOptions.Value;
         _loginSecurity = loginSecurityOptions.Value;
         var database = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _users = database.GetCollection<UserAccount>("users");
@@ -319,6 +324,100 @@ public class AuthController : ControllerBase
         return Ok(ApiResult<AuthTokenPair>.Ok(pair));
     }
 
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResult<string>>> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var email = NormalizeEmail(request.Email);
+        if (email is null || !IsValidEmail(email))
+            return BadRequest(ApiResult<string>.Fail("邮箱无效", "INVALID_INPUT"));
+
+        var cooldownTtl = await _redis.KeyTimeToLiveAsync(GetForgotCooldownKey(email));
+        if (cooldownTtl.HasValue && cooldownTtl.Value > TimeSpan.Zero)
+        {
+            var retryAfterSeconds = (int)Math.Ceiling(cooldownTtl.Value.TotalSeconds);
+            Response.Headers.RetryAfter = retryAfterSeconds.ToString();
+            return StatusCode(429, ApiResult<string>.Fail($"请在 {retryAfterSeconds} 秒后再试", "FORGOT_PASSWORD_COOLDOWN"));
+        }
+
+        if (await IsRateLimitedAsync("forgot-pwd", email, _passwordReset.ForgotPerMinuteLimit))
+            return StatusCode(429, ApiResult<string>.Fail("请求过于频繁", "RATE_LIMITED"));
+
+        var user = await _users.Find(x => x.Email == email).FirstOrDefaultAsync();
+        if (user is not null && user.EmailVerifiedAtUtc.HasValue)
+        {
+            try
+            {
+                await SendPasswordResetEmailAsync(user);
+                await MarkForgotPasswordSentAsync(email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send password reset email email={Email}", email);
+            }
+        }
+
+        return Ok(ApiResult<string>.Ok("PASSWORD_RESET_EMAIL_SENT"));
+    }
+
+    [HttpGet("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromQuery] string? token)
+    {
+        var result = await ValidatePasswordResetTokenAsync(token);
+        if (result is null)
+        {
+            var url = AppendQueryParam(_passwordReset.SuccessRedirectUrl, "error", "RESET_TOKEN_INVALID");
+            return Redirect(url);
+        }
+
+        var exchangeCode = GenerateToken();
+        await _redis.StringSetAsync(GetResetExchangeKey(exchangeCode), result.UserId, TimeSpan.FromMinutes(5));
+        var redirectUrl = AppendQueryParam(_passwordReset.SuccessRedirectUrl, "reset_session", exchangeCode);
+        return Redirect(redirectUrl);
+    }
+
+    [HttpPost("complete-reset-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResult<AuthTokenPair>>> CompleteResetPassword([FromBody] CompleteResetPasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ResetSession))
+            return BadRequest(ApiResult<AuthTokenPair>.Fail("resetSession 不能为空", "INVALID_INPUT"));
+        if (string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(ApiResult<AuthTokenPair>.Fail("密码无效", "INVALID_INPUT"));
+        if (!PasswordStrongRegex.IsMatch(request.Password))
+            return BadRequest(ApiResult<AuthTokenPair>.Fail("密码强度不足", "WEAK_PASSWORD"));
+
+        var key = GetResetExchangeKey(request.ResetSession.Trim());
+        var userIdStr = await GetAndDeleteStringAsync(key);
+        if (userIdStr is null)
+            return Unauthorized(ApiResult<AuthTokenPair>.Fail("重置会话无效或已过期", "PWD_RESET_SESSION_INVALID"));
+
+        var user = await _users.Find(x => x.Id == userIdStr).FirstOrDefaultAsync();
+        if (user is null)
+            return NotFound(ApiResult<AuthTokenPair>.Fail("账号不存在或已失效", "USER_NOT_FOUND"));
+        if (!user.EmailVerifiedAtUtc.HasValue)
+            return Unauthorized(ApiResult<AuthTokenPair>.Fail("邮箱未验证", "EMAIL_NOT_VERIFIED"));
+
+        var salt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+        var hash = HashPassword(request.Password, salt);
+        user.PasswordSalt = salt;
+        user.PasswordHash = hash;
+        await _users.ReplaceOneAsync(x => x.Id == user.Id, user);
+
+        try
+        {
+            await RevokeAllRefreshSessionsForUserAsync(user.Id);
+            var pair = await IssueTokenPairAsync(user);
+            return Ok(ApiResult<AuthTokenPair>.Ok(pair));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogCritical(ex, "Password reset: failed to revoke sessions or issue tokens after password update userId={UserId}", user.Id);
+            return StatusCode(503, ApiResult<AuthTokenPair>.Fail("会话更新失败，请使用新密码登录", "PWD_RESET_SESSION_FAILED"));
+        }
+    }
+
     [HttpPost("dev-mismatch-token")]
     [AllowAnonymous]
     public ActionResult<ApiResult<string>> DevMismatchToken()
@@ -341,6 +440,20 @@ public class AuthController : ControllerBase
             expires: now.AddMinutes(5),
             signingCredentials: creds);
         return Ok(ApiResult<string>.Ok(new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(token)));
+    }
+
+    private async Task RevokeAllRefreshSessionsForUserAsync(string userId)
+    {
+        var now = DateTime.UtcNow;
+        var sessions = await _refreshSessions.Find(x => x.UserId == userId && x.RevokedAtUtc == null).ToListAsync();
+        foreach (var s in sessions)
+        {
+            s.RevokedAtUtc = now;
+            await _refreshSessions.ReplaceOneAsync(x => x.Id == s.Id, s);
+            var ttl = s.ExpiresAtUtc - now;
+            if (ttl > TimeSpan.Zero)
+                await _redis.StringSetAsync(GetRefreshBlacklistKey(s.TokenHash), "1", ttl);
+        }
     }
 
     private async Task<AuthTokenPair> IssueTokenPairAsync(UserAccount user)
@@ -436,6 +549,21 @@ public class AuthController : ControllerBase
     private string GetVerifyExchangeKey(string code)
     {
         return $"{_redisSettings.KeyPrefix}verify:exchange:{Sha256(code)}";
+    }
+
+    private string GetForgotCooldownKey(string email)
+    {
+        return $"{_redisSettings.KeyPrefix}pwdreset:forgot:cooldown:{Sha256(email)}";
+    }
+
+    private string GetPwdResetOnceKey(string tokenHash)
+    {
+        return $"{_redisSettings.KeyPrefix}pwdreset:once:{tokenHash}";
+    }
+
+    private string GetResetExchangeKey(string code)
+    {
+        return $"{_redisSettings.KeyPrefix}pwdreset:exchange:{Sha256(code)}";
     }
 
     private static string AppendQueryParam(string baseUrl, string name, string value)
@@ -588,6 +716,69 @@ public class AuthController : ControllerBase
         return Convert.ToHexString(sig);
     }
 
+    private async Task SendPasswordResetEmailAsync(UserAccount user)
+    {
+        var token = await CreatePasswordResetTokenAsync(user.Id);
+        var link = $"{_passwordReset.LinkBaseUrl}?token={Uri.EscapeDataString(token)}";
+        await _emailSender.SendPasswordResetEmailAsync(user.Email, link, DateTime.UtcNow.AddMinutes(_passwordReset.TokenTtlMinutes));
+    }
+
+    private Task MarkForgotPasswordSentAsync(string email)
+    {
+        return _redis.StringSetAsync(GetForgotCooldownKey(email), "1", TimeSpan.FromSeconds(_passwordReset.ForgotCooldownSeconds));
+    }
+
+    private async Task<string> CreatePasswordResetTokenAsync(string userId)
+    {
+        var exp = DateTimeOffset.UtcNow.AddMinutes(_passwordReset.TokenTtlMinutes).ToUnixTimeSeconds();
+        var nonce = GenerateToken();
+        var payload = $"{userId}.{exp}.{nonce}";
+        var sig = CreatePasswordResetSignature(payload);
+        var token = $"{payload}.{sig}";
+        var ttl = TimeSpan.FromMinutes(_passwordReset.TokenTtlMinutes);
+        await _redis.StringSetAsync(GetPwdResetOnceKey(Sha256(token)), "1", ttl);
+        return token;
+    }
+
+    private async Task<VerifyTokenResult?> ValidatePasswordResetTokenAsync(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return null;
+
+        var parts = token.Split('.');
+        if (parts.Length != 4)
+            return null;
+
+        var userId = parts[0];
+        if (!long.TryParse(parts[1], out var exp))
+            return null;
+        var nonce = parts[2];
+        var sig = parts[3];
+
+        if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > exp)
+            return null;
+
+        var payload = $"{userId}.{exp}.{nonce}";
+        var expected = CreatePasswordResetSignature(payload);
+        if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(sig)))
+            return null;
+
+        var oneTimeKey = GetPwdResetOnceKey(Sha256(token));
+        var consumed = await _redis.KeyDeleteAsync(oneTimeKey);
+        if (!consumed)
+            return null;
+
+        return new VerifyTokenResult { UserId = userId };
+    }
+
+    private string CreatePasswordResetSignature(string payload)
+    {
+        var secret = Encoding.UTF8.GetBytes(_passwordReset.Secret);
+        using var hmac = new HMACSHA256(secret);
+        var sig = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
+        return Convert.ToHexString(sig);
+    }
+
     private async Task<bool> IsRateLimitedAsync(string bucket, string email, int limitPerMinute)
     {
         var emailKey = GetRateLimitKey(bucket, $"email:{Sha256(email)}");
@@ -714,6 +905,17 @@ public class ResendVerificationRequest
 public class ExchangeVerifySessionRequest
 {
     public string? VerifySession { get; set; }
+}
+
+public class ForgotPasswordRequest
+{
+    public string? Email { get; set; }
+}
+
+public class CompleteResetPasswordRequest
+{
+    public string? ResetSession { get; set; }
+    public string? Password { get; set; }
 }
 
 public class AuthTokenPair

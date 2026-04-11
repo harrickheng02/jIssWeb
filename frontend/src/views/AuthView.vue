@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { login, register } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 import { useLegalUiStore } from '@/stores/legalUi'
+import { isStrongPassword, PASSWORD_STRONG_HINT } from '@/utils/passwordPolicy'
 import './auth-view.css'
 
 const auth = useAuthStore()
@@ -49,10 +50,6 @@ watch(activeTab, () => {
 
 function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
-}
-
-function isStrongPassword(v: string) {
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(v)
 }
 
 function getAuthErrorMessage(code?: string, fallback?: string) {
@@ -106,7 +103,7 @@ function validateRegisterEmail() {
 
 function validateRegisterPassword() {
   registerErrors.password =
-    !registerForm.password || isStrongPassword(registerForm.password) ? '' : '密码至少8位，含大小写字母和数字'
+    !registerForm.password || isStrongPassword(registerForm.password) ? '' : PASSWORD_STRONG_HINT
   return !registerErrors.password
 }
 

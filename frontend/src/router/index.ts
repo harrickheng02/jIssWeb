@@ -27,6 +27,12 @@ const router = createRouter({
       component: () => import('../views/ForgotPasswordView.vue'),
     },
     {
+      path: '/auth/reset',
+      name: 'auth-reset',
+      meta: { hideAppShell: true },
+      component: () => import('../views/ResetPasswordView.vue'),
+    },
+    {
       path: '/customers',
       name: 'customers',
       component: () => import('../views/CustomersView.vue'),

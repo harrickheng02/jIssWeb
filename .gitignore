@@ -1,4 +1,5 @@
 .env
+frontend/.env
 !.env.example
 **/appsettings.Local.json
 node_modules/

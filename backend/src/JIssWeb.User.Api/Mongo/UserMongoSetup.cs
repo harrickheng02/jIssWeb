@@ -21,5 +21,7 @@ public static class UserMongoSetup
         var sessions = db.GetCollection<RefreshSession>("refresh_sessions");
         var tokenHashKeys = Builders<RefreshSession>.IndexKeys.Ascending(x => x.TokenHash);
         sessions.Indexes.CreateOne(new CreateIndexModel<RefreshSession>(tokenHashKeys, new CreateIndexOptions { Unique = true }));
+        var userIdKeys = Builders<RefreshSession>.IndexKeys.Ascending(x => x.UserId);
+        sessions.Indexes.CreateOne(new CreateIndexModel<RefreshSession>(userIdKeys));
     }
 }

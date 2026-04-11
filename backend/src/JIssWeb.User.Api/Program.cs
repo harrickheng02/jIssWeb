@@ -2,17 +2,20 @@ using JIssWeb.Application;
 using JIssWeb.Common.Hosting;
 using JIssWeb.Common.Middleware;
 using JIssWeb.Infrastructure;
+using JIssWeb.User.Api;
 using JIssWeb.User.Api.Controllers;
 using JIssWeb.User.Api.Mongo;
 using JIssWeb.User.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 builder.UseJIssWebHttpPort(5097);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddJIssWebCoreApi(builder.Configuration);
 builder.Services.Configure<EmailVerificationSettings>(builder.Configuration.GetSection("EmailVerification"));
+builder.Services.Configure<PasswordResetSettings>(builder.Configuration.GetSection("PasswordReset"));
 builder.Services.Configure<SmtpEmailSettings>(builder.Configuration.GetSection("SmtpEmail"));
 builder.Services.Configure<LoginSecuritySettings>(builder.Configuration.GetSection("LoginSecurity"));
 builder.Services.AddSingleton<ConsoleVerificationEmailSender>();

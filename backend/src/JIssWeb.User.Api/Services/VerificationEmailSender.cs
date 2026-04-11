@@ -7,6 +7,7 @@ namespace JIssWeb.User.Api.Services;
 public interface IVerificationEmailSender
 {
     Task SendVerificationEmailAsync(string toEmail, string verifyLink, DateTime expiresAtUtc);
+    Task SendPasswordResetEmailAsync(string toEmail, string resetLink, DateTime expiresAtUtc);
 }
 
 public class ConsoleVerificationEmailSender : IVerificationEmailSender
@@ -21,6 +22,12 @@ public class ConsoleVerificationEmailSender : IVerificationEmailSender
     public Task SendVerificationEmailAsync(string toEmail, string verifyLink, DateTime expiresAtUtc)
     {
         _logger.LogInformation("verify-email to={Email} expires={ExpiresAtUtc} link={Link}", toEmail, expiresAtUtc, verifyLink);
+        return Task.CompletedTask;
+    }
+
+    public Task SendPasswordResetEmailAsync(string toEmail, string resetLink, DateTime expiresAtUtc)
+    {
+        _logger.LogInformation("password-reset to={Email} expires={ExpiresAtUtc} link={Link}", toEmail, expiresAtUtc, resetLink);
         return Task.CompletedTask;
     }
 }
@@ -57,6 +64,45 @@ public class SmtpVerificationEmailSender : IVerificationEmailSender
             client.Credentials = new NetworkCredential(_settings.Username, _settings.Password);
 
         await client.SendMailAsync(message);
+    }
+
+    public async Task SendPasswordResetEmailAsync(string toEmail, string resetLink, DateTime expiresAtUtc)
+    {
+        ValidateSettings();
+
+        using var message = new MailMessage
+        {
+            From = new MailAddress(_settings.FromEmail, _settings.FromName),
+            Subject = "JIssWeb 重置密码",
+            Body = BuildPasswordResetHtmlBody(resetLink, expiresAtUtc),
+            IsBodyHtml = true,
+        };
+        message.To.Add(toEmail);
+
+        using var client = new SmtpClient(_settings.Host, _settings.Port)
+        {
+            EnableSsl = _settings.EnableSsl,
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+        };
+
+        if (!string.IsNullOrWhiteSpace(_settings.Username))
+            client.Credentials = new NetworkCredential(_settings.Username, _settings.Password);
+
+        await client.SendMailAsync(message);
+    }
+
+    private static string BuildPasswordResetHtmlBody(string resetLink, DateTime expiresAtUtc)
+    {
+        return $"""
+                <html>
+                  <body>
+                    <p>您正在重置 JIssWeb 账号密码。</p>
+                    <p>请点击下方链接继续（如非本人操作请忽略）：</p>
+                    <p><a href="{WebUtility.HtmlEncode(resetLink)}">{WebUtility.HtmlEncode(resetLink)}</a></p>
+                    <p>链接有效期至：{expiresAtUtc:yyyy-MM-dd HH:mm:ss} UTC</p>
+                  </body>
+                </html>
+                """;
     }
 
     private void ValidateSettings()

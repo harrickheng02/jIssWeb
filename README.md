@@ -31,6 +31,11 @@ git clone <你的仓库地址> jIssWeb
 cd jIssWeb
 ```
 
+**配置（必做）**
+
+1. 复制仓库根目录 **`.env.example`** 为 **`.env`**，按其中键补全（Mongo/Redis、各服务端口、JWT、网关与 BFF URL、Vite 代理端口等）。勿提交 `.env`。
+2. 各后端 API：复制对应 **`appsettings.Local.example.json`** 为 **`appsettings.Local.json`** 并填写连接串与邮件链接等（与 `.env` / 本地端口一致）。
+
 **前端**
 
 ```bash
@@ -39,9 +44,9 @@ npm ci
 npm run dev
 ```
 
-浏览器访问开发服务器提示的地址（一般为 `http://localhost:5173`，以 Vite 输出为准）。
+开发服务器地址与端口由 **`.env`** 中 `VITE_DEV_SERVER_PORT` 等决定；代理目标由 `VITE_PROXY_*` 决定（`vite.config.ts` 从**仓库根**加载 `.env`）。
 
-**后端（示例：生成并运行 User.Api，具体端口以 `launchSettings.json` 为准）**
+**后端（示例：User.Api）**
 
 ```bash
 cd backend/src
@@ -49,14 +54,16 @@ dotnet build JIssWeb.sln
 dotnet run --project JIssWeb.User.Api
 ```
 
-**Docker Compose（默认：Mongo、Redis、user-api、frontend-bff、gateway-api）**
+监听地址与端口以各项目 `launchSettings.json` 及本地配置为准。
+
+**Docker Compose**
 
 ```bash
 cd <仓库根目录>
 docker compose up -d --build
 ```
 
-首次需构建镜像。若只想起数据库与 Redis：`docker compose up -d mongo redis`。验证：各服务健康后，端口与 `appsettings` / `vite` 代理一致即可联调。
+依赖根目录 **`.env`** 中全部必填变量。若只想起数据库与 Redis：`docker compose up -d mongo redis`。
 
 ---
 
@@ -64,12 +71,13 @@ docker compose up -d --build
 
 | 类别 | 位置 / 方式 |
 |------|-------------|
-| 前端开发代理 | `frontend/vite.config.ts`（各后端路径前缀与端口） |
-| 后端连接串 | 各 `*.Api/appsettings*.json`，含 `Jwt`、`Mongo`、`Redis` 等节 |
-| 网关 / 网关环境变量示例 | `docker/gateway.env.example` |
-| Gitee 同步脚本凭证 | `scripts/gitee-sync/.env.example` → 本地 `.env`（`GITEE_OWNER`、`GITEE_REPO`、`GITEE_ACCESS_TOKEN`；勿提交令牌） |
+| 编排与密钥 | 仓库根 **`.env`**（从 **`.env.example`** 复制） |
+| 前端开发代理 | **`.env`** 中 `VITE_*`，由 `frontend/vite.config.ts` 读取仓库根 `.env` |
+| 后端连接串与外链 | 各 `*.Api/appsettings.json`（占位）+ **`appsettings.Local.json`**（从 `*.Local.example.json` 复制） |
+| 网关（本地 dotnet） | `JIssWeb.Gateway.Api` 的 **`appsettings.Local.json`**（见 `appsettings.Local.example.json`） |
+| Gitee 同步脚本 | `scripts/gitee-sync/.env.example` → 本地 `.env`（勿提交令牌） |
 
-敏感信息一律通过环境变量或本地忽略文件注入，不要写入仓库。
+敏感信息一律通过上述本地文件或环境变量注入，不要写入仓库。
 
 ---
 
@@ -81,10 +89,10 @@ docker compose up -d --build
 jIssWeb/
 ├── backend/src/           # .NET 解决方案：Common、Domain、各 *.Api、Gateway、Bff 等
 ├── frontend/              # Vue 3 + TypeScript + Vite + Element Plus
-├── docker/                # Redis 配置、网关相关示例
+├── docker/                # Redis 配置、Dockerfile 等
 ├── scripts/gitee-sync/    # pm-plan YAML、Gitee 同步脚本
 ├── openspec/              # OpenSpec 变更与归档 specs
-└── docker-compose.yml     # 本地依赖与 API、网关（默认一并启动）
+└── docker-compose.yml     # 本地依赖与 API、网关（变量来自 .env）
 ```
 
 ### 技术栈
@@ -102,13 +110,6 @@ jIssWeb/
 
 ## 五、本地数据库（Docker）
 
-| 服务 | 宿主机端口 | 账号 | 密码 |
-|------|------------|------|------|
-| MongoDB | 37017 | harrickheng | qq!219673605 |
-| Redis | 6380 | （默认用户，仅密码） | qq!219673605 |
+Mongo / Redis 的宿主机端口、账号及连接串均在根目录 **`.env`** 中配置；与容器内监听、数据卷名等对应关系见 **`.env.example`** 中的键名。
 
-容器内 Mongo 为 `27017`、Redis 为 `6379`；Compose 网络内服务名为 `mongo`、`redis`。
-
-Redis 客户端填 Host `127.0.0.1`、Port `6380`、Password；用户名留空或 `default`。
-
-若修改 `docker/redis.conf` 后仍无法连接，可先 `docker compose down`，删除对应 volume 后再 `docker compose up -d`（注意会清空 Redis 持久化数据）。
+若修改 Redis 配置或更换初始化凭据后无法连接，可先 `docker compose down`，按需删除对应 volume 后再 `docker compose up -d`（注意会清空持久化数据）。

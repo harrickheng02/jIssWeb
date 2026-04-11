@@ -6,7 +6,7 @@ public class RedisSettings
 
     public string ConnectionString { get; set; } = "localhost:6380";
 
-    public string Password { get; set; } = "qq!219673605";
+    public string Password { get; set; } = "";
 
     public string KeyPrefix { get; set; } = "";
 }
