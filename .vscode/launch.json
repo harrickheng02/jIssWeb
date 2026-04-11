@@ -2,76 +2,6 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "User.Api (5097)",
-      "type": "coreclr",
-      "request": "launch",
-      "program": "${workspaceFolder}/backend/src/JIssWeb.User.Api/bin/Debug/net8.0/JIssWeb.User.Api.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}/backend/src/JIssWeb.User.Api",
-      "console": "integratedTerminal",
-      "stopAtEntry": false,
-      "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:5097"
-      }
-    },
-    {
-      "name": "Customer.Api (5098)",
-      "type": "coreclr",
-      "request": "launch",
-      "program": "${workspaceFolder}/backend/src/JIssWeb.Customer.Api/bin/Debug/net8.0/JIssWeb.Customer.Api.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}/backend/src/JIssWeb.Customer.Api",
-      "console": "integratedTerminal",
-      "stopAtEntry": false,
-      "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:5098"
-      }
-    },
-    {
-      "name": "Model.Api (5099)",
-      "type": "coreclr",
-      "request": "launch",
-      "program": "${workspaceFolder}/backend/src/JIssWeb.Model.Api/bin/Debug/net8.0/JIssWeb.Model.Api.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}/backend/src/JIssWeb.Model.Api",
-      "console": "integratedTerminal",
-      "stopAtEntry": false,
-      "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:5099"
-      }
-    },
-    {
-      "name": "Accounting.Api (5100)",
-      "type": "coreclr",
-      "request": "launch",
-      "program": "${workspaceFolder}/backend/src/JIssWeb.Accounting.Api/bin/Debug/net8.0/JIssWeb.Accounting.Api.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}/backend/src/JIssWeb.Accounting.Api",
-      "console": "integratedTerminal",
-      "stopAtEntry": false,
-      "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:5100"
-      }
-    },
-    {
-      "name": "Report.Api (5101)",
-      "type": "coreclr",
-      "request": "launch",
-      "program": "${workspaceFolder}/backend/src/JIssWeb.Report.Api/bin/Debug/net8.0/JIssWeb.Report.Api.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}/backend/src/JIssWeb.Report.Api",
-      "console": "integratedTerminal",
-      "stopAtEntry": false,
-      "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:5101"
-      }
-    },
-    {
       "name": "Frontend (Vite)",
       "type": "node",
       "request": "launch",
@@ -80,33 +10,6 @@
       "cwd": "${workspaceFolder}/frontend",
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]
-    }
-  ],
-  "compounds": [
-    {
-      "name": "全部：五 API + 前端",
-      "configurations": [
-        "User.Api (5097)",
-        "Customer.Api (5098)",
-        "Model.Api (5099)",
-        "Accounting.Api (5100)",
-        "Report.Api (5101)",
-        "Frontend (Vite)"
-      ],
-      "stopAll": true,
-      "presentation": { "group": "jissweb", "order": 1 }
-    },
-    {
-      "name": "仅五 API",
-      "configurations": [
-        "User.Api (5097)",
-        "Customer.Api (5098)",
-        "Model.Api (5099)",
-        "Accounting.Api (5100)",
-        "Report.Api (5101)"
-      ],
-      "stopAll": true,
-      "presentation": { "group": "jissweb", "order": 2 }
     }
   ]
 }

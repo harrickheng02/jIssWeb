@@ -1,5 +1,5 @@
-# 仅依赖：docker compose up -d
-# 含示例 User.Api 镜像：docker compose --profile api up -d --build
+# 默认 `docker compose up` / Docker Desktop 启动：mongo、redis、user-api、model-api、frontend-bff、gateway-api
+# 仅起数据库与缓存：docker compose up -d mongo redis
 services:
   mongo:
     image: mongo:${MONGO_TAG:-7.0}
@@ -35,7 +35,6 @@ services:
       start_period: 5s
 
   user-api:
-    profiles: ["api"]
     build:
       context: .
       dockerfile: docker/JIssWeb.User.Api.Dockerfile
@@ -81,7 +80,6 @@ services:
         condition: service_healthy
 
   frontend-bff:
-    profiles: ["api"]
     build:
       context: .
       dockerfile: docker/JIssWeb.Frontend.Bff.Dockerfile
@@ -100,25 +98,49 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  model-api:
+    build:
+      context: .
+      dockerfile: docker/JIssWeb.Model.Api.Dockerfile
+    ports:
+      - "${MODEL_API_PORT:-5099}:5099"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Mongo__ConnectionString: mongodb://harrickheng:qq%21219673605@mongo:27017/?authSource=admin
+      Mongo__DatabaseName: jissweb_model
+      Redis__ConnectionString: redis:6379
+      Redis__Password: qq!219673605
+      Redis__KeyPrefix: "model:"
+      Jwt__Issuer: JIssWeb
+      Jwt__Audience: JIssWeb
+      Jwt__Key: change-me-in-production-use-32-chars-min!!
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   gateway-api:
-    profiles: ["api"]
     build:
       context: .
       dockerfile: docker/JIssWeb.Gateway.Api.Dockerfile
     ports:
       - "${GATEWAY_API_PORT:-5094}:5094"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Docker
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
       Jwt__Key: change-me-in-production-use-32-chars-min!!
       ReverseProxy__Clusters__user-service__Destinations__d1__Address: ${GATEWAY_USER_API_URL:-http://user-api:5097/}
       ReverseProxy__Clusters__customer-service__Destinations__d1__Address: ${GATEWAY_CUSTOMER_API_URL:-http://host.docker.internal:5098/}
       ReverseProxy__Clusters__frontend-bff__Destinations__d1__Address: ${GATEWAY_BFF_URL:-http://frontend-bff:5095/}
+      ReverseProxy__Clusters__model-service__Destinations__d1__Address: ${GATEWAY_MODEL_API_URL:-http://model-api:5099/}
     depends_on:
       user-api:
         condition: service_started
       frontend-bff:
+        condition: service_started
+      model-api:
         condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"

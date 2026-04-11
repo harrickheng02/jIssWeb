@@ -1,59 +1,114 @@
 # JIssWeb
 
-## 论坛方向产品与路线图
+**论坛方向 Web 应用骨架**：多领域后端服务 + Vue 3 单页前端，统一鉴权与本地依赖。
 
-**当前完成度（截至归档 `add-forum-homepage-skeleton` 后）**
-
-- 前端：Vue 3 SPA；`/` 为论坛首页壳（顶栏、左分类、Feed、右侧热门/标签/公告、响应式）；`/auth` 统一登录注册；路由守卫保护客档/个人资料等既有页面；鉴权与 axios 骨架已具备。
-- 后端：多服务骨架（用户签发 JWT、客档/模型/账款/报表等占位 + 健康检查）；网关/BFF 可按仓库既有配置扩展；论坛业务 API 尚未落地。
-- 数据：本地 MongoDB/Redis 由 Compose 提供（见下节）。
-
-### 需求模块
-
-| 模块 | 说明 |
-|------|------|
-| 账号与访问 | 注册、登录、会话、找回密码、邮箱验证；与论坛身份绑定 |
-| 论坛壳与导航 | 全局顶栏、版区/分类入口、主题切换、统一发帖入口（与首页壳衔接） |
-| 帖子与回复 | 发帖、正文与附件策略、楼层回复、编辑删除、草稿 |
-| 互动与声望 | 点赞/踩、收藏、关注、积分或等级（可与用户服务扩展） |
-| 版区与标签 | 分区、置顶、精华、标签体系与筛选 |
-| 搜索与发现 | 全站/分区内搜索、热门与推荐 Feed（对接报表或检索占位） |
-| 消息与通知 | 回复提醒、@、系统通知；可选站内信 |
-| 个人中心 | 资料、我的帖子/回复、设置；与现有 Profile 能力合并演进 |
-| 治理与审核 | 举报、屏蔽词、版主操作、审计日志 |
-| 运营与公告 | 公告位、活动 Banner（与首页右侧公告模块衔接） |
-| 平台与基础设施 | 多服务鉴权、BFF/网关、限流、文件存储、Mongo/Redis 使用规范 |
-
-### 功能优先级
-
-- **P0（闭环必备）**：账号与访问；帖子与回复最小闭环；版区与标签最小集；论坛壳与导航与现有路由一致；个人中心基础资料与「我的内容」入口。
-- **P1（留存与活跃）**：互动与声望基础版；搜索与发现（站内标题/作者）；消息与通知（至少回复提醒）；运营与公告（后台或配置驱动）。
-- **P2（规模与合规）**：治理与审核完整链路；推荐与排序策略；附件与富文本深度；性能与缓存策略细化。
-
-### 开发里程碑
-
-- **M1 — 可演示论坛 MVP**：用户服务真实注册登录与 JWT；论坛领域首组 API（帖子列表/详情、发帖、回复）；首页 Feed 与帖子页接真实数据；分类与标签只读配置。
-- **M2 — 互动与发现**：点赞收藏、通知订阅、基础搜索；个人中心与帖子/回复管理；公告与热门数据接口。
-- **M3 — 治理与增长**：审核与举报、反垃圾策略占位；推荐/排序迭代；运营配置与数据统计报表对接。
-
-### Issue 与看板（Gitee）
-
-- 新建 Issue 时选用模板 **论坛开发任务**；标题建议 `M1: 简述` 等，便于列表筛选。
-- 在仓库 **里程碑** 中维护 M1、M2、M3（与上文一致）；每个 Issue 关联对应里程碑。
-- 使用 **项目看板**（或「任务」视图）：列建议「待办 → 进行中 → 待评审 → 完成」；用标签区分优先级：`P0` / `P1` / `P2`（与上文优先级一致）。
-- 阶段结束后更新本节「当前完成度」；合并请求尽量关联 Issue 编号。
+> 当前前端版本：`frontend/package.json` 中 `version`；后端目标框架：**.NET 8**。
 
 ---
 
-## 本地数据库（Docker）
+## 一、项目简介
+
+| 维度 | 说明 |
+|------|------|
+| **解决什么问题** | 在统一技术栈下拆分用户、客档、模型、账款、报表等后端边界，前端用一套壳接入；产品形态向**论坛**演进（首页 Feed、版区、发帖等）。 |
+| **核心能力** | Vue 3 + Vite + Pinia 论坛首页壳与 `/auth` 统一认证；多 ASP.NET Core API + JWT；Docker 本地 MongoDB/Redis；可选 YARP 网关与 BFF。 |
+| **适用人群** | 本仓库维护者、全栈/前后端在本地联调与按 OpenSpec 迭代功能的开发者。 |
+
+---
+
+## 二、快速开始
+
+### 环境要求
+
+- **Node.js**：建议 18+（用于前端与 `scripts/gitee-sync`）
+- **.NET SDK**：8.x（构建 `backend/src` 解决方案）
+- **Docker**：用于本地 MongoDB / Redis（及部分示例 API 镜像）
+
+### 克隆与依赖
+
+```bash
+git clone <你的仓库地址> jIssWeb
+cd jIssWeb
+```
+
+**前端**
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+浏览器访问开发服务器提示的地址（一般为 `http://localhost:5173`，以 Vite 输出为准）。
+
+**后端（示例：生成并运行 User.Api，具体端口以 `launchSettings.json` 为准）**
+
+```bash
+cd backend/src
+dotnet build JIssWeb.sln
+dotnet run --project JIssWeb.User.Api
+```
+
+**Docker Compose（默认：Mongo、Redis、user-api、frontend-bff、gateway-api）**
+
+```bash
+cd <仓库根目录>
+docker compose up -d --build
+```
+
+首次需构建镜像。若只想起数据库与 Redis：`docker compose up -d mongo redis`。验证：各服务健康后，端口与 `appsettings` / `vite` 代理一致即可联调。
+
+---
+
+## 三、配置说明
+
+| 类别 | 位置 / 方式 |
+|------|-------------|
+| 前端开发代理 | `frontend/vite.config.ts`（各后端路径前缀与端口） |
+| 后端连接串 | 各 `*.Api/appsettings*.json`，含 `Jwt`、`Mongo`、`Redis` 等节 |
+| 网关 / 网关环境变量示例 | `docker/gateway.env.example` |
+| Gitee 同步脚本凭证 | `scripts/gitee-sync/.env.example` → 本地 `.env`（`GITEE_OWNER`、`GITEE_REPO`、`GITEE_ACCESS_TOKEN`；勿提交令牌） |
+
+敏感信息一律通过环境变量或本地忽略文件注入，不要写入仓库。
+
+---
+
+## 四、技术架构
+
+### 目录结构（节选）
+
+```text
+jIssWeb/
+├── backend/src/           # .NET 解决方案：Common、Domain、各 *.Api、Gateway、Bff 等
+├── frontend/              # Vue 3 + TypeScript + Vite + Element Plus
+├── docker/                # Redis 配置、网关相关示例
+├── scripts/gitee-sync/    # pm-plan YAML、Gitee 同步脚本
+├── openspec/              # OpenSpec 变更与归档 specs
+└── docker-compose.yml     # 本地依赖与 API、网关（默认一并启动）
+```
+
+### 技术栈
+
+| 层次 | 技术 |
+|------|------|
+| 前端 | Vue 3、TypeScript、Vite、Pinia、vue-router、Element Plus、axios |
+| 后端 | ASP.NET Core、JWT（用户服务签发，他服务校验） |
+| 数据与缓存 | MongoDB、Redis（按服务配置节接入） |
+| 容器与编排 | Docker Compose |
+
+更细的契约见 `openspec/specs/` 下各能力说明。
+
+---
+
+## 五、本地数据库（Docker）
 
 | 服务 | 宿主机端口 | 账号 | 密码 |
 |------|------------|------|------|
 | MongoDB | 37017 | harrickheng | qq!219673605 |
 | Redis | 6380 | （默认用户，仅密码） | qq!219673605 |
 
-容器内 Mongo 27017、Redis 6379；Compose 内用服务名 `mongo`、`redis`。
+容器内 Mongo 为 `27017`、Redis 为 `6379`；Compose 网络内服务名为 `mongo`、`redis`。
 
-Redis 使用 `requirepass`，客户端/RedisInsight 填 Host `127.0.0.1`、Port `6380`、Password；用户名留空或 `default`。
+Redis 客户端填 Host `127.0.0.1`、Port `6380`、Password；用户名留空或 `default`。
 
-修改 `docker/redis.conf` 或从 ACL 改为 `requirepass` 后，若仍连不上，先删 Redis 卷再启：`docker compose down`，`docker volume rm jissweb_redis_data`（或 `docker compose down -v`），再 `docker compose up -d`。
+若修改 `docker/redis.conf` 后仍无法连接，可先 `docker compose down`，删除对应 volume 后再 `docker compose up -d`（注意会清空 Redis 持久化数据）。

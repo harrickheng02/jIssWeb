@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+---
+
+# UI 实现纪律（Vue3 + Element Plus）
+
+## 三层约束（必须遵守顺序）
+
+1. **设计规范** — `docs/ui/design-spec.md` 与 `ui-design.mdc`（语义与数值）。
+2. **Design Tokens** — 仅使用 `frontend/src/styles/forum-tokens.css` 中变量：`var(--color-primary)`、`var(--bg-main)`、`var(--text-primary)`、`var(--border-color)`、`var(--space-*)`、`var(--radius-*)`、`var(--font-*)`、`var(--line-height)` 等。
+3. **组件** — 以 Element Plus 为底；跨页面重复封装到 `frontend/src/components/ui/`（例如 `BaseButton.vue`），再组合业务页。
+
+## 样式
+
+- **禁止**在样式中写死色值（如 `#fff`、`#000`，含 rgb/rgba 用于「填色」的场景）；阴影/透明叠层尽量用 token 或 `color-mix` 基于 token。
+- 主色、背景、文案、边框一律 `var(--…)`。
+- 优先 `<style scoped>`；避免全局污染；类名倾向 `block__element--modifier`。
+- **禁止**滥用 `::v-deep` / `:deep()`；先考虑 EP 的 `class`、插槽或官方变量。
+
+## Element Plus
+
+- 不随意覆盖组件内部样式；需要统一视觉时优先 **forum-tokens 中的 EP 桥接变量** 或工具类 `.forum-card`。
+- 主要操作必须用 **`el-button type="primary"`**（或通过 `BaseButton` 传 `type="primary"`）。
+- 非必要不手写自定义按钮样式。
+
+## 布局
+
+- 优先 flex；保持响应式；避免绝对定位做常规排版。
+
+## 论坛内容
+
+- 列表标题、摘要：**最多两行** + 省略（`-webkit-line-clamp` 等）。
+
+## 禁止
+
+- `inline style`（除非运行期动态值）。
+- 在业务组件里复制一套与 token 冲突的色板或间距。
+
+## 摘要
+
+实现必须 **token 驱动**、视觉一致、可读；避免临时拼样式。

@@ -32,6 +32,10 @@ export default defineConfig({
       '/api-model': local(5099, '/api-model'),
       '/api-accounting': local(5100, '/api-accounting'),
       '/api-report': local(5101, '/api-report'),
+      '/api/forum': {
+        target: 'http://localhost:5099',
+        changeOrigin: true,
+      },
       '/api': local(5094, '/api', false),
     },
   },

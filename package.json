@@ -1,0 +1,10 @@
+{
+  "name": "jissweb",
+  "private": true,
+  "scripts": {
+    "pm:ci": "npm ci --prefix scripts/gitee-sync",
+    "pm:pull": "npm run pm-pull --prefix scripts/gitee-sync",
+    "pm:push": "npm run pm-push --prefix scripts/gitee-sync",
+    "pm:dry": "npm run pm-dry --prefix scripts/gitee-sync"
+  }
+}

@@ -1,0 +1,109 @@
+meta:
+  product: 论坛方向 Web 应用
+modules:
+  - name: 账号与访问
+    description: 邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange 换票）；登录/注册页合规入口与路由守卫；找回密码与第三方登录仅前端占位；登录错误码与限流以 user-service 为准；身份 claims（sub）与 Profile/论坛内容作者 ID 的对齐见 openspec/specs/token-identity-consistency，与帖子与回复、个人中心协同定义。
+  - name: 论坛壳与导航
+    description: 全局顶栏、版区/分类入口、主题切换、统一发帖入口（与首页壳衔接）
+  - name: 帖子与回复
+    description: 发帖、正文与附件策略、楼层回复、编辑删除、草稿
+  - name: 互动与声望
+    description: 点赞/踩、收藏、关注、积分或等级（可与用户服务扩展）
+  - name: 版区与标签
+    description: 分区、置顶、精华、标签体系与筛选
+  - name: 搜索与发现
+    description: 全站/分区内搜索、热门与推荐 Feed（对接报表或检索占位）
+  - name: 消息与通知
+    description: 回复提醒、@、系统通知；可选站内信
+  - name: 个人中心
+    description: 资料、我的帖子/回复、设置；与现有 Profile 能力合并演进
+  - name: 治理与审核
+    description: 举报、屏蔽词、版主操作、审计日志
+  - name: 运营与公告
+    description: 公告位、活动 Banner（与首页右侧公告模块衔接）
+  - name: 平台与基础设施
+    description: 多服务鉴权、BFF/网关、限流、文件存储、Mongo/Redis 使用规范
+priority_definitions:
+  不指定: 尚未归类优先级或暂缓决策。
+  不重要: 低优先级改进或排期靠后。
+  次要: 规模与合规、非核心路径或体验增强；可延后。
+  主要: 留存与活跃相关；搜索、通知、互动基础等。
+  严重: 闭环必备；账号与访问、帖子与回复最小闭环、论坛壳与导航、个人中心基础等。
+gitee_priority:
+  api_numeric:
+    不指定: 0
+    不重要: 1
+    次要: 2
+    主要: 3
+    严重: 4
+gitee_content_classifications:
+  - bug
+  - duplicate
+  - enhancement
+  - feature
+  - invalid
+  - question
+  - wontfix
+milestones:
+  - title: M1 — 可演示论坛 MVP
+    description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据；分类与标签只读
+    due_on: 2026-06-30
+  - title: M2 — 互动与发现
+    description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口
+    due_on: 2026-09-30
+  - title: M3 — 治理与增长
+    description: 审核举报、反垃圾占位；推荐排序；运营与报表
+    due_on: 2026-12-31
+issues:
+  - title: 论坛领域首组 API（列表/详情/发帖/回复）
+    body: |
+      验收标准：
+      - 提供可调用的一组 HTTP API（列表、详情、发帖、回复或文档列出的最小子集），有统一错误与分页约定（若适用）。
+      - 响应字段满足论坛 Feed/卡片所需最小信息（标题、摘要、作者、时间、标签、计数等），与 forum-homepage-shell 数据需求可对齐。
+      - 有基本鉴权边界（公开只读 vs 写操作需登录），行为可演示。
+      依赖：openspec/specs/forum-homepage-shell/spec.md；里程碑 M1 描述。
+      非目标：搜索、通知、治理；完整附件与富文本策略可后续条目覆盖。
+    milestone: M1 — 可演示论坛 MVP
+    gitee_number: IIH689
+    priority: 严重
+    state: closed
+    module: 帖子与回复
+    classification: enhancement
+  - title: 基础搜索与通知
+    body: |
+      验收标准：
+      - 搜索：至少支持按标题或作者关键词返回帖子列表（后端 API 或 BFF 聚合），与前端约定查询参数与分页。
+      - 通知：至少一种可验证投递方式（站内/邮件/实时通道等择一），能关联「被回复」或「被 @」等最小事件之一。
+      - 有基本失败与空结果行为，可联调或集成测试验证。
+      依赖：里程碑 M2；与 openspec 中检索、通知相关条款（若有）对齐。
+      非目标：全文搜索引擎替换、多语言分词、全渠道推送矩阵。
+    milestone: M2 — 互动与发现
+    gitee_number: IIH7CX
+    priority: 主要
+    state: open
+    module: 搜索与发现
+    classification: feature
+  - title: 找回密码（邮箱重置链路）
+    body: |
+      验收标准：
+      - 用户可通过「忘记密码」提交已注册邮箱，后端完成重置令牌或安全链接校验与密码更新，前端 `/auth/forgot`（ForgotPasswordView）从占位改为完整流程。
+      - 与 user-service 错误码、限流策略一致；非法或过期令牌有明确提示。
+      依赖：openspec/specs/user-service/spec.md；现有 `/auth/*` 约定。
+      非目标：短信验证、多因素认证。
+    milestone: M1 — 可演示论坛 MVP
+    priority: 主要
+    state: open
+    module: 账号与访问
+    classification: feature
+  - title: HTTP 401 时自动 refresh 并重试请求
+    body: |
+      验收标准：
+      - 受保护 API 返回 401（access 过期）时，若存在有效 refresh，则调用 `/auth/refresh` 成功后自动重试原请求一次；refresh 失败则清会话并引导登录。
+      - 并发请求下避免重复 refresh（串行或单例）；与 `main.ts` 启动时 refresh 语义一致。
+      依赖：frontend axios 与 `stores/auth`；user-service 刷新与吊销约定。
+      非目标：无 refresh 时的静默重新登录（可继续跳转 `/auth`）。
+    milestone: M1 — 可演示论坛 MVP
+    priority: 次要
+    state: open
+    module: 账号与访问
+    classification: enhancement

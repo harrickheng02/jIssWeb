@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { createForumPost, getForumBoards, listForumPosts, type ForumBoardItem, type ForumPostListItem } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 
 type SidebarItem = {
@@ -9,23 +10,11 @@ type SidebarItem = {
   label: string
 }
 
-type PostItem = {
-  id: number
-  title: string
-  excerpt: string
-  author: string
-  publishedAt: string
-  board: string
-  tags: string[]
-  likes: number
-  comments: number
-  views: number
-}
-
 const router = useRouter()
 const auth = useAuthStore()
 const activeFilter = ref<'latest' | 'hot' | 'featured'>('latest')
 const activeSidebar = ref('all')
+const forumBoards = ref<ForumBoardItem[]>([])
 
 const filters = [
   { id: 'latest', label: '最新' },
@@ -33,66 +22,22 @@ const filters = [
   { id: 'featured', label: '精华' },
 ] as const
 
-const sidebarItems: SidebarItem[] = [
+const sidebarItems = computed<SidebarItem[]>(() => [
   { id: 'all', label: '全部' },
-  { id: 'hot', label: '热门' },
-  { id: 'latest', label: '最新' },
-  { id: 'tech', label: '技术' },
-  { id: 'game', label: '游戏' },
-  { id: 'rant', label: '吐槽' },
-  { id: 'qa', label: '问答' },
-]
+  ...forumBoards.value.map((b) => ({ id: b.id, label: b.title })),
+])
 
-const postList: PostItem[] = [
-  {
-    id: 101,
-    title: 'Vue 3 + Element Plus 做论坛首页，第一版骨架怎么拆最稳？',
-    excerpt: '目前先做首页骨架，目标是内容优先、发帖入口清晰、分类结构稳定，后续再接真实帖子与标签接口。',
-    author: 'northwind',
-    publishedAt: '10 分钟前',
-    board: '技术',
-    tags: ['Vue3', 'ElementPlus', '前端'],
-    likes: 24,
-    comments: 8,
-    views: 312,
-  },
-  {
-    id: 102,
-    title: '新站冷启动时，论坛首页到底先做分类还是先做标签？',
-    excerpt: '如果内容量还不大，首页要先保证可读性和发帖转化，标签和板块的权重要怎么分比较合适？',
-    author: 'raincode',
-    publishedAt: '32 分钟前',
-    board: '问答',
-    tags: ['社区产品', '标签', '分类'],
-    likes: 17,
-    comments: 13,
-    views: 428,
-  },
-  {
-    id: 103,
-    title: '最近玩的几个独立游戏，聊聊真正让人上头的点',
-    excerpt: '不是画面，也不是体量，更多是节奏、反馈和社区讨论氛围。顺手开个帖，欢迎补充。',
-    author: 'summerfox',
-    publishedAt: '1 小时前',
-    board: '游戏',
-    tags: ['独立游戏', '推荐'],
-    likes: 39,
-    comments: 21,
-    views: 680,
-  },
-  {
-    id: 104,
-    title: '今天就想吐槽一下：很多社区首页把信息密度做没了',
-    excerpt: '明明论坛首页最重要的是快速扫内容，结果搞成大卡片和大留白，第一页都看不到几条帖子。',
-    author: 'plaintext',
-    publishedAt: '2 小时前',
-    board: '吐槽',
-    tags: ['产品', 'UI'],
-    likes: 52,
-    comments: 34,
-    views: 941,
-  },
-]
+const postList = ref<ForumPostListItem[]>([])
+const listLoading = ref(false)
+const listError = ref<string | null>(null)
+const page = ref(1)
+const pageSize = ref(20)
+const totalCount = ref(0)
+const composeOpen = ref(false)
+const composeTitle = ref('')
+const composeBody = ref('')
+const composeBoardId = ref('general')
+const composeSubmitting = ref(false)
 
 const hotPosts = [
   '新人报道区要不要单独放在顶部？',
@@ -106,12 +51,97 @@ const hotTags = ['论坛', '首页骨架', 'Vue3', '板块', '标签', '产品',
 
 const isAuthed = computed(() => Boolean(auth.token))
 
+const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)))
+
+function listBoardIdParam() {
+  return activeSidebar.value === 'all' ? undefined : activeSidebar.value
+}
+
+function defaultComposeBoardId() {
+  if (forumBoards.value.some((b) => b.id === 'general')) return 'general'
+  return forumBoards.value[0]?.id ?? 'general'
+}
+
+function formatPublishedUtc(iso: string) {
+  const d = new Date(iso)
+  const diff = Date.now() - d.getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return '刚刚'
+  if (m < 60) return `${m} 分钟前`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h} 小时前`
+  const days = Math.floor(h / 24)
+  if (days < 7) return `${days} 天前`
+  return d.toLocaleDateString('zh-CN')
+}
+
+function shortAuthor(id: string) {
+  return id.length <= 14 ? id : `${id.slice(0, 10)}…`
+}
+
+async function fetchPosts() {
+  listLoading.value = true
+  listError.value = null
+  try {
+    const res = await listForumPosts(page.value, pageSize.value, listBoardIdParam())
+    if (!res.success || !res.data) {
+      listError.value = res.message ?? '加载失败'
+      postList.value = []
+      return
+    }
+    postList.value = res.data.items
+    totalCount.value = res.data.totalCount
+  } catch (e) {
+    listError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
+    postList.value = []
+    totalCount.value = 0
+  } finally {
+    listLoading.value = false
+  }
+}
+
 function handleCreatePost() {
   if (!isAuthed.value) {
     void router.push('/auth')
     return
   }
-  ElMessage.info('发帖功能开发中')
+  composeTitle.value = ''
+  composeBody.value = ''
+  composeBoardId.value = defaultComposeBoardId()
+  composeOpen.value = true
+}
+
+async function submitCompose() {
+  const title = composeTitle.value.trim()
+  const body = composeBody.value.trim()
+  if (!title || !body) {
+    ElMessage.warning('请填写标题与正文')
+    return
+  }
+  composeSubmitting.value = true
+  try {
+    const res = await createForumPost({
+      title,
+      body,
+      boardId: composeBoardId.value,
+    })
+    if (!res.success || !res.data?.id) {
+      ElMessage.error(res.message ?? '发帖失败')
+      return
+    }
+    composeOpen.value = false
+    ElMessage.success('已发布')
+    await fetchPosts()
+    void router.push({ name: 'post-detail', params: { id: res.data.id } })
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '发帖失败')
+  } finally {
+    composeSubmitting.value = false
+  }
+}
+
+function goPost(id: string) {
+  void router.push({ name: 'post-detail', params: { id } })
 }
 
 function handleProtectedAction(name: string) {
@@ -125,6 +155,48 @@ function handleProtectedAction(name: string) {
 function handleOpenPlaceholder(name: string) {
   ElMessage.info(`${name}页面开发中`)
 }
+
+function prevPage() {
+  if (page.value <= 1) return
+  page.value -= 1
+}
+
+function nextPage() {
+  if (page.value >= totalPages.value) return
+  page.value += 1
+}
+
+watch(activeSidebar, () => {
+  page.value = 1
+})
+
+watch(
+  [page, activeSidebar],
+  () => {
+    void fetchPosts()
+  },
+  { immediate: true },
+)
+
+async function loadForumBoards() {
+  try {
+    const r = await getForumBoards()
+    if (r.success && r.data?.length) {
+      forumBoards.value = r.data
+      await fetchPosts()
+      return
+    }
+    ElMessage.warning(
+      r.success ? '板块配置为空，侧栏仅显示全部' : (r.message ?? '板块配置加载失败，侧栏仅显示全部'),
+    )
+  } catch {
+    ElMessage.warning('板块配置加载失败（网络异常），侧栏仅显示全部')
+  }
+}
+
+onMounted(() => {
+  void loadForumBoards()
+})
 </script>
 
 <template>
@@ -174,21 +246,25 @@ function handleOpenPlaceholder(name: string) {
           </div>
         </el-card>
 
-        <div class="post-list">
+        <el-skeleton v-if="listLoading" :rows="6" animated />
+
+        <div v-else-if="listError" class="list-error">{{ listError }}</div>
+
+        <div v-else class="post-list">
           <el-card v-for="post in postList" :key="post.id" class="post-card" shadow="hover">
             <div class="post-topline">
               <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
-              <span class="post-time">{{ post.publishedAt }}</span>
+              <span class="post-time">{{ formatPublishedUtc(post.publishedAtUtc) }}</span>
             </div>
 
-            <el-link class="post-title" :underline="false" @click="handleOpenPlaceholder('帖子详情')">
+            <el-link class="post-title" :underline="false" @click="goPost(post.id)">
               {{ post.title }}
             </el-link>
 
             <p class="post-excerpt">{{ post.excerpt }}</p>
 
             <div class="post-meta">
-              <el-link :underline="false" @click="handleOpenPlaceholder('用户主页')">{{ post.author }}</el-link>
+              <el-link :underline="false" @click="handleOpenPlaceholder('用户主页')">{{ shortAuthor(post.authorId) }}</el-link>
               <div class="tag-list">
                 <el-tag
                   v-for="tag in post.tags"
@@ -204,17 +280,37 @@ function handleOpenPlaceholder(name: string) {
 
             <div class="post-stats">
               <button class="stat-btn" type="button" @click="handleProtectedAction('点赞')">赞 {{ post.likes }}</button>
-              <button class="stat-btn" type="button" @click="handleProtectedAction('评论')">评 {{ post.comments }}</button>
+              <button class="stat-btn" type="button" @click="goPost(post.id)">评 {{ post.comments }}</button>
               <span class="stat-text">看 {{ post.views }}</span>
             </div>
           </el-card>
         </div>
 
-        <div class="pager">
-          <el-button disabled>上一页</el-button>
-          <el-button type="primary" plain>第 1 页</el-button>
-          <el-button @click="handleOpenPlaceholder('分页')">下一页</el-button>
+        <div v-if="!listLoading && !listError" class="pager">
+          <el-button :disabled="page <= 1" @click="prevPage">上一页</el-button>
+          <el-button type="primary" plain>第 {{ page }} / {{ totalPages }} 页</el-button>
+          <el-button :disabled="page >= totalPages" @click="nextPage">下一页</el-button>
         </div>
+
+        <el-dialog v-model="composeOpen" title="发帖" width="520px" destroy-on-close>
+          <el-form label-position="top">
+            <el-form-item label="标题">
+              <el-input v-model="composeTitle" maxlength="200" show-word-limit />
+            </el-form-item>
+            <el-form-item label="正文">
+              <el-input v-model="composeBody" type="textarea" :rows="8" maxlength="20000" show-word-limit />
+            </el-form-item>
+            <el-form-item label="板块">
+              <el-select v-model="composeBoardId" class="compose-board-select">
+                <el-option v-for="b in forumBoards" :key="b.id" :label="b.title" :value="b.id" />
+              </el-select>
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <el-button @click="composeOpen = false">取消</el-button>
+            <el-button type="primary" :loading="composeSubmitting" @click="submitCompose">发布</el-button>
+          </template>
+        </el-dialog>
       </section>
 
       <aside class="right-panel">
@@ -249,7 +345,7 @@ function handleOpenPlaceholder(name: string) {
 
         <el-card shadow="never">
           <template #header>公告</template>
-          <div class="notice-text">论坛首页第一版已上线，当前为静态骨架，帖子、板块、标签接口将在后续接入。</div>
+          <div class="notice-text">帖子列表与详情已接入论坛 API；互动与搜索等功能将陆续上线。</div>
         </el-card>
       </aside>
     </main>
@@ -286,6 +382,10 @@ function handleOpenPlaceholder(name: string) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-12);
+}
+
+.compose-board-select {
+  width: 100%;
 }
 
 .sidebar-btn {
@@ -342,6 +442,11 @@ function handleOpenPlaceholder(name: string) {
   color: var(--text-secondary);
   font-size: var(--font-sm);
   line-height: var(--line-height);
+}
+
+.list-error {
+  color: var(--text-secondary);
+  padding: var(--space-md);
 }
 
 .post-list {

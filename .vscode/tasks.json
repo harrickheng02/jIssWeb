@@ -12,6 +12,14 @@
       },
       "presentation": { "reveal": "silent", "panel": "shared" },
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "docker compose up -d --build",
+      "type": "shell",
+      "command": "docker compose up -d --build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
     }
   ]
 }

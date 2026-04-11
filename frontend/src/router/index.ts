@@ -10,6 +10,11 @@ const router = createRouter({
       component: () => import('../views/HomeView.vue'),
     },
     {
+      path: '/posts/:id',
+      name: 'post-detail',
+      component: () => import('../views/PostDetailView.vue'),
+    },
+    {
       path: '/auth',
       name: 'auth',
       meta: { hideAppShell: true },

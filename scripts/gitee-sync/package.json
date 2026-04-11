@@ -1,0 +1,13 @@
+{
+  "name": "gitee-pm-sync",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pm-pull": "node index.mjs --pull",
+    "pm-push": "node index.mjs --dry-run && node index.mjs",
+    "pm-dry": "node index.mjs --dry-run"
+  },
+  "dependencies": {
+    "yaml": "^2.8.3"
+  }
+}

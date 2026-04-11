@@ -17,7 +17,7 @@ public static class WebApiHostExtensions
 {
     public static WebApplicationBuilder UseJIssWebHttpPort(this WebApplicationBuilder builder, int port)
     {
-        builder.WebHost.UseSetting("urls", $"http://127.0.0.1:{port}");
+        builder.WebHost.UseSetting("urls", $"http://0.0.0.0:{port}");
         return builder;
     }
 

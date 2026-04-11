@@ -1,0 +1,263 @@
+---
+alwaysApply: true
+---
+
+# UI Design Rules (Forum Project)
+
+## 三层约束
+
+| 层级 | 位置 |
+|------|------|
+| 设计规范（文档） | `docs/ui/design-spec.md` + 下文数值 |
+| Design Tokens | `frontend/src/styles/forum-tokens.css`（唯一源：`--color-primary`、`--bg-main`、`--text-primary`、`--border-color`、`--space-*`、`--radius-*`、`--font-*` 等） |
+| 组件封装 | `frontend/src/components/ui/*`（如 `BaseButton`）+ Element Plus |
+
+工程侧禁止事项与实现句式见 **`forum-ui-implementation.mdc`**。
+
+## 🎯 Goal
+
+Ensure all generated UI code follows a consistent, clean, and readable design system optimized for forum-style content platforms.
+
+---
+
+## 🎨 Color System
+
+* Use CSS variables for all colors
+* Do NOT hardcode colors
+
+### Primary Colors
+
+* Primary: `#1677FF`
+* Hover: `#4096FF`
+* Active: `#0958D9`
+
+### Neutral Colors
+
+* Text Primary: `#1F1F1F`
+* Text Secondary: `#595959`
+* Text Disabled: `#BFBFBF`
+* Background Main: `#F5F5F5`
+* Card Background: `#FFFFFF`
+* Border: `#E5E6EB`
+
+### Rules
+
+* Avoid pure black (#000000)
+* Prefer soft gray backgrounds
+* Maintain sufficient contrast for readability
+
+---
+
+## 🔤 Typography
+
+### Font Sizes
+
+* xs: 12px
+* sm: 14px
+* md: 16px
+* lg: 18px
+* xl: 20px
+* xxl: 24px
+
+### Line Height
+
+* Default: 1.6
+* Dense: 1.4
+* Loose: 1.8
+
+### Rules
+
+* Body text must use at least 1.6 line-height
+* Titles should use medium or bold weight
+* Do not mix too many font sizes in one component
+
+---
+
+## 📐 Spacing System
+
+Use 8px grid system ONLY.
+
+Spacing scale:
+
+* 4px, 8px, 12px, 16px, 24px, 32px, 40px
+
+### Rules
+
+* No arbitrary spacing values (e.g., 13px, 22px)
+* Keep consistent padding inside components
+* Maintain clear separation between sections
+
+---
+
+## 🧱 Layout
+
+### Container
+
+* Max width: 1200px
+
+### Forum Layout
+
+* Left sidebar: 240px
+* Content: flexible (600–720px preferred)
+* Right sidebar: 300px
+
+### Rules
+
+* Use flex or grid for layout
+* Avoid absolute positioning unless necessary
+* Ensure responsive behavior
+
+---
+
+## 🧩 Components
+
+### Card
+
+* Background: white
+* Border: 1px solid #E5E6EB
+* Border radius: 12px
+* Padding: 16px
+
+Rules:
+
+* Prefer borders over heavy shadows
+* Content must be clearly structured
+
+---
+
+### Button
+
+Primary:
+
+* Background: primary color
+* Text: white
+
+Default:
+
+* White background
+* Gray border
+
+Sizes:
+
+* Height: 32px / 40px / 48px
+
+Rules:
+
+* Always include hover and active states
+* Do not invent new button styles unless necessary
+
+---
+
+### Input
+
+* Border radius: 8px
+* Border: 1px solid #E5E6EB
+* Padding: 8px 12px
+
+Focus:
+
+* Border color: primary
+
+Rules:
+
+* Inputs must have clear focus state
+* Avoid overly large input fields
+
+---
+
+### Tag
+
+* Background: light blue (#F0F5FF)
+* Text: primary color
+* Radius: 6px
+* Padding: 2px 8px
+
+---
+
+## 🧵 Post List (Core UI)
+
+Each post item must include:
+
+* Title (16–18px, bold)
+* Summary (14px, secondary text)
+* Tags
+* Author + time
+* Stats (likes, comments, views)
+
+Rules:
+
+* Title max 2 lines
+* Summary max 2 lines
+* Maintain visual hierarchy
+
+---
+
+## 🧭 Interaction States
+
+### Hover
+
+* Background: #F5F5F5
+
+### Active
+
+* Opacity: 0.8
+
+### Disabled
+
+* Opacity: 0.5
+* Cursor: not-allowed
+
+---
+
+## 📱 Responsive Design
+
+Breakpoints:
+
+* sm: 768px
+* md: 1024px
+* lg: 1280px
+
+Rules:
+
+* Desktop: 3 columns
+* Tablet: 2 columns
+* Mobile: 1 column
+* Collapse sidebars on small screens
+
+---
+
+## 🌙 Dark Mode
+
+由主题切换写入 `html.dark` + `data-theme="dark"`；变量覆盖在 `forum-tokens.css` 的 `html.dark[data-theme='dark']` 中统一维护。
+
+---
+
+## 🚫 Forbidden Practices
+
+* Hardcoded colors
+* Random spacing values
+* Inconsistent font sizes
+* Excessive shadows
+* Inline styles (unless necessary)
+
+---
+
+## ✅ Best Practices
+
+* Reuse components
+* Keep UI minimal and content-focused
+* Ensure readability first, aesthetics second
+* Follow consistent spacing and typography
+
+---
+
+## 📌 Summary
+
+The UI system must be:
+
+* Consistent
+* Readable
+* Scalable
+* Minimal
+
+Forum UI is content-driven — design should never overpower content.
