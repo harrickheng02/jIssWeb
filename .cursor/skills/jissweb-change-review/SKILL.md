@@ -29,12 +29,12 @@ description: >-
 
 ## 前端（`frontend/`）
 
-栈：Vue 3、TypeScript、Vite、Vue Router、Pinia、Element Plus、Axios。
+栈：Vue 3、TypeScript、Vite、Vue Router、Pinia、Element Plus、Axios、Vitest。
 
 | 维度 | 核对要点 |
 |------|----------|
 | Design tokens | 样式颜色/间距/圆角是否用 `forum-tokens.css` 的 `var(--color-primary)`、`--bg-*`、`--text-*`、`--space-*`、`--radius-*` 等；避免业务里写死 `#xxx`（阴影/装饰例外需在报告中标注）。 |
-| 规则 | `.cursor/rules/forum-ui-implementation.mdc`、`ui-design.mdc`；`docs/ui/design-spec.md`。 |
+| 规则 | `.cursor/rules/forum-ui.mdc`；`docs/ui/design-spec.md`。 |
 | Element Plus | 主操作是否 `type="primary"`；避免无必要 `:deep` 覆盖组件内部。 |
 | 结构 | 组件 `scoped`；类名倾向 BEM；复用 UI 是否适合放在 `components/ui/`。 |
 | 论坛列表 | 标题/摘要是否具备两行截断与省略（若适用）。 |
@@ -126,5 +126,5 @@ description: >-
 ## 参考路径（仓库内）
 
 - UI 规范：`docs/ui/design-spec.md`、`frontend/src/styles/forum-tokens.css`
-- Cursor 规则：`.cursor/rules/forum-ui-implementation.mdc`、`ui-design.mdc`
+- Cursor 规则：`.cursor/rules/forum-ui.mdc`
 - OpenSpec：`openspec/changes/` 下各 change

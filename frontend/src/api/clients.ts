@@ -1,11 +1,59 @@
-import axios, { type AxiosInstance } from 'axios'
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { redirectToLogin } from '@/utils/authRedirect'
 
 export interface ApiResult<T> {
   success: boolean
   data?: T
   message?: string
   code?: string
+}
+
+type RetryAuthConfig = InternalAxiosRequestConfig & { _retryAuth?: boolean }
+
+const refreshInFlightByPrefix = new Map<string, Promise<void>>()
+
+function normalizeBasePrefix(prefix: string): string {
+  const t = prefix.trim()
+  if (!t) return ''
+  return t.endsWith('/') ? t.slice(0, -1) : t
+}
+
+function normalizePath(url: string | undefined): string {
+  if (!url) return ''
+  return url.startsWith('/') ? url : `/${url}`
+}
+
+function isAuthPath(path: string): boolean {
+  return normalizePath(path).startsWith('/auth/')
+}
+
+function runSingleFlightRefresh(refreshTokenValue: string, apiPrefix: string): Promise<void> {
+  const key = normalizeBasePrefix(apiPrefix)
+  if (!key) {
+    throw new Error('createClient baseURL prefix is required for auth refresh')
+  }
+  let inflight = refreshInFlightByPrefix.get(key)
+  if (inflight) return inflight
+  inflight = (async () => {
+    try {
+      const { data } = await axios.post<ApiResult<AuthTokenPair>>(
+        `${key}/auth/refresh`,
+        { refreshToken: refreshTokenValue },
+        { timeout: 15000 },
+      )
+      const auth = useAuthStore()
+      if (data.success && data.data) {
+        auth.applyAuthSession(data.data.accessToken, data.data.refreshToken)
+      } else {
+        throw new Error(data.message ?? 'refresh failed')
+      }
+    } finally {
+      refreshInFlightByPrefix.delete(key)
+    }
+  })()
+  refreshInFlightByPrefix.set(key, inflight)
+  return inflight
 }
 
 function createClient(prefix: string): AxiosInstance {
@@ -20,6 +68,46 @@ function createClient(prefix: string): AxiosInstance {
     }
     return config
   })
+  instance.interceptors.response.use(
+    (r) => r,
+    async (error: AxiosError) => {
+      const original = error.config as RetryAuthConfig | undefined
+      const status = error.response?.status
+      if (status !== 401 || !original || original._retryAuth) {
+        return Promise.reject(error)
+      }
+      const path = normalizePath(original.url)
+      if (isAuthPath(path)) {
+        return Promise.reject(error)
+      }
+      const auth = useAuthStore()
+      const bearer = original.headers?.Authorization
+      const hadBearer =
+        typeof bearer === 'string' && bearer.startsWith('Bearer ') && bearer.length > 'Bearer '.length
+      if (!hadBearer || !auth.refreshToken) {
+        auth.clearAuth()
+        await redirectToLogin()
+        return Promise.reject(error)
+      }
+      try {
+        await runSingleFlightRefresh(auth.refreshToken, prefix)
+      } catch {
+        auth.clearAuth()
+        await redirectToLogin()
+        return Promise.reject(error)
+      }
+      original._retryAuth = true
+      const next = useAuthStore().token
+      if (!next) {
+        auth.clearAuth()
+        await redirectToLogin()
+        return Promise.reject(error)
+      }
+      original.headers = original.headers ?? {}
+      original.headers.Authorization = `Bearer ${next}`
+      return instance.request(original)
+    },
+  )
   return instance
 }
 

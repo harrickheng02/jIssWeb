@@ -11,7 +11,7 @@
 | 维度 | 说明 |
 |------|------|
 | **解决什么问题** | 在统一技术栈下拆分用户、客档、模型、账款、报表等后端边界，前端用一套壳接入；产品形态向**论坛**演进（首页 Feed、版区、发帖等）。 |
-| **核心能力** | Vue 3 + Vite + Pinia 论坛首页壳与 `/auth` 统一认证；多 ASP.NET Core API + JWT；Docker 本地 MongoDB/Redis；可选 YARP 网关与 BFF。 |
+| **核心能力** | Vue 3 + Vite + Pinia + Vitest 论坛首页壳与 `/auth` 统一认证；多 ASP.NET Core API + JWT；Docker 本地 MongoDB/Redis；可选 YARP 网关与 BFF。 |
 | **适用人群** | 本仓库维护者、全栈/前后端在本地联调与按 OpenSpec 迭代功能的开发者。 |
 
 ---
@@ -88,7 +88,7 @@ docker compose up -d --build
 ```text
 jIssWeb/
 ├── backend/src/           # .NET 解决方案：Common、Domain、各 *.Api、Gateway、Bff 等
-├── frontend/              # Vue 3 + TypeScript + Vite + Element Plus
+├── frontend/              # Vue 3 + TypeScript + Vite + Element Plus + Vitest
 ├── docker/                # Redis 配置、Dockerfile 等
 ├── scripts/gitee-sync/    # pm-plan YAML、Gitee 同步脚本
 ├── openspec/              # OpenSpec 变更与归档 specs
@@ -99,7 +99,7 @@ jIssWeb/
 
 | 层次 | 技术 |
 |------|------|
-| 前端 | Vue 3、TypeScript、Vite、Pinia、vue-router、Element Plus、axios |
+| 前端 | Vue 3、TypeScript、Vite、Pinia、vue-router、Element Plus、axios、Vitest（`npm test`） |
 | 后端 | ASP.NET Core、JWT（用户服务签发，他服务校验） |
 | 数据与缓存 | MongoDB、Redis（按服务配置节接入） |
 | 容器与编排 | Docker Compose |

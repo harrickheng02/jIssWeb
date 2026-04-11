@@ -1,5 +1,9 @@
 ---
-alwaysApply: true
+description: pm-plan.yaml 与 Gitee 同步脚本的对照、编辑与 Issue 契约
+globs:
+  - scripts/gitee-sync/pm-plan.yaml
+  - scripts/gitee-sync/**/*.mjs
+alwaysApply: false
 ---
 
 # pm-plan 工程对照与编辑（`scripts/gitee-sync/pm-plan.yaml`）

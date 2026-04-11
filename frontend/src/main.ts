@@ -19,6 +19,21 @@ app.use(router)
 app.use(ElementPlus)
 
 const auth = useAuthStore(pinia)
+
+function mountApp() {
+  app.mount('#app')
+  if (!import.meta.env.DEV) return
+  const w = window as Window & { __jissExpireAccess?: () => void; __jissInvalidateRefresh?: () => void }
+  w.__jissExpireAccess = () => {
+    useAuthStore(pinia).setToken(
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXYifQ.fake',
+    )
+  }
+  w.__jissInvalidateRefresh = () => {
+    useAuthStore(pinia).setRefreshToken('invalid')
+  }
+}
+
 if (auth.refreshToken) {
   refresh(auth.refreshToken)
     .then((res) => {
@@ -26,7 +41,7 @@ if (auth.refreshToken) {
       else auth.clearAuth()
     })
     .catch(() => auth.clearAuth())
-    .finally(() => app.mount('#app'))
+    .finally(() => mountApp())
 } else {
-  app.mount('#app')
+  mountApp()
 }

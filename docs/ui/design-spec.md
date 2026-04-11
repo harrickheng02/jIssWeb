@@ -6,7 +6,7 @@
 2. **`frontend/src/styles/forum-tokens.css`** — 唯一 Design Tokens 源；实现层只引用 `var(--…)`。
 3. **组件** — 以 Element Plus 为基础；重复形态封装到 `components/ui`（如 `BaseButton`），再写页面。
 
-Cursor 侧见 `.cursor/rules/`：`forum-ui-implementation.mdc`（工程纪律）、`ui-design.mdc`（设计值摘要）。
+Cursor 侧见 `.cursor/rules/forum-ui.mdc`（设计值摘要 + Vue3/EP 实现纪律）。
 
 ---
 

@@ -1,26 +1,31 @@
 ---
-alwaysApply: true
+description: Forum UI 设计值摘要与 Vue3/Element Plus 实现纪律（token、EP、布局）
+globs:
+  - frontend/**/*.vue
+  - frontend/**/*.css
+  - docs/ui/**/*.md
+alwaysApply: false
 ---
 
-# UI Design Rules (Forum Project)
+# Forum UI（设计 + 实现）
 
-## 三层约束
+## 三层约束（顺序）
 
 | 层级 | 位置 |
 |------|------|
-| 设计规范（文档） | `docs/ui/design-spec.md` + 下文数值 |
+| 设计规范（文档） | `docs/ui/design-spec.md` + 下文数值摘要 |
 | Design Tokens | `frontend/src/styles/forum-tokens.css`（唯一源：`--color-primary`、`--bg-main`、`--text-primary`、`--border-color`、`--space-*`、`--radius-*`、`--font-*` 等） |
 | 组件封装 | `frontend/src/components/ui/*`（如 `BaseButton`）+ Element Plus |
 
-工程侧禁止事项与实现句式见 **`forum-ui-implementation.mdc`**。
+---
 
-## 🎯 Goal
+# UI Design Rules（设计值摘要）
+
+## Goal
 
 Ensure all generated UI code follows a consistent, clean, and readable design system optimized for forum-style content platforms.
 
----
-
-## 🎨 Color System
+## Color System
 
 * Use CSS variables for all colors
 * Do NOT hardcode colors
@@ -46,9 +51,7 @@ Ensure all generated UI code follows a consistent, clean, and readable design sy
 * Prefer soft gray backgrounds
 * Maintain sufficient contrast for readability
 
----
-
-## 🔤 Typography
+## Typography
 
 ### Font Sizes
 
@@ -71,9 +74,7 @@ Ensure all generated UI code follows a consistent, clean, and readable design sy
 * Titles should use medium or bold weight
 * Do not mix too many font sizes in one component
 
----
-
-## 📐 Spacing System
+## Spacing System
 
 Use 8px grid system ONLY.
 
@@ -87,9 +88,7 @@ Spacing scale:
 * Keep consistent padding inside components
 * Maintain clear separation between sections
 
----
-
-## 🧱 Layout
+## Layout
 
 ### Container
 
@@ -107,9 +106,7 @@ Spacing scale:
 * Avoid absolute positioning unless necessary
 * Ensure responsive behavior
 
----
-
-## 🧩 Components
+## Components
 
 ### Card
 
@@ -122,8 +119,6 @@ Rules:
 
 * Prefer borders over heavy shadows
 * Content must be clearly structured
-
----
 
 ### Button
 
@@ -146,8 +141,6 @@ Rules:
 * Always include hover and active states
 * Do not invent new button styles unless necessary
 
----
-
 ### Input
 
 * Border radius: 8px
@@ -163,8 +156,6 @@ Rules:
 * Inputs must have clear focus state
 * Avoid overly large input fields
 
----
-
 ### Tag
 
 * Background: light blue (#F0F5FF)
@@ -172,9 +163,7 @@ Rules:
 * Radius: 6px
 * Padding: 2px 8px
 
----
-
-## 🧵 Post List (Core UI)
+## Post List (Core UI)
 
 Each post item must include:
 
@@ -190,9 +179,7 @@ Rules:
 * Summary max 2 lines
 * Maintain visual hierarchy
 
----
-
-## 🧭 Interaction States
+## Interaction States
 
 ### Hover
 
@@ -207,9 +194,7 @@ Rules:
 * Opacity: 0.5
 * Cursor: not-allowed
 
----
-
-## 📱 Responsive Design
+## Responsive Design
 
 Breakpoints:
 
@@ -224,15 +209,11 @@ Rules:
 * Mobile: 1 column
 * Collapse sidebars on small screens
 
----
-
-## 🌙 Dark Mode
+## Dark Mode
 
 由主题切换写入 `html.dark` + `data-theme="dark"`；变量覆盖在 `forum-tokens.css` 的 `html.dark[data-theme='dark']` 中统一维护。
 
----
-
-## 🚫 Forbidden Practices
+## Forbidden Practices（设计侧）
 
 * Hardcoded colors
 * Random spacing values
@@ -240,9 +221,7 @@ Rules:
 * Excessive shadows
 * Inline styles (unless necessary)
 
----
-
-## ✅ Best Practices
+## Best Practices
 
 * Reuse components
 * Keep UI minimal and content-focused
@@ -251,13 +230,34 @@ Rules:
 
 ---
 
-## 📌 Summary
+# 实现纪律（Vue3 + Element Plus）
 
-The UI system must be:
+## 样式
 
-* Consistent
-* Readable
-* Scalable
-* Minimal
+- **禁止**在样式中写死色值（如 `#fff`、`#000`，含 rgb/rgba 用于「填色」的场景）；阴影/透明叠层尽量用 token 或 `color-mix` 基于 token。
+- 主色、背景、文案、边框一律 `var(--…)`；仅使用 `frontend/src/styles/forum-tokens.css` 中变量：`var(--color-primary)`、`var(--bg-main)`、`var(--text-primary)`、`var(--border-color)`、`var(--space-*)`、`var(--radius-*)`、`var(--font-*)`、`var(--line-height)` 等。
+- 优先 `<style scoped>`；避免全局污染；类名倾向 `block__element--modifier`。
+- **禁止**滥用 `::v-deep` / `:deep()`；先考虑 EP 的 `class`、插槽或官方变量。
 
-Forum UI is content-driven — design should never overpower content.
+## Element Plus
+
+- 不随意覆盖组件内部样式；需要统一视觉时优先 **forum-tokens 中的 EP 桥接变量** 或工具类 `.forum-card`。
+- 主要操作必须用 **`el-button type="primary"`**（或通过 `BaseButton` 传 `type="primary"`）。
+- 非必要不手写自定义按钮样式。
+
+## 布局
+
+- 优先 flex；保持响应式；避免绝对定位做常规排版。
+
+## 论坛内容
+
+- 列表标题、摘要：**最多两行** + 省略（`-webkit-line-clamp` 等）。
+
+## 禁止（实现侧）
+
+- `inline style`（除非运行期动态值）。
+- 在业务组件里复制一套与 token 冲突的色板或间距。
+
+## 摘要
+
+实现必须 **token 驱动**、视觉一致、可读；避免临时拼样式。Forum UI is content-driven — design should never overpower content.
