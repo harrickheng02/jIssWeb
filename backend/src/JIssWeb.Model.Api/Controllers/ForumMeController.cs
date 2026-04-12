@@ -1,0 +1,107 @@
+using JIssWeb.Common;
+using JIssWeb.Common.Helpers;
+using JIssWeb.Common.Options;
+using JIssWeb.Model.Api.Models;
+using JIssWeb.Model.Api.Mongo;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
+
+namespace JIssWeb.Model.Api.Controllers;
+
+[ApiController]
+[Route("api/forum/me")]
+[Authorize]
+public class ForumMeController : ControllerBase
+{
+    private readonly IMongoCollection<ForumPostRecord> _posts;
+    private readonly IMongoCollection<ForumReplyRecord> _replies;
+
+    public ForumMeController(IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions)
+    {
+        var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
+        _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
+    }
+
+    [HttpGet("posts")]
+    public async Task<ActionResult<ApiResult<PagedPostsDto>>> MyPosts(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        if (page < 1 || pageSize < 1 || pageSize > 50)
+            return BadRequest(ApiResult<PagedPostsDto>.Fail("分页参数无效", "INVALID_PAGINATION"));
+
+        string sub;
+        try
+        {
+            sub = User.GetUserId();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(ApiResult<PagedPostsDto>.Fail("未授权", "UNAUTHORIZED"));
+        }
+
+        var filter = Builders<ForumPostRecord>.Filter.Eq(x => x.AuthorSubId, sub);
+        var total = await _posts.CountDocumentsAsync(filter);
+        var items = await _posts.Find(filter)
+            .SortByDescending(x => x.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
+
+        var dtos = items.Select(ForumDtoMapping.ToListItem).ToList();
+        return Ok(ApiResult<PagedPostsDto>.Ok(new PagedPostsDto
+        {
+            Items = dtos,
+            TotalCount = (int)total,
+            Page = page,
+            PageSize = pageSize,
+        }));
+    }
+
+    [HttpGet("replies")]
+    public async Task<ActionResult<ApiResult<PagedRepliesDto>>> MyReplies(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        if (page < 1 || pageSize < 1 || pageSize > 50)
+            return BadRequest(ApiResult<PagedRepliesDto>.Fail("分页参数无效", "INVALID_PAGINATION"));
+
+        string sub;
+        try
+        {
+            sub = User.GetUserId();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(ApiResult<PagedRepliesDto>.Fail("未授权", "UNAUTHORIZED"));
+        }
+
+        var filter = Builders<ForumReplyRecord>.Filter.Eq(x => x.AuthorSubId, sub);
+        var total = await _replies.CountDocumentsAsync(filter);
+        var items = await _replies.Find(filter)
+            .SortByDescending(x => x.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
+
+        var dtos = items.Select(ForumDtoMapping.ToReplyDto).ToList();
+        return Ok(ApiResult<PagedRepliesDto>.Ok(new PagedRepliesDto
+        {
+            Items = dtos,
+            TotalCount = (int)total,
+            Page = page,
+            PageSize = pageSize,
+        }));
+    }
+}
+
+public class PagedRepliesDto
+{
+    public List<ReplyDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+}

@@ -56,7 +56,7 @@ public class ForumPostsController : ControllerBase
             .Limit(pageSize)
             .ToListAsync();
 
-        var dtos = items.Select(ToListItem).ToList();
+        var dtos = items.Select(ForumDtoMapping.ToListItem).ToList();
         return Ok(ApiResult<PagedPostsDto>.Ok(new PagedPostsDto
         {
             Items = dtos,
@@ -77,7 +77,7 @@ public class ForumPostsController : ControllerBase
         var list = await _replies.Find(x => x.PostId == postId)
             .SortBy(x => x.CreatedAtUtc)
             .ToListAsync();
-        return Ok(ApiResult<List<ReplyDto>>.Ok(list.Select(ToReplyDto).ToList()));
+        return Ok(ApiResult<List<ReplyDto>>.Ok(list.Select(ForumDtoMapping.ToReplyDto).ToList()));
     }
 
     [HttpPost("{postId}/replies")]
@@ -107,7 +107,7 @@ public class ForumPostsController : ControllerBase
         await _replies.InsertOneAsync(reply);
         await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, 1));
 
-        return Ok(ApiResult<ReplyDto>.Ok(ToReplyDto(reply)));
+        return Ok(ApiResult<ReplyDto>.Ok(ForumDtoMapping.ToReplyDto(reply)));
     }
 
     [HttpGet("{id}")]
@@ -121,7 +121,7 @@ public class ForumPostsController : ControllerBase
         await _posts.UpdateOneAsync(x => x.Id == id, Builders<ForumPostRecord>.Update.Inc(x => x.ViewCount, 1));
         post.ViewCount += 1;
 
-        var dto = MapDetail(post);
+        var dto = ForumDtoMapping.MapDetail(post);
         return Ok(ApiResult<PostDetailDto>.Ok(dto));
     }
 
@@ -158,44 +158,6 @@ public class ForumPostsController : ControllerBase
         await _posts.InsertOneAsync(doc);
         return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto { Id = doc.Id }));
     }
-
-    private static PostListItemDto ToListItem(ForumPostRecord p) => new()
-    {
-        Id = p.Id,
-        Title = p.Title,
-        Excerpt = p.Excerpt,
-        AuthorId = p.AuthorSubId,
-        PublishedAtUtc = p.CreatedAtUtc,
-        Board = p.Board,
-        Tags = p.Tags,
-        Likes = p.LikeCount,
-        Comments = p.CommentCount,
-        Views = p.ViewCount,
-    };
-
-    private static PostDetailDto MapDetail(ForumPostRecord p) => new()
-    {
-        Id = p.Id,
-        Title = p.Title,
-        Body = p.Body,
-        Excerpt = p.Excerpt,
-        AuthorId = p.AuthorSubId,
-        PublishedAtUtc = p.CreatedAtUtc,
-        Board = p.Board,
-        Tags = p.Tags,
-        Likes = p.LikeCount,
-        Comments = p.CommentCount,
-        Views = p.ViewCount,
-    };
-
-    private static ReplyDto ToReplyDto(ForumReplyRecord r) => new()
-    {
-        Id = r.Id,
-        PostId = r.PostId,
-        AuthorId = r.AuthorSubId,
-        Body = r.Body,
-        CreatedAtUtc = r.CreatedAtUtc,
-    };
 
     private static string MakeExcerpt(string body, int maxLen = 200)
     {

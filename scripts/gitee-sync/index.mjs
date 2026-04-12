@@ -397,12 +397,6 @@ function remoteIssuesToYamlRows(detailed, msList) {
   return decorated.map((x) => x.row)
 }
 
-function keepIssueInTrackingPlan(row) {
-  const s = row.state
-  if (s === 'closed' || s === 'rejected') return false
-  return true
-}
-
 async function pullPlan(owner, repo, token, outPath, dryRun) {
   const msList = await listAllMilestones(owner, repo, token)
   const issueList = (await listAllIssues(owner, repo, token)).filter((i) => !i.pull_request)
@@ -432,7 +426,7 @@ async function pullPlan(owner, repo, token, outPath, dryRun) {
     }
   })
 
-  const issues = remoteIssuesToYamlRows(detailed, msList).filter(keepIssueInTrackingPlan)
+  const issues = remoteIssuesToYamlRows(detailed, msList)
 
   const out = {
     meta: existing.meta,

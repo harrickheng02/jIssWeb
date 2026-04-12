@@ -2,7 +2,7 @@ meta:
   product: 论坛方向 Web 应用
 modules:
   - name: 账号与访问
-    description: 邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange
+    description: 邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时与 401 拦截后的 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange
       换票）；登录/注册页合规入口与路由守卫；找回密码（邮箱重置）已交付；第三方登录仅前端占位；登录错误码与限流以 user-service 为准；身份 claims（sub）与 Profile/论坛内容作者 ID 的对齐见
       openspec/specs/token-identity-consistency，与帖子与回复、个人中心协同定义。
   - name: 论坛壳与导航
@@ -51,12 +51,26 @@ milestones:
     description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据；分类与标签只读
     due_on: 2026-06-30
   - title: M2 — 互动与发现
-    description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口
+    description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口。依赖：通知收件人、「我的帖子」等查询键与 JWT 身份（`sub`）一致，减少各服务自造用户键；见 Issue「M2 用户主键与「我的帖子」查询约定」。
     due_on: 2026-09-30
   - title: M3 — 治理与增长
     description: 审核举报、反垃圾占位；推荐排序；运营与报表
     due_on: 2026-12-31
 issues:
+  - title: 论坛领域首组 API（列表/详情/发帖/回复）
+    body: |
+      验收标准：
+      - 提供可调用的一组 HTTP API（列表、详情、发帖、回复或文档列出的最小子集），有统一错误与分页约定（若适用）。
+      - 响应字段满足论坛 Feed/卡片所需最小信息（标题、摘要、作者、时间、标签、计数等），与 forum-homepage-shell 数据需求可对齐。
+      - 有基本鉴权边界（公开只读 vs 写操作需登录），行为可演示。
+      依赖：openspec/specs/forum-homepage-shell/spec.md；里程碑 M1 描述。
+      非目标：搜索、通知、治理；完整附件与富文本策略可后续条目覆盖。
+    milestone: M1 — 可演示论坛 MVP
+    gitee_number: IIH689
+    priority: 严重
+    state: closed
+    module: 帖子与回复
+    classification: enhancement
   - title: 找回密码（邮箱重置链路）
     body: |
       验收标准：
@@ -80,20 +94,56 @@ issues:
     milestone: M1 — 可演示论坛 MVP
     gitee_number: IIJ57Y
     priority: 次要
-    state: open
+    state: closed
     module: 账号与访问
     classification: enhancement
-  - title: 基础搜索与通知
+  - title: 基础搜索与通知（已拆分为子 Issue）
     body: |
-      验收标准：
-      - 搜索：至少支持按标题或作者关键词返回帖子列表（后端 API 或 BFF 聚合），与前端约定查询参数与分页。
-      - 通知：至少一种可验证投递方式（站内/邮件/实时通道等择一），能关联「被回复」或「被 @」等最小事件之一。
-      - 有基本失败与空结果行为，可联调或集成测试验证。
-      依赖：里程碑 M2；与 openspec 中检索、通知相关条款（若有）对齐。
-      非目标：全文搜索引擎替换、多语言分词、全渠道推送矩阵。
+      本条目已拆分为同里程碑下独立 Issue，不再单独验收：
+      - 论坛帖子搜索（关键词、分页、防抖与限流）
+      - 站内通知最小闭环（收件人、已读未读、分页与空态）
+      - M2 用户主键与「我的帖子」查询约定
     milestone: M2 — 互动与发现
     gitee_number: IIH7CX
+    priority: 主要
+    state: closed
+    module: 搜索与发现
+    classification: duplicate
+  - title: 论坛帖子搜索（关键词、分页、防抖与限流）
+    body: |
+      验收标准：
+      - 至少支持按标题或作者关键词返回帖子列表（后端 API 或 BFF 聚合），与前端约定查询参数与分页。
+      - 列表、失败与空结果可联调验证；前端对搜索输入防抖，减少无效请求。
+      - 后端对搜索接口做限流或配额，避免滥用。
+      依赖：openspec/specs/forum-homepage-shell（若涉及检索字段）；里程碑 M2。
+      非目标：全文搜索引擎替换、多语言分词、复杂排序。
+    milestone: M2 — 互动与发现
     priority: 主要
     state: open
     module: 搜索与发现
     classification: feature
+  - title: 站内通知最小闭环（收件人、已读未读、分页与空态）
+    body: |
+      验收标准：
+      - 至少一种可验证投递方式（站内/邮件/实时通道等择一），能关联「被回复」或「被 @」等最小事件之一。
+      - 通知收件人标识与 JWT `sub`（及 user-service 用户主键）一致，与 Issue「M2 用户主键与「我的帖子」查询约定」对齐，不各服务自造用户键。
+      - 提供已读/未读状态；通知列表分页与空态、失败态可展示。
+      依赖：里程碑 M2；与 openspec 中通知相关条款（若有）对齐。
+      非目标：全渠道推送矩阵、复杂站内信会话。
+    milestone: M2 — 互动与发现
+    priority: 主要
+    state: open
+    module: 消息与通知
+    classification: feature
+  - title: M2 用户主键与「我的帖子」查询约定
+    body: |
+      验收标准：
+      - 约定：通知收件人、个人中心「我的帖子/回复」等按用户维度的查询键，与 JWT `sub`（及 user-service 用户主键）一致；各服务/BFF 不重复定义多套用户标识。
+      - 文档或代码入口可核验（如 BFF、论坛服务、Profile 读取同一键）。
+      依赖：openspec/specs/token-identity-consistency；M2 站内通知与搜索相关 Issue。
+      非目标：跨租户、多账号合并。
+    milestone: M2 — 互动与发现
+    priority: 主要
+    state: open
+    module: 平台与基础设施
+    classification: enhancement
