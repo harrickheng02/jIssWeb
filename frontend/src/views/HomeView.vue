@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import axios from 'axios'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createForumPost, getForumBoards, listForumPosts, type ForumBoardItem, type ForumPostListItem } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
+import { firstQueryString } from '@/utils/routeQuery'
 
 type SidebarItem = {
   id: string
@@ -11,6 +13,7 @@ type SidebarItem = {
 }
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const activeFilter = ref<'latest' | 'hot' | 'featured'>('latest')
 const activeSidebar = ref('all')
@@ -51,6 +54,8 @@ const hotTags = ['论坛', '首页骨架', 'Vue3', '板块', '标签', '产品',
 
 const isAuthed = computed(() => Boolean(auth.token))
 
+const searchQuery = computed(() => firstQueryString(route.query.q))
+
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)))
 
 function listBoardIdParam() {
@@ -83,7 +88,10 @@ async function fetchPosts() {
   listLoading.value = true
   listError.value = null
   try {
-    const res = await listForumPosts(page.value, pageSize.value, listBoardIdParam())
+    const qRaw = route.query.q
+    const qResolved = firstQueryString(qRaw)
+    const q = qResolved || undefined
+    const res = await listForumPosts(page.value, pageSize.value, listBoardIdParam(), q)
     if (!res.success || !res.data) {
       listError.value = res.message ?? '加载失败'
       postList.value = []
@@ -92,7 +100,11 @@ async function fetchPosts() {
     postList.value = res.data.items
     totalCount.value = res.data.totalCount
   } catch (e) {
-    listError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
+    if (axios.isAxiosError(e) && e.response?.status === 429) {
+      listError.value = '请求过于频繁，请稍后再试'
+    } else {
+      listError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
+    }
     postList.value = []
     totalCount.value = 0
   } finally {
@@ -170,8 +182,12 @@ watch(activeSidebar, () => {
   page.value = 1
 })
 
+watch(searchQuery, () => {
+  page.value = 1
+})
+
 watch(
-  [page, activeSidebar],
+  [page, activeSidebar, searchQuery],
   () => {
     void fetchPosts()
   },
@@ -183,7 +199,6 @@ async function loadForumBoards() {
     const r = await getForumBoards()
     if (r.success && r.data?.length) {
       forumBoards.value = r.data
-      await fetchPosts()
       return
     }
     ElMessage.warning(
@@ -250,6 +265,10 @@ onMounted(() => {
 
         <div v-else-if="listError" class="list-error">{{ listError }}</div>
 
+        <div v-else-if="!postList.length && searchQuery" class="list-empty">未找到匹配的帖子</div>
+
+        <div v-else-if="!postList.length" class="list-empty">暂无帖子</div>
+
         <div v-else class="post-list">
           <el-card v-for="post in postList" :key="post.id" class="post-card" shadow="hover">
             <div class="post-topline">
@@ -286,7 +305,7 @@ onMounted(() => {
           </el-card>
         </div>
 
-        <div v-if="!listLoading && !listError" class="pager">
+        <div v-if="!listLoading && !listError && postList.length" class="pager">
           <el-button :disabled="page <= 1" @click="prevPage">上一页</el-button>
           <el-button type="primary" plain>第 {{ page }} / {{ totalPages }} 页</el-button>
           <el-button :disabled="page >= totalPages" @click="nextPage">下一页</el-button>
@@ -447,6 +466,13 @@ onMounted(() => {
 .list-error {
   color: var(--text-secondary);
   padding: var(--space-md);
+}
+
+.list-empty {
+  color: var(--text-secondary);
+  padding: var(--space-md);
+  font-size: var(--font-sm);
+  line-height: var(--line-height);
 }
 
 .post-list {

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
@@ -7,6 +8,7 @@ using JIssWeb.Model.Api.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace JIssWeb.Model.Api.Controllers;
@@ -40,14 +42,35 @@ public class ForumPostsController : ControllerBase
         if (page < 1 || pageSize < 1 || pageSize > 50)
             return BadRequest(ApiResult<PagedPostsDto>.Fail("分页参数无效", "INVALID_PAGINATION"));
 
-        FilterDefinition<ForumPostRecord> filter = FilterDefinition<ForumPostRecord>.Empty;
+        FilterDefinition<ForumPostRecord>? boardFilter = null;
         if (!string.IsNullOrWhiteSpace(boardId))
         {
             var boardTitle = TryResolveBoardTitle(boardId);
             if (boardTitle is null)
                 return BadRequest(ApiResult<PagedPostsDto>.Fail("无效的板块", "INVALID_BOARD_ID"));
-            filter = Builders<ForumPostRecord>.Filter.Eq(x => x.Board, boardTitle);
+            boardFilter = Builders<ForumPostRecord>.Filter.Eq(x => x.Board, boardTitle);
         }
+
+        FilterDefinition<ForumPostRecord>? searchFilter = null;
+        if (Request.Query.TryGetValue("q", out var qVals))
+        {
+            var trimmed = qVals.ToString().Trim();
+            if (trimmed.Length == 0)
+                return BadRequest(ApiResult<PagedPostsDto>.Fail("搜索关键词无效", "INVALID_SEARCH_QUERY"));
+            searchFilter = BuildKeywordFilter(trimmed);
+        }
+
+        FilterDefinition<ForumPostRecord> filter;
+        if (boardFilter is not null && searchFilter is not null)
+            filter = Builders<ForumPostRecord>.Filter.And(boardFilter, searchFilter);
+        else if (boardFilter is not null)
+            filter = boardFilter;
+        else if (searchFilter is not null)
+            filter = searchFilter;
+        else
+            filter = FilterDefinition<ForumPostRecord>.Empty;
+
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
 
         var total = await _posts.CountDocumentsAsync(filter);
         var items = await _posts.Find(filter)
@@ -157,6 +180,16 @@ public class ForumPostsController : ControllerBase
         };
         await _posts.InsertOneAsync(doc);
         return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto { Id = doc.Id }));
+    }
+
+    private static FilterDefinition<ForumPostRecord> BuildKeywordFilter(string keyword)
+    {
+        var escaped = Regex.Escape(keyword);
+        var rx = new BsonRegularExpression(escaped, "i");
+        var (titleField, authorField) = ForumMongoSetup.GetPostSearchBsonFields();
+        return Builders<ForumPostRecord>.Filter.Or(
+            Builders<ForumPostRecord>.Filter.Regex(titleField, rx),
+            Builders<ForumPostRecord>.Filter.Regex(authorField, rx));
     }
 
     private static string MakeExcerpt(string body, int maxLen = 200)

@@ -69,6 +69,17 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
                 Tags = new List<string>(),
                 CreatedAtUtc = t.AddMinutes(-10),
             },
+            new ForumPostRecord
+            {
+                Id = "me-post-tech",
+                Title = "techunique",
+                Body = "bt",
+                Excerpt = "bt",
+                AuthorSubId = "user-c",
+                Board = "技术",
+                Tags = new List<string>(),
+                CreatedAtUtc = t.AddMinutes(-9),
+            },
         });
         await replies.InsertManyAsync(new[]
         {

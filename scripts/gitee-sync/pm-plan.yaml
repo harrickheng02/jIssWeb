@@ -51,7 +51,7 @@ milestones:
     description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据；分类与标签只读
     due_on: 2026-06-30
   - title: M2 — 互动与发现
-    description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口。依赖：通知收件人、「我的帖子」等查询键与 JWT 身份（`sub`）一致，减少各服务自造用户键；见 Issue「M2 用户主键与「我的帖子」查询约定」。
+    description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口。依赖：通知收件人、「我的帖子」等与 JWT 身份（`sub`）一致；用户主键与「我的帖子」查询约定已交付（见 openspec/token-identity 与论坛「我的」接口）。
     due_on: 2026-09-30
   - title: M3 — 治理与增长
     description: 审核举报、反垃圾占位；推荐排序；运营与报表
@@ -143,7 +143,8 @@ issues:
       依赖：openspec/specs/token-identity-consistency；M2 站内通知与搜索相关 Issue。
       非目标：跨租户、多账号合并。
     milestone: M2 — 互动与发现
+    gitee_number: IIKGXU
     priority: 主要
-    state: open
+    state: closed
     module: 平台与基础设施
     classification: enhancement

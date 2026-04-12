@@ -250,10 +250,14 @@ export async function getForumBoards() {
   return data
 }
 
-export async function listForumPosts(page = 1, pageSize = 20, boardId?: string) {
+export async function listForumPosts(page = 1, pageSize = 20, boardId?: string, q?: string) {
   const params: Record<string, string | number> = { page, pageSize }
   if (boardId) params.boardId = boardId
-  const { data } = await modelApi.get<ApiResult<PagedForumPosts>>('/forum/posts', { params })
+  if (q !== undefined && q !== '') params.q = q
+  const { data } = await modelApi.get<ApiResult<PagedForumPosts>>('/forum/posts', {
+    params,
+    headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+  })
   return data
 }
 

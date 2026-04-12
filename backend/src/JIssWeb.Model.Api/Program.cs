@@ -2,6 +2,7 @@ using JIssWeb.Application;
 using JIssWeb.Common.Hosting;
 using JIssWeb.Common.Middleware;
 using JIssWeb.Infrastructure;
+using JIssWeb.Model.Api.Middleware;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
 
@@ -10,6 +11,8 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 builder.UseJIssWebHttpPort(5099);
 
 builder.Services.Configure<ForumBoardsOptions>(builder.Configuration.GetSection(ForumBoardsOptions.SectionName));
+builder.Services.Configure<ForumSearchRateLimitOptions>(builder.Configuration.GetSection(ForumSearchRateLimitOptions.SectionName));
+builder.Services.AddSingleton<ForumSearchIpRateLimiter>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddJIssWebCoreApi(builder.Configuration);
@@ -28,6 +31,7 @@ app.UseExceptionHandling();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<ForumSearchRateLimitMiddleware>();
 app.MapControllers();
 app.Run();
 

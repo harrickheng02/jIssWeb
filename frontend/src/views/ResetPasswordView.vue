@@ -82,13 +82,13 @@ async function submit() {
       await router.replace('/')
       return
     }
-    ElMessage.error(resetErrMessage(res.code, res.message))
+    ElMessage.error(resetErrMessage(res.code, res.message ?? ''))
   } catch (e: any) {
     const data = e?.response?.data
     const code = data?.code as string | undefined
     const message = data?.message as string | undefined
     if (e?.response) {
-      ElMessage.error(resetErrMessage(code, message))
+      ElMessage.error(resetErrMessage(code, message ?? ''))
       return
     }
     ElMessage.error('网络错误')

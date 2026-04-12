@@ -1,12 +1,45 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { firstQueryString } from '@/utils/routeQuery'
 
+const route = useRoute()
+const router = useRouter()
 const keyword = ref('')
 
-function handleSearch() {
-  ElMessage.info(keyword.value ? `搜索功能预留：${keyword.value}` : '请输入搜索内容')
+function syncFromRoute() {
+  keyword.value = firstQueryString(route.query.q)
+}
+
+onMounted(() => syncFromRoute())
+watch(() => route.query.q, syncFromRoute)
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+function pushSearch() {
+  const t = keyword.value.trim()
+  if (route.name === 'home') {
+    void router.replace({ path: '/', query: t ? { q: t } : {} })
+  } else {
+    void router.push({ name: 'home', query: t ? { q: t } : {} })
+  }
+}
+
+function scheduleSearch() {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null
+    pushSearch()
+  }, 300)
+}
+
+function submitImmediate() {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
+  pushSearch()
 }
 </script>
 
@@ -15,12 +48,13 @@ function handleSearch() {
     <el-input
       v-model="keyword"
       class="search-input"
-      placeholder="搜索帖子 / 标签 / 用户"
+      placeholder="搜索帖子"
       clearable
-      @keyup.enter="handleSearch"
+      @input="scheduleSearch"
+      @keyup.enter="submitImmediate"
     >
       <template #suffix>
-        <el-icon class="search-suffix" @click.stop="handleSearch"><Search /></el-icon>
+        <el-icon class="search-suffix" @click.stop="submitImmediate"><Search /></el-icon>
       </template>
     </el-input>
   </div>

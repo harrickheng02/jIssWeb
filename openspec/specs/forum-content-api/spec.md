@@ -28,6 +28,15 @@ The system SHALL expose `GET /api/forum/posts` for anonymous clients returning a
 - **WHEN** a client sends an unknown `boardId` on `GET /api/forum/posts`
 - **THEN** the response SHALL be 400 with the unified error contract (e.g. code `INVALID_BOARD_ID`)
 
+### Requirement: Forum posts list optional keyword search
+
+Optional query parameter `q` on `GET /api/forum/posts` (keyword search, rate limits, and error codes) SHALL be specified in `openspec/specs/forum-post-search/spec.md` and SHALL combine with `boardId` and pagination as described there.
+
+#### Scenario: Search behavior is defined in forum-post-search
+
+- **WHEN** a client or implementer needs the normative contract for `q` on the posts list endpoint
+- **THEN** the system SHALL treat `openspec/specs/forum-post-search/spec.md` as the source of truth for that behavior
+
 ### Requirement: Forum boards configuration endpoint
 
 The system SHALL expose `GET /api/forum/boards` for anonymous clients returning the ordered list of board ids and display titles from service configuration (`Forum:Boards`).
