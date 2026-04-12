@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
@@ -70,15 +71,22 @@ public class ForumPostsController : ControllerBase
             searchFilter = BuildKeywordFilter(trimmed);
         }
 
-        FilterDefinition<ForumPostRecord> filter;
-        if (boardFilter is not null && searchFilter is not null)
-            filter = Builders<ForumPostRecord>.Filter.And(boardFilter, searchFilter);
-        else if (boardFilter is not null)
-            filter = boardFilter;
-        else if (searchFilter is not null)
-            filter = searchFilter;
-        else
-            filter = FilterDefinition<ForumPostRecord>.Empty;
+        FilterDefinition<ForumPostRecord>? tagFilter = null;
+        if (Request.Query.TryGetValue("tag", out var tagVals))
+        {
+            var tagTrimmed = tagVals.ToString().Trim();
+            if (tagTrimmed.Length == 0)
+                return BadRequest(ApiResult<PagedPostsDto>.Fail("标签参数无效", "INVALID_TAG_QUERY"));
+            tagFilter = BuildTagFilter(tagTrimmed);
+        }
+
+        var parts = new List<FilterDefinition<ForumPostRecord>>();
+        if (boardFilter is not null) parts.Add(boardFilter);
+        if (searchFilter is not null) parts.Add(searchFilter);
+        if (tagFilter is not null) parts.Add(tagFilter);
+        var filter = parts.Count == 0
+            ? FilterDefinition<ForumPostRecord>.Empty
+            : Builders<ForumPostRecord>.Filter.And(parts);
 
         Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
 
@@ -203,6 +211,10 @@ public class ForumPostsController : ControllerBase
         if (boardResolved.Error is not null)
             return BadRequest(ApiResult<CreatePostResultDto>.Fail(boardResolved.Error, boardResolved.Code));
 
+        var tagsResult = NormalizeCreateTags(request.Tags);
+        if (tagsResult.Error is not null)
+            return BadRequest(ApiResult<CreatePostResultDto>.Fail(tagsResult.Error, tagsResult.Code));
+
         var body = request.Body.Trim();
         var now = DateTime.UtcNow;
         var doc = new ForumPostRecord
@@ -213,7 +225,7 @@ public class ForumPostsController : ControllerBase
             Excerpt = MakeExcerpt(body),
             AuthorSubId = authorId,
             Board = boardResolved.Title!,
-            Tags = request.Tags?.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).Distinct().ToList() ?? new List<string>(),
+            Tags = tagsResult.Tags!,
             CreatedAtUtc = now,
         };
         await _posts.InsertOneAsync(doc);
@@ -228,6 +240,38 @@ public class ForumPostsController : ControllerBase
         return Builders<ForumPostRecord>.Filter.Or(
             Builders<ForumPostRecord>.Filter.Regex(titleField, rx),
             Builders<ForumPostRecord>.Filter.Regex(authorField, rx));
+    }
+
+    private const int MaxTagCount = 10;
+    private const int MaxTagLength = 32;
+
+    private static (List<string>? Tags, string? Error, string? Code) NormalizeCreateTags(List<string>? tags)
+    {
+        if (tags is null || tags.Count == 0)
+            return (new List<string>(), null, null);
+
+        var list = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in tags)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+            var t = raw.Trim();
+            if (t.Length > MaxTagLength)
+                return (null, "单个标签过长", "INVALID_TAGS");
+            if (!seen.Add(t)) continue;
+            if (list.Count >= MaxTagCount)
+                return (null, "标签数量过多", "INVALID_TAGS");
+            list.Add(t);
+        }
+
+        return (list, null, null);
+    }
+
+    private static FilterDefinition<ForumPostRecord> BuildTagFilter(string trimmedTag)
+    {
+        var escaped = Regex.Escape(trimmedTag);
+        var rx = new BsonRegularExpression($"^{escaped}$", "i");
+        return Builders<ForumPostRecord>.Filter.Regex(nameof(ForumPostRecord.Tags), rx);
     }
 
     private static string MakeExcerpt(string body, int maxLen = 200)
@@ -252,12 +296,8 @@ public class ForumPostsController : ControllerBase
         }
     }
 
-    private string? TryResolveBoardTitle(string? boardId)
-    {
-        if (string.IsNullOrWhiteSpace(boardId)) return null;
-        var id = boardId.Trim();
-        return _boardOptions.Value.Boards.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase))?.Title?.Trim();
-    }
+    private string? TryResolveBoardTitle(string? boardId) =>
+        ForumBoardIdLookup.ResolveConfiguredBoardTitle(_boardOptions.Value, boardId);
 
     private bool IsKnownBoardTitle(string title)
     {

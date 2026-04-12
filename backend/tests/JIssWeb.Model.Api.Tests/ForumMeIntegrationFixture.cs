@@ -55,7 +55,7 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
                 Excerpt = "ba",
                 AuthorSubId = "user-a",
                 Board = "综合",
-                Tags = new List<string>(),
+                Tags = new List<string> { "alpha", "shared" },
                 CreatedAtUtc = t.AddMinutes(-10),
             },
             new ForumPostRecord
@@ -66,7 +66,7 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
                 Excerpt = "bb",
                 AuthorSubId = "user-b",
                 Board = "综合",
-                Tags = new List<string>(),
+                Tags = new List<string> { "beta", "shared" },
                 CreatedAtUtc = t.AddMinutes(-10),
             },
             new ForumPostRecord
@@ -77,7 +77,7 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
                 Excerpt = "bt",
                 AuthorSubId = "user-c",
                 Board = "技术",
-                Tags = new List<string>(),
+                Tags = new List<string> { "Alpha", "techtag" },
                 CreatedAtUtc = t.AddMinutes(-9),
             },
         });

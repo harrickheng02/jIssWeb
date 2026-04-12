@@ -48,104 +48,104 @@ gitee_content_classifications:
   - wontfix
 milestones:
   - title: M1 — 可演示论坛 MVP
-    description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据；分类与标签只读
+    description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据。收尾项：版区与标签只读与首页对齐（见 open Issue），标签模块须与 API 同源、验收口径写死，避免与静态占位混谈；其余 M1 能力已交付。
     due_on: 2026-06-30
   - title: M2 — 互动与发现
-    description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口。依赖：通知收件人、「我的帖子」等与 JWT 身份（`sub`）一致；用户主键与「我的帖子」查询约定已交付（见 openspec/token-identity 与论坛「我的」接口）。
+    description: 已交付：帖子搜索、站内通知、用户主键与「我的帖子」约定。待办：帖子点赞与收藏；个人中心与内容管理最小集；公告位与热门数据接口（均见 open Issue）。
     due_on: 2026-09-30
   - title: M3 — 治理与增长
-    description: 审核举报、反垃圾占位；推荐排序；运营与报表
+    description: 举报与审核、反垃圾占位、推荐排序与运营报表出口；见本里程碑 open Issue（预拆条目，可随评审细化）。
     due_on: 2026-12-31
 issues:
-  - title: 论坛领域首组 API（列表/详情/发帖/回复）
+  - title: 论坛版区与标签只读展示与首页对齐
     body: |
       验收标准：
-      - 提供可调用的一组 HTTP API（列表、详情、发帖、回复或文档列出的最小子集），有统一错误与分页约定（若适用）。
-      - 响应字段满足论坛 Feed/卡片所需最小信息（标题、摘要、作者、时间、标签、计数等），与 forum-homepage-shell 数据需求可对齐。
-      - 有基本鉴权边界（公开只读 vs 写操作需登录），行为可演示。
-      依赖：openspec/specs/forum-homepage-shell/spec.md；里程碑 M1 描述。
-      非目标：搜索、通知、治理；完整附件与富文本策略可后续条目覆盖。
+      - 版区/分类与论坛首组 API 或唯一配置源一致；左侧只读展示，切换版区时帖子列表按 boardId 筛选可演示。
+      - 标签：卡片上 tags 与数据源一致；右侧「热门标签」等与卡片 tags 同一词表来源（只读 tag 列表 API，或对帖子 tags 聚合的 Top N），禁止与真实帖子标签无关的硬编码词表。
+      - 按标签驱动列表：若列表接口支持按 tag 筛选，则点击标签刷新列表，加载/空/错/限流态与 forum-homepage-shell 中搜索驱动区域可区分；若 M1 不做该参数，则验收固定为「标签只读 + 点击走站内关键词搜索（q）」之一并在 spec 或本条目中写明，禁止双口径验收。
+      - 与 forum-homepage-shell 对齐：字段名、空态（无版区、无标签、无帖子、请求失败可区分）。
+      与 M2 划界：复杂热榜与运营榜单接口归入 M2「公告位与热门数据接口」等条目；本条只做只读展示与频次或配置级 Top N。
+      依赖：openspec/specs/forum-homepage-shell/spec.md；论坛领域首组 API（已实现）。
+      非目标：版主编辑、标签后台管理；个性化推荐与算法化热榜。
     milestone: M1 — 可演示论坛 MVP
-    gitee_number: IIH689
-    priority: 严重
-    state: closed
-    module: 帖子与回复
-    classification: enhancement
-  - title: 找回密码（邮箱重置链路）
-    body: |
-      验收标准：
-      - 用户可通过「忘记密码」提交已注册邮箱，后端完成重置令牌或安全链接校验与密码更新，前端 `/auth/forgot`（ForgotPasswordView）从占位改为完整流程。
-      - 与 user-service 错误码、限流策略一致；非法或过期令牌有明确提示。
-      依赖：openspec/specs/user-service/spec.md；现有 `/auth/*` 约定。
-      非目标：短信验证、多因素认证。
-    milestone: M1 — 可演示论坛 MVP
-    gitee_number: IIJ57P
-    priority: 主要
-    state: closed
-    module: 账号与访问
-    classification: feature
-  - title: HTTP 401 时自动 refresh 并重试请求
-    body: |
-      验收标准：
-      - 受保护 API 返回 401（access 过期）时，若存在有效 refresh，则调用 `/auth/refresh` 成功后自动重试原请求一次；refresh 失败则清会话并引导登录。
-      - 并发请求下避免重复 refresh（串行或单例）；与 `main.ts` 启动时 refresh 语义一致。
-      依赖：frontend axios 与 `stores/auth`；user-service 刷新与吊销约定。
-      非目标：无 refresh 时的静默重新登录（可继续跳转 `/auth`）。
-    milestone: M1 — 可演示论坛 MVP
-    gitee_number: IIJ57Y
+    gitee_number: IILVVX
     priority: 次要
-    state: closed
-    module: 账号与访问
+    state: open
+    module: 版区与标签
     classification: enhancement
-  - title: 基础搜索与通知（已拆分为子 Issue）
-    body: |
-      本条目已拆分为同里程碑下独立 Issue，不再单独验收：
-      - 论坛帖子搜索（关键词、分页、防抖与限流）
-      - 站内通知最小闭环（收件人、已读未读、分页与空态）
-      - M2 用户主键与「我的帖子」查询约定
-    milestone: M2 — 互动与发现
-    gitee_number: IIH7CX
-    priority: 主要
-    state: closed
-    module: 搜索与发现
-    classification: duplicate
-  - title: 论坛帖子搜索（关键词、分页、防抖与限流）
+  - title: 帖子点赞与收藏基础
     body: |
       验收标准：
-      - 至少支持按标题或作者关键词返回帖子列表（后端 API 或 BFF 聚合），与前端约定查询参数与分页。
-      - 列表、失败与空结果可联调验证；前端对搜索输入防抖，减少无效请求。
-      - 后端对搜索接口做限流或配额，避免滥用。
-      依赖：openspec/specs/forum-homepage-shell（若涉及检索字段）；里程碑 M2。
-      非目标：全文搜索引擎替换、多语言分词、复杂排序。
+      - 提供可对帖子（及必要时回复）点赞与收藏的 HTTP API 或经 BFF 暴露的统一接口；登录态下操作与取消可验证，未登录行为有约定（拒绝或匿名策略文档化）。
+      - 列表或详情可展示计数或状态（至少其一可联调）；与 JWT `sub` 身份一致，不另造用户键。
+      依赖：openspec/specs/token-identity-consistency；论坛帖子实体与鉴权现状。
+      非目标：积分等级、踩、关注链；实时推送。
     milestone: M2 — 互动与发现
-    gitee_number: IIKGXI
-    priority: 主要
-    state: closed
-    module: 搜索与发现
-    classification: feature
-  - title: 站内通知最小闭环（收件人、已读未读、分页与空态）
-    body: |
-      验收标准：
-      - 至少一种可验证投递方式（站内/邮件/实时通道等择一），能关联「被回复」或「被 @」等最小事件之一。
-      - 通知收件人标识与 JWT `sub`（及 user-service 用户主键）一致，与 Issue「M2 用户主键与「我的帖子」查询约定」对齐，不各服务自造用户键。
-      - 提供已读/未读状态；通知列表分页与空态、失败态可展示。
-      依赖：里程碑 M2；与 openspec 中通知相关条款（若有）对齐。
-      非目标：全渠道推送矩阵、复杂站内信会话。
-    milestone: M2 — 互动与发现
+    gitee_number: IILVW7
     priority: 主要
     state: open
-    module: 消息与通知
+    module: 互动与声望
     classification: feature
-  - title: M2 用户主键与「我的帖子」查询约定
+  - title: 个人中心与内容管理最小集
     body: |
       验收标准：
-      - 约定：通知收件人、个人中心「我的帖子/回复」等按用户维度的查询键，与 JWT `sub`（及 user-service 用户主键）一致；各服务/BFF 不重复定义多套用户标识。
-      - 文档或代码入口可核验（如 BFF、论坛服务、Profile 读取同一键）。
-      依赖：openspec/specs/token-identity-consistency；M2 站内通知与搜索相关 Issue。
-      非目标：跨租户、多账号合并。
+      - 个人中心页（或等价路由）可维护资料（与现有 Profile 能力衔接）、入口到「我的帖子/回复」列表且查询键与 token `sub` 一致。
+      - 基础设置或占位（如主题、退出）与空态、失败提示可演示；与 customer-profile 或既有 Profile API 不冲突。
+      依赖：openspec/specs/customer-profile-service（若适用）；openspec/specs/token-identity-consistency；论坛「我的」查询与 JWT `sub` 一致（已实现）。
+      非目标：完整账号安全中心、第三方绑定、消息全渠道设置。
     milestone: M2 — 互动与发现
-    gitee_number: IIKGXU
+    gitee_number: IILVWJ
     priority: 主要
-    state: closed
+    state: open
+    module: 个人中心
+    classification: feature
+  - title: 公告位与热门数据接口
+    body: |
+      验收标准：
+      - 公告：提供至少一种可读公告数据源（静态配置、CMS 占位或 API），与首页/论坛壳右侧公告模块字段约定一致并可空态展示。
+      - 热门：提供榜单或热门帖子列表接口（可由 Model/BFF/报表占位），与首页「热门」区块对齐；分页或条数上限有约定。
+      - 鉴权边界（公开只读 vs 管理端）在文档或代码中可核验。
+      依赖：openspec/specs/forum-homepage-shell/spec.md（若含侧栏）；里程碑 M2 描述。
+      非目标：推荐算法、A/B、运营后台完整 CMS。
+    milestone: M2 — 互动与发现
+    gitee_number: IILVWO
+    priority: 次要
+    state: open
+    module: 运营与公告
+    classification: feature
+  - title: 论坛举报与处理最小闭环
+    body: |
+      验收标准：
+      - 用户可对帖子或回复发起举报并产生可查询记录；处理侧至少具备列表查看或状态流转占位，行为可演示。
+      - 与鉴权、审计字段约定一致（操作者、目标资源标识）。
+      依赖：里程碑 M3；openspec 治理相关条款（若有）。
+      非目标：完整工单 SLA、法务级证据链、多租户隔离策略。
+    milestone: M3 — 治理与增长
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: 反垃圾与自动处置占位
+    body: |
+      验收标准：
+      - 在文档或配置层定义反垃圾策略占位（关键词、频率、人机挑战接入点等择一），与发帖/回复链路的挂钩方式可说明。
+      - 与现有 user-service / Model 限流能力可复用处有对照说明。
+      依赖：里程碑 M3。
+      非目标：自建大模型审核、全站实时风控中台。
+    milestone: M3 — 治理与增长
+    priority: 次要
+    state: open
+    module: 治理与审核
+    classification: enhancement
+  - title: 推荐排序与运营报表出口占位
+    body: |
+      验收标准：
+      - 列表或 Feed 可切换「时间序 / 简易热度」等占位策略之一，查询参数、默认值与回退行为文档化或可联调。
+      - 报表或 BFF 提供至少一种只读运营指标出口（与现有 report-service 或占位路由对齐）；失败与空数据可处理。
+      依赖：openspec/specs/report-service（若适用）；里程碑 M3。
+      非目标：个性化推荐算法、A/B 实验平台、计费级报表。
+    milestone: M3 — 治理与增长
+    priority: 次要
+    state: open
     module: 平台与基础设施
     classification: enhancement

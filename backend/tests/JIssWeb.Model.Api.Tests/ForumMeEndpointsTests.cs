@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 
 namespace JIssWeb.Model.Api.Tests;
@@ -59,6 +60,36 @@ public class ForumMeEndpointsTests
         Assert.Equal(1, items.GetArrayLength());
         Assert.Equal("me-post-a", items[0].GetProperty("id").GetString());
         Assert.Equal("user-a", items[0].GetProperty("authorId").GetString());
+    }
+
+    [Fact]
+    public async Task Create_TagsTooMany_Returns400()
+    {
+        var tags = Enumerable.Range(0, 11).Select(i => $"u{i}").ToArray();
+        var body = JsonSerializer.Serialize(new { title = "t", body = "b", boardId = "general", tags });
+        var req = new HttpRequestMessage(HttpMethod.Post, "/api/forum/posts")
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        };
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
+        var res = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        await AssertJsonCodeAsync(res, "INVALID_TAGS");
+    }
+
+    [Fact]
+    public async Task Create_TagTooLong_Returns400()
+    {
+        var longTag = new string('c', 33);
+        var body = JsonSerializer.Serialize(new { title = "t", body = "b", boardId = "general", tags = new[] { longTag } });
+        var req = new HttpRequestMessage(HttpMethod.Post, "/api/forum/posts")
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        };
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
+        var res = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        await AssertJsonCodeAsync(res, "INVALID_TAGS");
     }
 
     [Fact]

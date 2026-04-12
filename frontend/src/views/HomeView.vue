@@ -1,23 +1,18 @@
 <script setup lang="ts">
-import axios from 'axios'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createForumPost, getForumBoards, listForumPosts, type ForumBoardItem, type ForumPostListItem } from '@/api/clients'
+import { useForumBoards } from '@/composables/useForumBoards'
+import { useForumComposeForm } from '@/composables/useForumComposeForm'
+import { useForumHomeFeed } from '@/composables/useForumHomeFeed'
+import { useForumPopularTags } from '@/composables/useForumPopularTags'
 import { useAuthStore } from '@/stores/auth'
-import { firstQueryString } from '@/utils/routeQuery'
-
-type SidebarItem = {
-  id: string
-  label: string
-}
+import { forumAuthorLabel, formatPublishedUtc } from '@/utils/forumPostDisplay'
 
 const router = useRouter()
-const route = useRoute()
 const auth = useAuthStore()
 const activeFilter = ref<'latest' | 'hot' | 'featured'>('latest')
 const activeSidebar = ref('all')
-const forumBoards = ref<ForumBoardItem[]>([])
 
 const filters = [
   { id: 'latest', label: '最新' },
@@ -25,22 +20,51 @@ const filters = [
   { id: 'featured', label: '精华' },
 ] as const
 
-const sidebarItems = computed<SidebarItem[]>(() => [
-  { id: 'all', label: '全部' },
-  ...forumBoards.value.map((b) => ({ id: b.id, label: b.title })),
-])
+const { forumBoards, sidebarItems, loadForumBoards } = useForumBoards()
 
-const postList = ref<ForumPostListItem[]>([])
-const listLoading = ref(false)
-const listError = ref<string | null>(null)
-const page = ref(1)
-const pageSize = ref(20)
-const totalCount = ref(0)
-const composeOpen = ref(false)
-const composeTitle = ref('')
-const composeBody = ref('')
-const composeBoardId = ref('general')
-const composeSubmitting = ref(false)
+function boardIdQueryParam() {
+  return activeSidebar.value === 'all' ? undefined : activeSidebar.value
+}
+
+const { popularTags, popularTagsLoading, popularTagsError, loadPopularTags } =
+  useForumPopularTags(boardIdQueryParam)
+
+const {
+  postList,
+  listLoading,
+  listError,
+  page,
+  totalPages,
+  searchQuery,
+  tagFilterValue,
+  fetchPosts,
+  setFeedTag,
+  clearFeedTag,
+  prevPage,
+  nextPage,
+} = useForumHomeFeed(activeSidebar, { onActiveSidebarChange: () => void loadPopularTags() })
+
+function getDefaultComposeBoardId() {
+  if (forumBoards.value.some((b) => b.id === 'general')) return 'general'
+  return forumBoards.value[0]?.id ?? 'general'
+}
+
+const {
+  composeOpen,
+  composeTitle,
+  composeBody,
+  composeBoardId,
+  composeTags,
+  composeSubmitting,
+  onComposeTagsChange,
+  openComposeDialog,
+  submitCompose,
+} = useForumComposeForm({
+  getDefaultBoardId: getDefaultComposeBoardId,
+  fetchPosts,
+})
+
+const isAuthed = computed(() => Boolean(auth.token))
 
 const hotPosts = [
   '新人报道区要不要单独放在顶部？',
@@ -50,112 +74,12 @@ const hotPosts = [
   '移动端单列后右侧信息怎么安置',
 ]
 
-const hotTags = ['论坛', '首页骨架', 'Vue3', '板块', '标签', '产品', '社区运营', '问答']
-
-const isAuthed = computed(() => Boolean(auth.token))
-
-const searchQuery = computed(() => firstQueryString(route.query.q))
-
-const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)))
-
-function listBoardIdParam() {
-  return activeSidebar.value === 'all' ? undefined : activeSidebar.value
-}
-
-function defaultComposeBoardId() {
-  if (forumBoards.value.some((b) => b.id === 'general')) return 'general'
-  return forumBoards.value[0]?.id ?? 'general'
-}
-
-function formatPublishedUtc(iso: string) {
-  const d = new Date(iso)
-  const diff = Date.now() - d.getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return '刚刚'
-  if (m < 60) return `${m} 分钟前`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h} 小时前`
-  const days = Math.floor(h / 24)
-  if (days < 7) return `${days} 天前`
-  return d.toLocaleDateString('zh-CN')
-}
-
-function shortAuthor(id: string) {
-  return id.length <= 14 ? id : `${id.slice(0, 10)}…`
-}
-
-function forumAuthorLabel(displayName: string | undefined, authorId: string) {
-  const n = displayName?.trim()
-  if (n) return n
-  return shortAuthor(authorId)
-}
-
-async function fetchPosts() {
-  listLoading.value = true
-  listError.value = null
-  try {
-    const qRaw = route.query.q
-    const qResolved = firstQueryString(qRaw)
-    const q = qResolved || undefined
-    const res = await listForumPosts(page.value, pageSize.value, listBoardIdParam(), q)
-    if (!res.success || !res.data) {
-      listError.value = res.message ?? '加载失败'
-      postList.value = []
-      return
-    }
-    postList.value = res.data.items
-    totalCount.value = res.data.totalCount
-  } catch (e) {
-    if (axios.isAxiosError(e) && e.response?.status === 429) {
-      listError.value = '请求过于频繁，请稍后再试'
-    } else {
-      listError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
-    }
-    postList.value = []
-    totalCount.value = 0
-  } finally {
-    listLoading.value = false
-  }
-}
-
 function handleCreatePost() {
   if (!isAuthed.value) {
     void router.push('/auth')
     return
   }
-  composeTitle.value = ''
-  composeBody.value = ''
-  composeBoardId.value = defaultComposeBoardId()
-  composeOpen.value = true
-}
-
-async function submitCompose() {
-  const title = composeTitle.value.trim()
-  const body = composeBody.value.trim()
-  if (!title || !body) {
-    ElMessage.warning('请填写标题与正文')
-    return
-  }
-  composeSubmitting.value = true
-  try {
-    const res = await createForumPost({
-      title,
-      body,
-      boardId: composeBoardId.value,
-    })
-    if (!res.success || !res.data?.id) {
-      ElMessage.error(res.message ?? '发帖失败')
-      return
-    }
-    composeOpen.value = false
-    ElMessage.success('已发布')
-    await fetchPosts()
-    void router.push({ name: 'post-detail', params: { id: res.data.id } })
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '发帖失败')
-  } finally {
-    composeSubmitting.value = false
-  }
+  openComposeDialog()
 }
 
 function goPost(id: string) {
@@ -174,49 +98,10 @@ function handleOpenPlaceholder(name: string) {
   ElMessage.info(`${name}页面开发中`)
 }
 
-function prevPage() {
-  if (page.value <= 1) return
-  page.value -= 1
-}
-
-function nextPage() {
-  if (page.value >= totalPages.value) return
-  page.value += 1
-}
-
-watch(activeSidebar, () => {
-  page.value = 1
-})
-
-watch(searchQuery, () => {
-  page.value = 1
-})
-
-watch(
-  [page, activeSidebar, searchQuery],
-  () => {
-    void fetchPosts()
-  },
-  { immediate: true },
-)
-
-async function loadForumBoards() {
-  try {
-    const r = await getForumBoards()
-    if (r.success && r.data?.length) {
-      forumBoards.value = r.data
-      return
-    }
-    ElMessage.warning(
-      r.success ? '板块配置为空，侧栏仅显示全部' : (r.message ?? '板块配置加载失败，侧栏仅显示全部'),
-    )
-  } catch {
-    ElMessage.warning('板块配置加载失败（网络异常），侧栏仅显示全部')
-  }
-}
-
 onMounted(() => {
-  void loadForumBoards()
+  void loadForumBoards().finally(() => {
+    void loadPopularTags()
+  })
 })
 </script>
 
@@ -247,15 +132,20 @@ onMounted(() => {
             <h1>社区首页</h1>
             <p>先看内容，再决定互动。</p>
           </div>
-          <div class="filter-list">
-            <el-button
-              v-for="item in filters"
-              :key="item.id"
-              :type="activeFilter === item.id ? 'primary' : 'default'"
-              plain
-              @click="activeFilter = item.id"
-            >
-              {{ item.label }}
+          <div class="feed-head-actions">
+            <div class="filter-list">
+              <el-button
+                v-for="item in filters"
+                :key="item.id"
+                :type="activeFilter === item.id ? 'primary' : 'default'"
+                plain
+                @click="activeFilter = item.id"
+              >
+                {{ item.label }}
+              </el-button>
+            </div>
+            <el-button v-if="tagFilterValue" type="info" plain @click="clearFeedTag">
+              清除标签：{{ tagFilterValue }}
             </el-button>
           </div>
         </div>
@@ -272,6 +162,8 @@ onMounted(() => {
         <div v-else-if="listError" class="list-error">{{ listError }}</div>
 
         <div v-else-if="!postList.length && searchQuery" class="list-empty">未找到匹配的帖子</div>
+
+        <div v-else-if="!postList.length && tagFilterValue" class="list-empty">该标签下暂无帖子</div>
 
         <div v-else-if="!postList.length" class="list-empty">暂无帖子</div>
 
@@ -298,7 +190,8 @@ onMounted(() => {
                   :key="tag"
                   size="small"
                   class="clickable-tag"
-                  @click="handleOpenPlaceholder(`标签 ${tag}`)"
+                  :type="tagFilterValue === tag ? 'primary' : 'info'"
+                  @click.stop="setFeedTag(tag)"
                 >
                   {{ tag }}
                 </el-tag>
@@ -332,6 +225,21 @@ onMounted(() => {
                 <el-option v-for="b in forumBoards" :key="b.id" :label="b.title" :value="b.id" />
               </el-select>
             </el-form-item>
+            <el-form-item label="标签">
+              <el-select
+                v-model="composeTags"
+                class="compose-board-select compose-tags-select"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                :reserve-keyword="false"
+                placeholder="可选，最多 10 个，单个不超过 32 字，输入后回车添加"
+                @change="onComposeTagsChange"
+              >
+                <el-option v-for="t in popularTags" :key="t" :label="t" :value="t" />
+              </el-select>
+            </el-form-item>
           </el-form>
           <template #footer>
             <el-button @click="composeOpen = false">取消</el-button>
@@ -358,12 +266,16 @@ onMounted(() => {
 
         <el-card shadow="never">
           <template #header>热门标签</template>
-          <div class="right-tags">
+          <el-skeleton v-if="popularTagsLoading" :rows="2" animated />
+          <div v-else-if="popularTagsError" class="list-error">{{ popularTagsError }}</div>
+          <div v-else-if="!popularTags.length" class="list-empty">暂无标签数据</div>
+          <div v-else class="right-tags">
             <el-tag
-              v-for="tag in hotTags"
+              v-for="tag in popularTags"
               :key="tag"
               class="clickable-tag"
-              @click="handleOpenPlaceholder(`标签 ${tag}`)"
+              :type="tagFilterValue === tag ? 'primary' : 'info'"
+              @click="setFeedTag(tag)"
             >
               {{ tag }}
             </el-tag>
@@ -415,6 +327,15 @@ onMounted(() => {
   width: 100%;
 }
 
+.compose-tags-select :deep(.el-select__tags) {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.compose-tags-select :deep(.el-tag) {
+  margin-block: var(--space-xs);
+}
+
 .sidebar-btn {
   width: 100%;
   justify-content: flex-start;
@@ -445,6 +366,13 @@ onMounted(() => {
   color: var(--text-secondary);
   font-size: var(--font-sm);
   line-height: var(--line-height);
+}
+
+.feed-head-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-12);
 }
 
 .filter-list {
