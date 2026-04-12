@@ -118,8 +118,9 @@ issues:
       依赖：openspec/specs/forum-homepage-shell（若涉及检索字段）；里程碑 M2。
       非目标：全文搜索引擎替换、多语言分词、复杂排序。
     milestone: M2 — 互动与发现
+    gitee_number: IIKGXI
     priority: 主要
-    state: open
+    state: closed
     module: 搜索与发现
     classification: feature
   - title: 站内通知最小闭环（收件人、已读未读、分页与空态）

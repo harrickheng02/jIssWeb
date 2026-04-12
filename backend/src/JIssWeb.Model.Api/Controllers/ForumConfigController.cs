@@ -21,7 +21,7 @@ public class ForumConfigController : ControllerBase
     [AllowAnonymous]
     public ActionResult<ApiResult<List<ForumBoardItemDto>>> Boards()
     {
-        var list = _options.Value.Boards
+        var list = (_options.Value.Boards ?? new List<ForumBoardEntry>())
             .Where(x => !string.IsNullOrWhiteSpace(x.Id) && !string.IsNullOrWhiteSpace(x.Title))
             .Select(x => new ForumBoardItemDto { Id = x.Id.Trim(), Title = x.Title.Trim() })
             .ToList();

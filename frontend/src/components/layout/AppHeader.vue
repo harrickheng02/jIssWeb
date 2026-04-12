@@ -1,13 +1,40 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { Bell } from '@element-plus/icons-vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getForumUnreadNotificationCount } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 import TopbarSearch from '@/components/layout/TopbarSearch.vue'
 import HeaderUserMenu from '@/components/layout/HeaderUserMenu.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const unreadCount = ref(0)
+
+function refreshUnread() {
+  if (!auth.token) {
+    unreadCount.value = 0
+    return
+  }
+  void getForumUnreadNotificationCount().then((r) => {
+    if (r.success && r.data !== undefined) unreadCount.value = r.data.count
+    else unreadCount.value = 0
+  })
+}
+
+function onNotificationsChanged() {
+  refreshUnread()
+}
+
+onMounted(() => {
+  refreshUnread()
+  window.addEventListener('jiss-forum-notifications-changed', onNotificationsChanged)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('jiss-forum-notifications-changed', onNotificationsChanged)
+})
 
 const navItems = [
   { id: 'home', label: '首页' },
@@ -16,6 +43,11 @@ const navItems = [
 ]
 
 const isAuthed = computed(() => Boolean(auth.token))
+
+watch(
+  () => auth.token,
+  () => refreshUnread(),
+)
 
 function handleCreatePost() {
   if (!isAuthed.value) {
@@ -50,6 +82,11 @@ function handleOpenPlaceholder(name: string) {
 
       <div class="topbar-actions">
         <TopbarSearch />
+        <router-link v-if="isAuthed" to="/notifications" class="notify-link">
+          <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="notify-badge">
+            <el-button :icon="Bell" circle aria-label="通知" />
+          </el-badge>
+        </router-link>
         <el-button type="primary" @click="handleCreatePost">发帖</el-button>
         <HeaderUserMenu />
       </div>
@@ -97,6 +134,16 @@ function handleOpenPlaceholder(name: string) {
   color: var(--text-secondary);
   text-decoration: none;
   font-size: var(--font-sm);
+}
+
+.notify-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.notify-badge :deep(.el-badge__content) {
+  border: none;
 }
 
 @media (max-width: 900px) {

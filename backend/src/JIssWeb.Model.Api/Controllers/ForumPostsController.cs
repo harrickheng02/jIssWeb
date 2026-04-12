@@ -5,8 +5,10 @@ using JIssWeb.Common.Options;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
+using JIssWeb.Model.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -19,17 +21,25 @@ public class ForumPostsController : ControllerBase
 {
     private readonly IMongoCollection<ForumPostRecord> _posts;
     private readonly IMongoCollection<ForumReplyRecord> _replies;
+    private readonly IMongoCollection<InAppNotificationRecord> _notifications;
     private readonly IOptions<ForumBoardsOptions> _boardOptions;
+    private readonly ForumAuthorDisplayResolver _authorNames;
+    private readonly ILogger<ForumPostsController> _logger;
 
     public ForumPostsController(
         IMongoClient mongoClient,
         IOptions<MongoSettings> mongoOptions,
-        IOptions<ForumBoardsOptions> boardOptions)
+        IOptions<ForumBoardsOptions> boardOptions,
+        ForumAuthorDisplayResolver authorNames,
+        ILogger<ForumPostsController> logger)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
+        _notifications = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
         _boardOptions = boardOptions;
+        _authorNames = authorNames;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -79,7 +89,8 @@ public class ForumPostsController : ControllerBase
             .Limit(pageSize)
             .ToListAsync();
 
-        var dtos = items.Select(ForumDtoMapping.ToListItem).ToList();
+        var names = await _authorNames.ResolveAsync(items.Select(x => x.AuthorSubId));
+        var dtos = items.Select(p => ForumDtoMapping.ToListItem(p, names)).ToList();
         return Ok(ApiResult<PagedPostsDto>.Ok(new PagedPostsDto
         {
             Items = dtos,
@@ -100,7 +111,8 @@ public class ForumPostsController : ControllerBase
         var list = await _replies.Find(x => x.PostId == postId)
             .SortBy(x => x.CreatedAtUtc)
             .ToListAsync();
-        return Ok(ApiResult<List<ReplyDto>>.Ok(list.Select(ForumDtoMapping.ToReplyDto).ToList()));
+        var replyNames = await _authorNames.ResolveAsync(list.Select(x => x.AuthorSubId));
+        return Ok(ApiResult<List<ReplyDto>>.Ok(list.Select(r => ForumDtoMapping.ToReplyDto(r, replyNames)).ToList()));
     }
 
     [HttpPost("{postId}/replies")]
@@ -130,7 +142,32 @@ public class ForumPostsController : ControllerBase
         await _replies.InsertOneAsync(reply);
         await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, 1));
 
-        return Ok(ApiResult<ReplyDto>.Ok(ForumDtoMapping.ToReplyDto(reply)));
+        if (!string.Equals(post.AuthorSubId, authorId, StringComparison.Ordinal))
+        {
+            var notif = new InAppNotificationRecord
+            {
+                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                RecipientSubId = post.AuthorSubId,
+                Type = InAppNotificationTypes.ReplyToPost,
+                PostId = postId,
+                ReplyId = reply.Id,
+                ActorSubId = authorId,
+                PostTitle = post.Title,
+                ReadAtUtc = null,
+                CreatedAtUtc = now,
+            };
+            try
+            {
+                await _notifications.InsertOneAsync(notif);
+            }
+            catch (MongoWriteException ex) when (ex.WriteError?.Code == 11000)
+            {
+                _logger.LogDebug(ex, "Skipped duplicate notification for reply {ReplyId}", reply.Id);
+            }
+        }
+
+        var replyNames = await _authorNames.ResolveAsync(new[] { reply.AuthorSubId });
+        return Ok(ApiResult<ReplyDto>.Ok(ForumDtoMapping.ToReplyDto(reply, replyNames)));
     }
 
     [HttpGet("{id}")]
@@ -144,7 +181,8 @@ public class ForumPostsController : ControllerBase
         await _posts.UpdateOneAsync(x => x.Id == id, Builders<ForumPostRecord>.Update.Inc(x => x.ViewCount, 1));
         post.ViewCount += 1;
 
-        var dto = ForumDtoMapping.MapDetail(post);
+        var detailNames = await _authorNames.ResolveAsync(new[] { post.AuthorSubId });
+        var dto = ForumDtoMapping.MapDetail(post, detailNames);
         return Ok(ApiResult<PostDetailDto>.Ok(dto));
     }
 
@@ -270,6 +308,7 @@ public class PostListItemDto
     public string Title { get; set; } = "";
     public string Excerpt { get; set; } = "";
     public string AuthorId { get; set; } = "";
+    public string AuthorDisplayName { get; set; } = "";
     public DateTime PublishedAtUtc { get; set; }
     public string Board { get; set; } = "";
     public List<string> Tags { get; set; } = new();
@@ -307,6 +346,7 @@ public class ReplyDto
     public string Id { get; set; } = "";
     public string PostId { get; set; } = "";
     public string AuthorId { get; set; } = "";
+    public string AuthorDisplayName { get; set; } = "";
     public string Body { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; }
 }

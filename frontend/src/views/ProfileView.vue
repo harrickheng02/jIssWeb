@@ -36,6 +36,7 @@ async function save() {
     })
     if (!res.success) throw new Error(res.message ?? '保存失败')
     ElMessage.success('保存成功')
+    window.dispatchEvent(new CustomEvent('jiss-profile-updated'))
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message ?? e?.message ?? '保存失败')
   } finally {
@@ -57,7 +58,7 @@ onMounted(() => {
           <el-input v-model="form.nickname" />
         </el-form-item>
         <el-form-item label="生日">
-          <el-input v-model="form.birthDate" type="date" />
+          <el-input v-model="form.birthDate" type="date" class="profile-form__full" />
         </el-form-item>
         <el-form-item label="性别">
           <el-select v-model="form.gender" clearable placeholder="请选择">
@@ -88,5 +89,8 @@ onMounted(() => {
   display: flex;
   gap: 1rem;
   align-items: center;
+}
+.profile-form__full {
+  width: 100%;
 }
 </style>

@@ -129,8 +129,19 @@ export interface RegisterResult {
   value: string
 }
 
-export async function register(email: string, password: string) {
-  const { data } = await userApi.post<ApiResult<string>>('/auth/register', { email, password })
+export async function register(
+  email: string,
+  password: string,
+  profile: { nickname?: string; gender?: string; birthDate?: string },
+) {
+  const body: Record<string, string> = {
+    email,
+    password,
+  }
+  if (profile.nickname?.trim()) body.nickname = profile.nickname.trim()
+  if (profile.gender) body.gender = profile.gender
+  if (profile.birthDate) body.birthDate = profile.birthDate
+  const { data } = await userApi.post<ApiResult<string>>('/auth/register', body)
   return data
 }
 
@@ -213,6 +224,7 @@ export interface ForumPostListItem {
   title: string
   excerpt: string
   authorId: string
+  authorDisplayName?: string
   publishedAtUtc: string
   board: string
   tags: string[]
@@ -236,6 +248,7 @@ export interface ForumReply {
   id: string
   postId: string
   authorId: string
+  authorDisplayName?: string
   body: string
   createdAtUtc: string
 }
@@ -284,5 +297,46 @@ export async function listForumReplies(postId: string) {
 
 export async function createForumReply(postId: string, body: string) {
   const { data } = await modelApi.post<ApiResult<ForumReply>>(`/forum/posts/${postId}/replies`, { body })
+  return data
+}
+
+export interface ForumNotificationItem {
+  id: string
+  type: string
+  postId: string
+  replyId: string | null
+  actorId: string
+  actorDisplayName?: string
+  postTitle: string
+  read: boolean
+  createdAtUtc: string
+}
+
+export interface PagedForumNotifications {
+  items: ForumNotificationItem[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+export async function listForumNotifications(page = 1, pageSize = 20, unreadOnly = false) {
+  const { data } = await modelApi.get<ApiResult<PagedForumNotifications>>('/forum/notifications', {
+    params: { page, pageSize, unreadOnly },
+  })
+  return data
+}
+
+export async function getForumUnreadNotificationCount() {
+  const { data } = await modelApi.get<ApiResult<{ count: number }>>('/forum/notifications/unread-count')
+  return data
+}
+
+export async function markForumNotificationRead(id: string) {
+  const { data } = await modelApi.post<ApiResult<unknown>>(`/forum/notifications/${id}/read`)
+  return data
+}
+
+export async function markAllForumNotificationsRead() {
+  const { data } = await modelApi.post<ApiResult<unknown>>('/forum/notifications/read-all')
   return data
 }

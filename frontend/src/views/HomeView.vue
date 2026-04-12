@@ -84,6 +84,12 @@ function shortAuthor(id: string) {
   return id.length <= 14 ? id : `${id.slice(0, 10)}…`
 }
 
+function forumAuthorLabel(displayName: string | undefined, authorId: string) {
+  const n = displayName?.trim()
+  if (n) return n
+  return shortAuthor(authorId)
+}
+
 async function fetchPosts() {
   listLoading.value = true
   listError.value = null
@@ -283,7 +289,9 @@ onMounted(() => {
             <p class="post-excerpt">{{ post.excerpt }}</p>
 
             <div class="post-meta">
-              <el-link :underline="false" @click="handleOpenPlaceholder('用户主页')">{{ shortAuthor(post.authorId) }}</el-link>
+              <el-link :underline="false" @click="handleOpenPlaceholder('用户主页')">{{
+                forumAuthorLabel(post.authorDisplayName, post.authorId)
+              }}</el-link>
               <div class="tag-list">
                 <el-tag
                   v-for="tag in post.tags"

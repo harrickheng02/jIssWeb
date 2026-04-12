@@ -60,7 +60,17 @@ public class ProfileController : ControllerBase
             };
         }
 
-        profile.Nickname = string.IsNullOrWhiteSpace(request.Nickname) ? null : request.Nickname.Trim();
+        var nextNick = string.IsNullOrWhiteSpace(request.Nickname) ? null : request.Nickname.Trim();
+        if (nextNick is not null)
+        {
+            if (nextNick.Length > 50)
+                return BadRequest(ApiResult<ProfileRecord>.Fail("昵称过长", "INVALID_INPUT"));
+            var dup = await _profiles.Find(x => x.Nickname == nextNick && x.OwnerUserId != owner).AnyAsync();
+            if (dup)
+                return Conflict(ApiResult<ProfileRecord>.Fail("昵称已被使用", "NICKNAME_TAKEN"));
+        }
+
+        profile.Nickname = nextNick;
         profile.BirthDate = request.BirthDate;
         profile.Gender = string.IsNullOrWhiteSpace(request.Gender) ? null : request.Gender.Trim();
         profile.UpdatedAtUtc = DateTime.UtcNow;

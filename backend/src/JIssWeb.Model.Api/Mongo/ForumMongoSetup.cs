@@ -10,6 +10,7 @@ public static class ForumMongoSetup
 {
     public const string PostsCollectionName = "forum_posts";
     public const string RepliesCollectionName = "forum_replies";
+    public const string NotificationsCollectionName = "forum_in_app_notifications";
 
     private static readonly Lazy<(string Title, string AuthorSubId)> PostSearchBsonFields = new(() =>
     {
@@ -43,5 +44,12 @@ public static class ForumMongoSetup
         replies.Indexes.CreateOne(new CreateIndexModel<ForumReplyRecord>(replyKeys));
         var byAuthorReplies = Builders<ForumReplyRecord>.IndexKeys.Ascending(x => x.AuthorSubId).Descending(x => x.CreatedAtUtc);
         replies.Indexes.CreateOne(new CreateIndexModel<ForumReplyRecord>(byAuthorReplies));
+
+        var notifications = db.GetCollection<InAppNotificationRecord>(NotificationsCollectionName);
+        var byRecipientTime = Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.RecipientSubId).Descending(x => x.CreatedAtUtc);
+        notifications.Indexes.CreateOne(new CreateIndexModel<InAppNotificationRecord>(byRecipientTime));
+        var byReplyId = Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.ReplyId);
+        notifications.Indexes.CreateOne(
+            new CreateIndexModel<InAppNotificationRecord>(byReplyId, new CreateIndexOptions { Unique = true, Sparse = true }));
     }
 }

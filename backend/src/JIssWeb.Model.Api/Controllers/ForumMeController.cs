@@ -3,6 +3,7 @@ using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
+using JIssWeb.Model.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -17,12 +18,17 @@ public class ForumMeController : ControllerBase
 {
     private readonly IMongoCollection<ForumPostRecord> _posts;
     private readonly IMongoCollection<ForumReplyRecord> _replies;
+    private readonly ForumAuthorDisplayResolver _authorNames;
 
-    public ForumMeController(IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions)
+    public ForumMeController(
+        IMongoClient mongoClient,
+        IOptions<MongoSettings> mongoOptions,
+        ForumAuthorDisplayResolver authorNames)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
+        _authorNames = authorNames;
     }
 
     [HttpGet("posts")]
@@ -51,7 +57,8 @@ public class ForumMeController : ControllerBase
             .Limit(pageSize)
             .ToListAsync();
 
-        var dtos = items.Select(ForumDtoMapping.ToListItem).ToList();
+        var names = await _authorNames.ResolveAsync(items.Select(x => x.AuthorSubId));
+        var dtos = items.Select(p => ForumDtoMapping.ToListItem(p, names)).ToList();
         return Ok(ApiResult<PagedPostsDto>.Ok(new PagedPostsDto
         {
             Items = dtos,
@@ -87,7 +94,8 @@ public class ForumMeController : ControllerBase
             .Limit(pageSize)
             .ToListAsync();
 
-        var dtos = items.Select(ForumDtoMapping.ToReplyDto).ToList();
+        var names = await _authorNames.ResolveAsync(items.Select(x => x.AuthorSubId));
+        var dtos = items.Select(r => ForumDtoMapping.ToReplyDto(r, names)).ToList();
         return Ok(ApiResult<PagedRepliesDto>.Ok(new PagedRepliesDto
         {
             Items = dtos,

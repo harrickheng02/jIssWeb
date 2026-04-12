@@ -5,6 +5,7 @@ using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
 using JIssWeb.User.Api;
+using JIssWeb.User.Api.Models;
 using JIssWeb.User.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -37,6 +38,7 @@ public class AuthController : ControllerBase
     private readonly IDatabase _redis;
     private readonly IVerificationEmailSender _emailSender;
     private readonly ILogger<AuthController> _logger;
+    private readonly IMongoCollection<ProfileRecordDoc>? _customerProfiles;
 
     public AuthController(
         IOptions<JwtSettings> jwtOptions,
@@ -61,6 +63,9 @@ public class AuthController : ControllerBase
         _redis = redis.GetDatabase();
         _emailSender = emailSender;
         _logger = logger;
+        var customerDb = mongoOptions.Value.CustomerDatabaseName?.Trim();
+        if (!string.IsNullOrEmpty(customerDb))
+            _customerProfiles = mongoClient.GetDatabase(customerDb).GetCollection<ProfileRecordDoc>("profiles");
     }
 
     [HttpPost("register")]
@@ -75,6 +80,17 @@ public class AuthController : ControllerBase
         if (await IsRateLimitedAsync("register", email, _emailVerification.RegisterPerMinuteLimit))
             return StatusCode(429, ApiResult<string>.Fail("请求过于频繁", "RATE_LIMITED"));
 
+        var profileErr = TryParseRegisterProfile(request, out var requestedNickname, out var gender, out var birthDate);
+        if (profileErr is not null)
+            return BadRequest(ApiResult<string>.Fail(profileErr, "INVALID_INPUT"));
+
+        if (_customerProfiles is not null && !string.IsNullOrEmpty(requestedNickname))
+        {
+            var taken = await _customerProfiles.Find(x => x.Nickname == requestedNickname).AnyAsync();
+            if (taken)
+                return Conflict(ApiResult<string>.Fail("昵称已被使用", "NICKNAME_TAKEN"));
+        }
+
         var existing = await _users.Find(x => x.Email == email).FirstOrDefaultAsync();
         if (existing is not null)
         {
@@ -84,6 +100,8 @@ public class AuthController : ControllerBase
             var resendGuard = await ValidateResendPolicyAsync(email);
             if (resendGuard is not null)
                 return resendGuard;
+
+            await UpsertProfileOnRegisterAsync(existing.Id, requestedNickname, gender, birthDate);
 
             try
             {
@@ -110,6 +128,7 @@ public class AuthController : ControllerBase
             EmailVerifiedAtUtc = null
         };
         await _users.InsertOneAsync(user);
+        await UpsertProfileOnRegisterAsync(user.Id, requestedNickname, gender, birthDate);
         try
         {
             await SendVerificationEmailAsync(user);
@@ -866,6 +885,86 @@ public class AuthController : ControllerBase
         await _redis.KeyDeleteAsync(GetLoginPairLockKey(emailHash, ipHash));
     }
 
+    private static string? TryParseRegisterProfile(
+        RegisterRequest request,
+        out string? requestedNickname,
+        out string? gender,
+        out DateTime? birthDate)
+    {
+        requestedNickname = null;
+        gender = null;
+        birthDate = null;
+        var n = request.Nickname?.Trim();
+        if (!string.IsNullOrEmpty(n))
+        {
+            if (n.Length > 50)
+                return "昵称过长";
+            requestedNickname = n;
+        }
+        if (!string.IsNullOrWhiteSpace(request.Gender))
+        {
+            var g = request.Gender.Trim().ToLowerInvariant();
+            if (g is not ("male" or "female" or "other"))
+                return "性别无效";
+            gender = g;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.BirthDate))
+        {
+            if (!DateTime.TryParse(request.BirthDate, out var bd))
+                return "生日无效";
+            birthDate = DateTime.SpecifyKind(bd.Date, DateTimeKind.Utc);
+        }
+
+        return null;
+    }
+
+    private async Task UpsertProfileOnRegisterAsync(string userId, string? requestedNickname, string? gender, DateTime? birthDate)
+    {
+        if (_customerProfiles is null) return;
+        var now = DateTime.UtcNow;
+        var filter = Builders<ProfileRecordDoc>.Filter.Eq(x => x.OwnerUserId, userId);
+        var existing = await _customerProfiles.Find(filter).FirstOrDefaultAsync();
+        var nickname = ResolveNicknameForRegister(userId, requestedNickname, existing);
+        if (existing is null)
+        {
+            await _customerProfiles.InsertOneAsync(new ProfileRecordDoc
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                OwnerUserId = userId,
+                Nickname = nickname,
+                Gender = gender,
+                BirthDate = birthDate,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
+            });
+            return;
+        }
+
+        await _customerProfiles.UpdateOneAsync(
+            filter,
+            Builders<ProfileRecordDoc>.Update
+                .Set(x => x.Nickname, nickname)
+                .Set(x => x.Gender, gender)
+                .Set(x => x.BirthDate, birthDate)
+                .Set(x => x.UpdatedAtUtc, now));
+    }
+
+    private static string ResolveNicknameForRegister(string userId, string? requested, ProfileRecordDoc? existing)
+    {
+        if (!string.IsNullOrWhiteSpace(requested))
+            return requested.Trim();
+        if (existing is not null && !string.IsNullOrWhiteSpace(existing.Nickname))
+            return existing.Nickname!.Trim();
+        return DefaultNicknameFor(userId);
+    }
+
+    private static string DefaultNicknameFor(string userId)
+    {
+        var s = $"用户{userId}";
+        return s.Length <= 50 ? s : s[..50];
+    }
+
     private string? GetClientIp()
     {
         return HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -884,6 +983,9 @@ public class RegisterRequest
 {
     public string? Email { get; set; }
     public string? Password { get; set; }
+    public string? Nickname { get; set; }
+    public string? Gender { get; set; }
+    public string? BirthDate { get; set; }
 }
 
 public class LoginRequest

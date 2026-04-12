@@ -31,4 +31,15 @@ public static class DependencyInjection
 
         return services;
     }
+
+    public static IServiceCollection AddMongoInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<MongoSettings>(configuration.GetSection(MongoSettings.SectionName));
+        services.AddSingleton<IMongoClient>(sp =>
+        {
+            var mongo = sp.GetRequiredService<IOptions<MongoSettings>>().Value;
+            return new MongoClient(mongo.ConnectionString);
+        });
+        return services;
+    }
 }

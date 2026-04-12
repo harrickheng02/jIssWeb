@@ -7,4 +7,6 @@ public class MongoSettings
     public string ConnectionString { get; set; } = "";
 
     public string DatabaseName { get; set; } = "jissweb";
+
+    public string CustomerDatabaseName { get; set; } = "jissweb_customer";
 }

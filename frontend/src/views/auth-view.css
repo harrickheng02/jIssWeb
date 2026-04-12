@@ -66,6 +66,10 @@
   animation: auth-page-fade 0.2s ease;
 }
 
+.auth-page__full {
+  width: 100%;
+}
+
 .auth-page__alert {
   margin-bottom: var(--space-md);
 }

@@ -45,6 +45,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/notifications',
+      name: 'notifications',
+      component: () => import('../views/NotificationsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/register/pending',
       name: 'register-pending',
       component: () => import('../views/RegisterPendingView.vue'),

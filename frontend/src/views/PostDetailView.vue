@@ -41,6 +41,12 @@ function shortAuthor(id: string) {
   return id.length <= 14 ? id : `${id.slice(0, 10)}…`
 }
 
+function forumAuthorLabel(displayName: string | undefined, authorId: string) {
+  const n = displayName?.trim()
+  if (n) return n
+  return shortAuthor(authorId)
+}
+
 async function load() {
   loading.value = true
   post.value = null
@@ -125,7 +131,7 @@ watch(
           </div>
           <h1 class="post-title">{{ post.title }}</h1>
           <div class="post-meta">
-            <span class="author">{{ shortAuthor(post.authorId) }}</span>
+            <span class="author">{{ forumAuthorLabel(post.authorDisplayName, post.authorId) }}</span>
             <div class="tag-list">
               <el-tag v-for="tag in post.tags" :key="tag" size="small">{{ tag }}</el-tag>
             </div>
@@ -142,7 +148,7 @@ watch(
           <template #header>回复</template>
           <div v-for="r in replies" :key="r.id" class="reply-row">
             <div class="reply-meta">
-              <span>{{ shortAuthor(r.authorId) }}</span>
+              <span>{{ forumAuthorLabel(r.authorDisplayName, r.authorId) }}</span>
               <span class="reply-time">{{ formatPublishedUtc(r.createdAtUtc) }}</span>
             </div>
             <p class="reply-body">{{ r.body }}</p>

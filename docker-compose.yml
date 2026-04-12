@@ -63,6 +63,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Mongo__ConnectionString: ${MONGO_CONNECTION_STRING}
       Mongo__DatabaseName: jissweb_user
+      Mongo__CustomerDatabaseName: jissweb_customer
       Redis__ConnectionString: redis:6379
       Redis__Password: ${REDIS_PASSWORD}
       Redis__KeyPrefix: "user:"
@@ -115,10 +116,12 @@ services:
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
       Jwt__Key: ${JWT_KEY}
-      DownstreamServices__UserApiBaseUrl: ${BFF_USER_API_URL}
-      DownstreamServices__CustomerApiBaseUrl: ${BFF_CUSTOMER_API_URL}
+      DownstreamServices__UserApiBaseUrl: ${BFF_USER_API_URL:-http://user-api:5097/}
+      DownstreamServices__CustomerApiBaseUrl: ${BFF_CUSTOMER_API_URL:-http://customer-api:5098/}
     depends_on:
       user-api:
+        condition: service_started
+      customer-api:
         condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -133,9 +136,32 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Mongo__ConnectionString: ${MONGO_CONNECTION_STRING}
       Mongo__DatabaseName: jissweb_model
+      Mongo__CustomerDatabaseName: jissweb_customer
       Redis__ConnectionString: redis:6379
       Redis__Password: ${REDIS_PASSWORD}
       Redis__KeyPrefix: "model:"
+      Jwt__Issuer: JIssWeb
+      Jwt__Audience: JIssWeb
+      Jwt__Key: ${JWT_KEY}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  customer-api:
+    build:
+      context: .
+      dockerfile: docker/JIssWeb.Customer.Api.Dockerfile
+    ports:
+      - "${CUSTOMER_API_PORT:-5098}:${CUSTOMER_API_CONTAINER_PORT:-5098}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Mongo__ConnectionString: ${MONGO_CONNECTION_STRING}
+      Mongo__DatabaseName: jissweb_customer
+      Redis__ConnectionString: redis:6379
+      Redis__Password: ${REDIS_PASSWORD}
+      Redis__KeyPrefix: "customer:"
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
       Jwt__Key: ${JWT_KEY}
@@ -156,12 +182,14 @@ services:
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
       Jwt__Key: ${JWT_KEY}
-      ReverseProxy__Clusters__user-service__Destinations__d1__Address: ${GATEWAY_USER_API_URL}
-      ReverseProxy__Clusters__customer-service__Destinations__d1__Address: ${GATEWAY_CUSTOMER_API_URL}
-      ReverseProxy__Clusters__frontend-bff__Destinations__d1__Address: ${GATEWAY_BFF_URL}
-      ReverseProxy__Clusters__model-service__Destinations__d1__Address: ${GATEWAY_MODEL_API_URL}
+      ReverseProxy__Clusters__user-service__Destinations__d1__Address: ${GATEWAY_USER_API_URL:-http://user-api:5097/}
+      ReverseProxy__Clusters__customer-service__Destinations__d1__Address: ${GATEWAY_CUSTOMER_API_URL:-http://customer-api:5098/}
+      ReverseProxy__Clusters__frontend-bff__Destinations__d1__Address: ${GATEWAY_BFF_URL:-http://frontend-bff:5095/}
+      ReverseProxy__Clusters__model-service__Destinations__d1__Address: ${GATEWAY_MODEL_API_URL:-http://model-api:5099/}
     depends_on:
       user-api:
+        condition: service_started
+      customer-api:
         condition: service_started
       frontend-bff:
         condition: service_started

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { UserFilled, ArrowRight, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -43,6 +43,18 @@ watch(
   },
   { immediate: true },
 )
+
+function onProfileUpdated() {
+  void loadNickname()
+}
+
+onMounted(() => {
+  window.addEventListener('jiss-profile-updated', onProfileUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('jiss-profile-updated', onProfileUpdated)
+})
 
 function goAuth() {
   void router.push('/auth')

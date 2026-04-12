@@ -24,6 +24,9 @@ const registerForm = reactive({
   email: '',
   password: '',
   confirmPassword: '',
+  nickname: '',
+  gender: '',
+  birthDate: '',
   agreed: false,
 })
 
@@ -36,12 +39,20 @@ const registerErrors = reactive({
   email: '',
   password: '',
   confirmPassword: '',
+  nickname: '',
+  gender: '',
+  birthDate: '',
   agreed: '',
 })
 
 const canSubmitLogin = computed(() => Boolean(loginForm.email && loginForm.password))
 const canSubmitRegister = computed(() =>
-  Boolean(registerForm.email && registerForm.password && registerForm.confirmPassword && registerForm.agreed),
+  Boolean(
+    registerForm.email &&
+      registerForm.password &&
+      registerForm.confirmPassword &&
+      registerForm.agreed,
+  ),
 )
 
 watch(activeTab, () => {
@@ -72,6 +83,8 @@ function getAuthErrorMessage(code?: string, fallback?: string) {
       return '密码至少8位，含大小写字母和数字'
     case 'MAIL_SEND_FAILED':
       return '验证邮件发送失败，请稍后重试'
+    case 'NICKNAME_TAKEN':
+      return '昵称已被使用'
     case 'RESEND_COOLDOWN':
       return fallback || '操作过于频繁，请稍后重试'
     case 'RESEND_DAILY_LIMITED':
@@ -118,6 +131,33 @@ function validateAgreement() {
   return !registerErrors.agreed
 }
 
+function validateRegisterNickname() {
+  const t = registerForm.nickname.trim()
+  registerErrors.nickname = t && t.length > 50 ? '昵称最多 50 字' : ''
+  return !registerErrors.nickname
+}
+
+function validateRegisterGender() {
+  registerErrors.gender = ''
+  if (!registerForm.gender) return true
+  if (registerForm.gender !== 'male' && registerForm.gender !== 'female' && registerForm.gender !== 'other') {
+    registerErrors.gender = '请选择有效性别'
+    return false
+  }
+  return true
+}
+
+function validateRegisterBirthDate() {
+  registerErrors.birthDate = ''
+  if (!registerForm.birthDate) return true
+  const d = new Date(registerForm.birthDate)
+  if (Number.isNaN(d.getTime())) {
+    registerErrors.birthDate = '日期无效'
+    return false
+  }
+  return true
+}
+
 async function doLogin() {
   requestError.value = ''
   const emailOk = validateLoginEmail()
@@ -154,12 +194,19 @@ async function doRegister() {
   const emailOk = validateRegisterEmail()
   const passwordOk = validateRegisterPassword()
   const confirmOk = validateRegisterConfirmPassword()
+  const nicknameOk = validateRegisterNickname()
+  const genderOk = validateRegisterGender()
+  const birthOk = validateRegisterBirthDate()
   const agreementOk = validateAgreement()
-  if (!emailOk || !passwordOk || !confirmOk || !agreementOk) return
+  if (!emailOk || !passwordOk || !confirmOk || !nicknameOk || !genderOk || !birthOk || !agreementOk) return
 
   loading.value = true
   try {
-    const res = await register(registerForm.email, registerForm.password)
+    const res = await register(registerForm.email, registerForm.password, {
+      nickname: registerForm.nickname.trim() || undefined,
+      gender: registerForm.gender || undefined,
+      birthDate: registerForm.birthDate || undefined,
+    })
     if (!res.success) throw new Error(res.message ?? '注册失败')
     auth.setPendingVerifyEmail(registerForm.email)
     auth.setPendingVerifyCooldown(60)
@@ -248,10 +295,10 @@ async function doRegister() {
                 />
 
                 <el-form @submit.prevent="doRegister">
-                  <el-form-item label="邮箱" :error="registerErrors.email">
+                  <el-form-item label="邮箱" required :error="registerErrors.email">
                     <el-input v-model="registerForm.email" type="email" placeholder="请输入邮箱" @blur="validateRegisterEmail" />
                   </el-form-item>
-                  <el-form-item label="密码" :error="registerErrors.password">
+                  <el-form-item label="密码" required :error="registerErrors.password">
                     <el-input
                       v-model="registerForm.password"
                       type="password"
@@ -260,13 +307,43 @@ async function doRegister() {
                       @blur="validateRegisterPassword"
                     />
                   </el-form-item>
-                  <el-form-item label="确认密码" :error="registerErrors.confirmPassword">
+                  <el-form-item label="确认密码" required :error="registerErrors.confirmPassword">
                     <el-input
                       v-model="registerForm.confirmPassword"
                       type="password"
                       show-password
                       placeholder="请再次输入密码"
                       @blur="validateRegisterConfirmPassword"
+                    />
+                  </el-form-item>
+                  <el-form-item label="昵称" :error="registerErrors.nickname">
+                    <el-input
+                      v-model="registerForm.nickname"
+                      maxlength="50"
+                      show-word-limit
+                      placeholder="留空则自动生成"
+                      @blur="validateRegisterNickname"
+                    />
+                  </el-form-item>
+                  <el-form-item label="性别" :error="registerErrors.gender">
+                    <el-select
+                      v-model="registerForm.gender"
+                      clearable
+                      placeholder="不选"
+                      class="auth-page__full"
+                      @change="validateRegisterGender"
+                    >
+                      <el-option label="男" value="male" />
+                      <el-option label="女" value="female" />
+                      <el-option label="其他" value="other" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="生日" :error="registerErrors.birthDate">
+                    <el-input
+                      v-model="registerForm.birthDate"
+                      type="date"
+                      class="auth-page__full"
+                      @change="validateRegisterBirthDate"
                     />
                   </el-form-item>
                   <el-form-item class="agree-form-item" :error="registerErrors.agreed">
