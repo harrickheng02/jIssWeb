@@ -77,8 +77,27 @@ During `build` and during successful `refresh`, the tooling SHALL write `scripts
 
 The root `package.json` SHALL expose npm scripts that delegate to `scripts/repo-knowledge-router` for `build`, `route`, `verify`, and `refresh` (names prefixed with `graph:` or equivalent). The package SHALL declare its Node engine constraint compatible with the repository CI image.
 
+The root `package.json` SHALL expose `pm:pull`, `pm:push`, and `pm:publish` that compose `scripts/gitee-sync` with graph scripts as follows: `pm:pull` SHALL run the gitee-sync pull entrypoint and then `graph:refresh`; `pm:push` SHALL run `graph:verify` and then the gitee-sync push entrypoint; `pm:publish` SHALL run `graph:refresh` and then `pm:push`. It SHALL expose `pm:ci` that installs dependencies for both `scripts/gitee-sync` and `scripts/repo-knowledge-router` (for CI and fresh clones).
+
+**Host Git:** The repository MAY ship `.githooks/pre-commit` that runs `npm run graph:verify`; hooks are not active until the user sets `git config core.hooksPath .githooks` (documented in `.cursor/skills/pm-plan/SKILL.md`).
+
 #### Scenario: Script delegation
 
 - **WHEN** a developer runs the documented root npm graph script
 - **THEN** the correct package entry SHALL execute without requiring a global install
+
+#### Scenario: Pull then refresh
+
+- **WHEN** `pm:pull` completes successfully
+- **THEN** it SHALL have run `graph:refresh` after the gitee-sync pull step
+
+#### Scenario: Push gated by verify
+
+- **WHEN** `pm:push` is invoked
+- **THEN** it SHALL run `graph:verify` before the gitee-sync push step
+
+#### Scenario: Publish chain
+
+- **WHEN** `pm:publish` is invoked
+- **THEN** it SHALL run `graph:refresh` before the same sequence as `pm:push`
 

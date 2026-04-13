@@ -48,67 +48,18 @@ gitee_content_classifications:
   - wontfix
 milestones:
   - title: M1 — 可演示论坛 MVP
-    description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据；版区与标签只读与首页对齐已交付。版主/标签后台与算法热榜见 M3 独立 Issue。
+    description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据；分类与标签只读
     due_on: 2026-06-30
   - title: M2 — 互动与发现
-    description: 已交付：帖子搜索、站内通知、用户主键与「我的帖子」约定。待办：帖子点赞与收藏；个人中心与内容管理最小集；公告位与热门数据接口（均见 open Issue）。
+    description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口
     due_on: 2026-09-30
   - title: M3 — 治理与增长
-    description: 举报与审核、反垃圾；版主版区操作与标签后台管理；推荐排序/报表与个性化热榜进阶；见本里程碑 open Issue。
+    description: 审核举报、反垃圾占位；推荐排序；运营与报表
+    due_on: 2026-12-31
+  - title: W — 工作流程与工程效能
+    description: 与 M1–M3 产品交付解耦：策划案入库、审阅门禁、路由与路径校验、CI/hooks、复盘与图谱刷新；排期与业务里程碑独立叙述。
     due_on: 2026-12-31
 issues:
-  - title: 论坛版区与标签只读展示与首页对齐
-    body: |
-      验收标准：
-      - 版区/分类与论坛首组 API 或唯一配置源一致；左侧只读展示，切换版区时帖子列表按 boardId 筛选可演示。
-      - 标签：卡片上 tags 与数据源一致；右侧「热门标签」等与卡片 tags 同一词表来源（只读 tag 列表 API，或对帖子 tags 聚合的 Top N），禁止与真实帖子标签无关的硬编码词表。
-      - 按标签驱动列表：若列表接口支持按 tag 筛选，则点击标签刷新列表，加载/空/错/限流态与 forum-homepage-shell 中搜索驱动区域可区分；若 M1 不做该参数，则验收固定为「标签只读 + 点击走站内关键词搜索（q）」之一并在 spec 或本条目中写明，禁止双口径验收。
-      - 与 forum-homepage-shell 对齐：字段名、空态（无版区、无标签、无帖子、请求失败可区分）。
-      与 M2 划界：复杂热榜与运营榜单接口归入 M2「公告位与热门数据接口」等条目；本条只做只读展示与频次或配置级 Top N。
-      依赖：openspec/specs/forum-homepage-shell/spec.md；论坛领域首组 API（已实现）。
-      已交付：按上述验收口径完成；原非目标「版主编辑、标签后台管理」「个性化推荐与算法化热榜」已拆分为 M3 独立 Issue。
-    milestone: M1 — 可演示论坛 MVP
-    gitee_number: IILVVX
-    priority: 次要
-    state: closed
-    module: 版区与标签
-    classification: enhancement
-  - title: 版主版区与帖子操作后台（最小集）
-    body: |
-      验收标准：
-      - 具备版主或管理员角色边界（与 JWT/角色声明一致）；可对帖子执行至少一种版区操作（如置顶、精华、锁帖或等价）并持久化，列表与详情可反映状态。
-      - 操作审计字段可核验（操作者 sub、目标帖子、时间）；非法或未授权请求有明确错误码。
-      依赖：论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。
-      非目标：完整 RBAC 中台、跨版区批量脚本、工单流。
-    milestone: M3 — 治理与增长
-    priority: 主要
-    state: open
-    module: 治理与审核
-    classification: feature
-  - title: 标签体系后台管理（CRUD 与绑定规则）
-    body: |
-      验收标准：
-      - 提供标签的创建、编辑、禁用/合并等最小管理能力（API 或管理端择一），与前台只读词表同源；帖子绑定/解绑规则可文档化或演示。
-      - 与论坛帖子 tags 字段及列表筛选行为一致，禁止与硬编码占位词表分裂。
-      依赖：论坛版区与标签只读展示与首页对齐（已关闭条目）；forum-homepage-shell 与 forum 内容 API 约定。
-      非目标：多语言同义词图谱、运营标签 A/B、第三方标签云同步。
-    milestone: M3 — 治理与增长
-    priority: 主要
-    state: open
-    module: 版区与标签
-    classification: feature
-  - title: 个性化推荐与算法化热榜
-    body: |
-      验收标准：
-      - 在「时间序 / 简易热度」之上，增加可配置的算法化排序或热榜策略至少一种（规则或离线分可接受），与 Feed/侧栏数据合同对齐；可观测指标（曝光、点击等择一）占位或与 report-service 衔接说明。
-      - 与 M2「公告位与热门数据接口」、M3「推荐排序与运营报表出口占位」的边界写清：本条负责推荐/热榜算法侧进阶，不重复占位接口验收。
-      依赖：论坛帖子与互动数据基础；推荐排序与运营报表出口占位（同里程碑 open Issue，可并行演进）。
-      非目标：深度学习实时训练、多业务线统一推荐中台、商业级冷启动策略。
-    milestone: M3 — 治理与增长
-    priority: 主要
-    state: open
-    module: 搜索与发现
-    classification: feature
   - title: 帖子点赞与收藏基础
     body: |
       验收标准：
@@ -123,11 +74,16 @@ issues:
     module: 互动与声望
     classification: feature
   - title: 个人中心与内容管理最小集
-    body: |
+    body: >
       验收标准：
+
       - 个人中心页（或等价路由）可维护资料（与现有 Profile 能力衔接）、入口到「我的帖子/回复」列表且查询键与 token `sub` 一致。
+
       - 基础设置或占位（如主题、退出）与空态、失败提示可演示；与 customer-profile 或既有 Profile API 不冲突。
-      依赖：openspec/specs/customer-profile-service（若适用）；openspec/specs/token-identity-consistency；论坛「我的」查询与 JWT `sub` 一致（已实现）。
+
+      依赖：openspec/specs/customer-profile-service（若适用）；openspec/specs/token-identity-consistency；论坛「我的」查询与 JWT `sub`
+      一致（已实现）。
+
       非目标：完整账号安全中心、第三方绑定、消息全渠道设置。
     milestone: M2 — 互动与发现
     gitee_number: IILVWJ
@@ -157,6 +113,7 @@ issues:
       依赖：里程碑 M3；openspec 治理相关条款（若有）。
       非目标：完整工单 SLA、法务级证据链、多租户隔离策略。
     milestone: M3 — 治理与增长
+    gitee_number: IIM4TY
     priority: 主要
     state: open
     module: 治理与审核
@@ -169,6 +126,7 @@ issues:
       依赖：里程碑 M3。
       非目标：自建大模型审核、全站实时风控中台。
     milestone: M3 — 治理与增长
+    gitee_number: IIM4U6
     priority: 次要
     state: open
     module: 治理与审核
@@ -181,7 +139,108 @@ issues:
       依赖：openspec/specs/report-service（若适用）；里程碑 M3。
       非目标：A/B 实验平台、计费级报表；个性化与算法化热榜见同里程碑 Issue「个性化推荐与算法化热榜」。
     milestone: M3 — 治理与增长
+    gitee_number: IIM4UA
     priority: 次要
+    state: open
+    module: 平台与基础设施
+    classification: enhancement
+  - title: 版主版区与帖子操作后台（最小集）
+    body: |
+      验收标准：
+      - 具备版主或管理员角色边界（与 JWT/角色声明一致）；可对帖子执行至少一种版区操作（如置顶、精华、锁帖或等价）并持久化，列表与详情可反映状态。
+      - 操作审计字段可核验（操作者 sub、目标帖子、时间）；非法或未授权请求有明确错误码。
+      依赖：论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。
+      非目标：完整 RBAC 中台、跨版区批量脚本、工单流。
+    milestone: M3 — 治理与增长
+    gitee_number: IIMOBM
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: 标签体系后台管理（CRUD 与绑定规则）
+    body: |
+      验收标准：
+      - 提供标签的创建、编辑、禁用/合并等最小管理能力（API 或管理端择一），与前台只读词表同源；帖子绑定/解绑规则可文档化或演示。
+      - 与论坛帖子 tags 字段及列表筛选行为一致，禁止与硬编码占位词表分裂。
+      依赖：论坛版区与标签只读展示与首页对齐（已关闭条目）；forum-homepage-shell 与 forum 内容 API 约定。
+      非目标：多语言同义词图谱、运营标签 A/B、第三方标签云同步。
+    milestone: M3 — 治理与增长
+    gitee_number: IIMOBP
+    priority: 主要
+    state: open
+    module: 版区与标签
+    classification: feature
+  - title: 个性化推荐与算法化热榜
+    body: |
+      验收标准：
+      - 在「时间序 / 简易热度」之上，增加可配置的算法化排序或热榜策略至少一种（规则或离线分可接受），与 Feed/侧栏数据合同对齐；可观测指标（曝光、点击等择一）占位或与 report-service 衔接说明。
+      - 与 M2「公告位与热门数据接口」、M3「推荐排序与运营报表出口占位」的边界写清：本条负责推荐/热榜算法侧进阶，不重复占位接口验收。
+      依赖：论坛帖子与互动数据基础；推荐排序与运营报表出口占位（同里程碑 open Issue，可并行演进）。
+      非目标：深度学习实时训练、多业务线统一推荐中台、商业级冷启动策略。
+    milestone: M3 — 治理与增长
+    gitee_number: IIMOBV
+    priority: 主要
+    state: open
+    module: 搜索与发现
+    classification: feature
+  - title: 工作流程：策划案入库与 pm-plan/OpenSpec 衔接
+    body: |
+      验收标准：
+      - 提供与业务需求解耦的「策划案/需求说明」入库位置与命名约定（如 `docs/pm/` 或等价模板），写明如何映射到 `pm-plan.yaml` Issue 与 `openspec/changes/**`。
+      - README 或 `.cursor/skills/pm-plan/SKILL.md` 中增加指向，使跨会话可复用同一入口；不包含论坛/账号等业务功能验收。
+      依赖：`.cursor/skills/pm-plan/SKILL.md`；`openspec/specs/shared-foundation/spec.md`（若需统一文档层级）。
+      非目标：替代 Gitee Issue；业务领域 spec 编写。
+    milestone: W — 工作流程与工程效能
+    priority: 次要
+    state: open
+    module: 平台与基础设施
+    classification: enhancement
+  - title: 工作流程：变更审阅与合并门禁清单
+    body: |
+      验收标准：
+      - 提供与业务无关的 PR/合并检查单（Markdown 或模板），至少包含：关联 pm-plan Issue（若适用）、OpenSpec 任务勾选或变更归档引用、`npm run graph:verify` 或等价说明。
+      - 团队可勾选演示一次「未满足门禁则不合并」的流程（可为人工执行，须文档化）。
+      - 可选：与业务用例解耦的横切「契约/集成测试」清单（如 graph:verify、身份相关最小用例），仅作合入参考项。
+      依赖：`openspec/specs/repo-knowledge-router/spec.md`（索引与校验范围）；仓库既有 CI 配置（若有）。
+      非目标：强制特定商业审批流；替代代码审查讨论。
+    milestone: W — 工作流程与工程效能
+    priority: 次要
+    state: open
+    module: 平台与基础设施
+    classification: enhancement
+  - title: 工作流程：Issue 文档路径与知识路由工程化
+    body: |
+      验收标准：
+      - 约定 pm-plan 中工程类 Issue 的 `body` 须含至少一条可校验 `openspec/specs/**` 或 `.cursor/rules/**` 路径；提供校验方式（脚本或 CI 调用 `npm run graph:verify`）。
+      - `graph:route` 或 `PM_OPEN_ISSUES.md` 生成逻辑中，对「无路径」Issue 有可见提示或分级策略；与业务 Issue 的验收条款解耦（本条不验收业务功能）。
+      依赖：`openspec/specs/repo-knowledge-router/spec.md`；`scripts/repo-knowledge-router/` 现状。
+      非目标：语义向量检索；替换 Gitee 标签体系。
+    milestone: W — 工作流程与工程效能
+    priority: 次要
+    state: open
+    module: 平台与基础设施
+    classification: enhancement
+  - title: 工作流程：CI 与可选 Git hooks 闭环
+    body: |
+      验收标准：
+      - CI 或文档中明确 `graph:verify`（及可选测试子集）在合并前的触发点；失败时阻断合并或标红（与具体业务测试解耦）。
+      - 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明与失败时的「终止提交」行为写清；stop 语义为「校验失败即不进入后续步骤」。
+      依赖：仓库根 `package.json` 中 `graph:verify`；`.githooks/pre-commit`（若存在）。
+      非目标：全量 E2E 替代；Cursor 云端强制策略。
+    milestone: W — 工作流程与工程效能
+    priority: 次要
+    state: open
+    module: 平台与基础设施
+    classification: enhancement
+  - title: 工作流程：复盘沉淀与图谱刷新节奏
+    body: |
+      验收标准：
+      - 文档化「复盘 → 更新 `.cursor/rules` 或 `openspec/specs` → 执行 `npm run graph:refresh`」的节奏（如每迭代或每归档一次），与业务发版节奏解耦说明。
+      - 一次演练记录：从合并 PR 到刷新 `graph.json` / `PM_OPEN_ISSUES.md` 的责任人/触发条件可核验。
+      依赖：`openspec/specs/repo-knowledge-router/spec.md`；`npm run graph:refresh`。
+      非目标：自动从对话蒸馏规则；多仓库联邦图谱。
+    milestone: W — 工作流程与工程效能
+    priority: 不重要
     state: open
     module: 平台与基础设施
     classification: enhancement

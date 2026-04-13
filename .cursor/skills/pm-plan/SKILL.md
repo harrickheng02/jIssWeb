@@ -1,20 +1,20 @@
 ---
 name: pm-plan
 description: >-
-  分析、对照与维护 scripts/gitee-sync/pm-plan.yaml；在仓库根代执行 npm（pm:pull、graph:refresh、pm:publish 等）。用户提到 pm 规划、里程碑、Issue、pm-plan、拉需求、推 Gitee、归档后回写规划时启用。
+  分析、对照与维护 scripts/gitee-sync/pm-plan.yaml；在仓库根代执行 npm（pm:pull、graph:refresh、pm:publish 等）。用户提到 pm 规划、里程碑、Issue、pm-plan、同步 Gitee、归档后回写规划时启用。
 license: MIT
 metadata:
   author: project
-  version: "1.4.0"
+  version: "1.4.1"
 ---
 
 # pm-plan 分析维护
 
-## 自动化（省 token）
+## 默认执行约定
 
-- **不依赖** 仓库根目录 `.bat`；一律在**仓库根**用 **`npm run …`**（由 Agent 执行终端，用户不必手敲）。
-- **少问多做**：用户未明确说「已拉取 / 本地已与 Gitee 对齐」时，**先执行** `npm run pm:pull`；失败则报告并停止。**禁止**在「要不要先 pull」上反复追问。
-- 缺子包依赖时执行 **`npm run pm:ci`**（勿输出 `GITEE_*`、`.env`）。
+- 在**仓库根**用 **`npm run …`**（由 Agent 跑终端）；不依赖仓库根 `.bat`。
+- **先同步再改**：用户未声明「已 pull / 已与 Gitee 对齐」时，**先** `npm run pm:pull`；失败则说明原因并停止。不在「是否要先 pull」上反复追问。
+- 缺 `scripts/gitee-sync` 或 `repo-knowledge-router` 依赖时执行 **`npm run pm:ci`**。对话与 Git 中勿出现 `GITEE_*`、`.env` 内容。
 
 ## 命令速查（仓库根）
 
