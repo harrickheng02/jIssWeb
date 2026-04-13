@@ -11,3 +11,7 @@ obj/
 *.log
 .tmpbuild/
 .history/
+scripts/repo-knowledge-router/data/graph.json
+/PM_OPEN_ISSUES.md
+scripts/gitee-sync/PM_OPEN_ISSUES.md
+scripts/gitee-sync/.last-route.txt

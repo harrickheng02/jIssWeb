@@ -1,0 +1,17 @@
+{
+  "name": "repo-knowledge-router",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node src/cli.mjs build",
+    "refresh": "node src/cli.mjs refresh",
+    "route": "node src/cli.mjs route",
+    "verify": "node src/cli.mjs verify"
+  },
+  "dependencies": {
+    "yaml": "^2.8.3"
+  }
+}

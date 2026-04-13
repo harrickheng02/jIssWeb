@@ -20,6 +20,91 @@
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "always", "panel": "dedicated" },
       "problemMatcher": []
+    },
+    {
+      "label": "pm: ci",
+      "type": "shell",
+      "command": "npm.cmd run pm:ci",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] }
+      },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "graph: build",
+      "type": "process",
+      "command": "node",
+      "args": ["${workspaceFolder}/scripts/repo-knowledge-router/src/cli.mjs", "build"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "graph: refresh",
+      "type": "process",
+      "command": "node",
+      "args": ["${workspaceFolder}/scripts/repo-knowledge-router/src/cli.mjs", "refresh"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "pm: pull",
+      "type": "shell",
+      "command": "npm.cmd run pm:pull",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] }
+      },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "graph: verify",
+      "type": "process",
+      "command": "node",
+      "args": ["${workspaceFolder}/scripts/repo-knowledge-router/src/cli.mjs", "verify"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "graph: route",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/scripts/repo-knowledge-router/src/cli.mjs",
+        "route",
+        "${input:graphRouteQuery}"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "graph: route (full args)",
+      "type": "shell",
+      "command": "node scripts/repo-knowledge-router/src/cli.mjs route ${input:graphRouteArgs}",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] }
+      },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "graphRouteQuery",
+      "type": "promptString",
+      "description": "路由关键词（可含空格）"
+    },
+    {
+      "id": "graphRouteArgs",
+      "type": "promptString",
+      "description": "传给 route 的整段参数，如 --limit 8 -- 论坛 JWT"
     }
   ]
 }

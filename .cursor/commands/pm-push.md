@@ -2,13 +2,17 @@
 name: /pm-push
 id: pm-push
 category: Workflow
-description: 将 pm-plan.yaml 同步到 Gitee（先 dry-run 再推送）
+description: 将 pm-plan.yaml 同步到 Gitee（先校验 openspec 引用，再 dry-run 再推送）
 ---
 
-在**仓库根目录**用终端执行（无依赖时先 `npm run pm:ci`）：
+由 **Agent 在仓库根**执行（勿用 bat；缺依赖先 `npm run pm:ci`）：
 
 ```bash
 npm run pm:push
 ```
+
+改完 `pm-plan.yaml` 后若要**一条命令**刷新图并推送，用 **`npm run pm:publish`**（见 **`pm-plan` skill**）。
+
+`pm:push` 会先 **`graph:verify`**（`body` 中 `openspec/...` 须存在），失败则不推 Gitee。
 
 勿在对话中输出 `GITEE_*` 或 `.env` 内容。完成后简要说明更新条数或错误。

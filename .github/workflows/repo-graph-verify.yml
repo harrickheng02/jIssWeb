@@ -1,0 +1,25 @@
+name: repo-graph-verify
+on:
+  pull_request:
+    paths:
+      - "openspec/**"
+      - "scripts/gitee-sync/pm-plan.yaml"
+      - ".cursor/rules/**"
+      - "scripts/repo-knowledge-router/**"
+  push:
+    paths:
+      - "openspec/**"
+      - "scripts/gitee-sync/pm-plan.yaml"
+      - ".cursor/rules/**"
+      - "scripts/repo-knowledge-router/**"
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci --prefix scripts/repo-knowledge-router
+      - run: npm run verify --prefix scripts/repo-knowledge-router

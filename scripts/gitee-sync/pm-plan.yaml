@@ -48,13 +48,13 @@ gitee_content_classifications:
   - wontfix
 milestones:
   - title: M1 — 可演示论坛 MVP
-    description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据。收尾项：版区与标签只读与首页对齐（见 open Issue），标签模块须与 API 同源、验收口径写死，避免与静态占位混谈；其余 M1 能力已交付。
+    description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据；版区与标签只读与首页对齐已交付。版主/标签后台与算法热榜见 M3 独立 Issue。
     due_on: 2026-06-30
   - title: M2 — 互动与发现
     description: 已交付：帖子搜索、站内通知、用户主键与「我的帖子」约定。待办：帖子点赞与收藏；个人中心与内容管理最小集；公告位与热门数据接口（均见 open Issue）。
     due_on: 2026-09-30
   - title: M3 — 治理与增长
-    description: 举报与审核、反垃圾占位、推荐排序与运营报表出口；见本里程碑 open Issue（预拆条目，可随评审细化）。
+    description: 举报与审核、反垃圾；版主版区操作与标签后台管理；推荐排序/报表与个性化热榜进阶；见本里程碑 open Issue。
     due_on: 2026-12-31
 issues:
   - title: 论坛版区与标签只读展示与首页对齐
@@ -66,13 +66,49 @@ issues:
       - 与 forum-homepage-shell 对齐：字段名、空态（无版区、无标签、无帖子、请求失败可区分）。
       与 M2 划界：复杂热榜与运营榜单接口归入 M2「公告位与热门数据接口」等条目；本条只做只读展示与频次或配置级 Top N。
       依赖：openspec/specs/forum-homepage-shell/spec.md；论坛领域首组 API（已实现）。
-      非目标：版主编辑、标签后台管理；个性化推荐与算法化热榜。
+      已交付：按上述验收口径完成；原非目标「版主编辑、标签后台管理」「个性化推荐与算法化热榜」已拆分为 M3 独立 Issue。
     milestone: M1 — 可演示论坛 MVP
     gitee_number: IILVVX
     priority: 次要
-    state: open
+    state: closed
     module: 版区与标签
     classification: enhancement
+  - title: 版主版区与帖子操作后台（最小集）
+    body: |
+      验收标准：
+      - 具备版主或管理员角色边界（与 JWT/角色声明一致）；可对帖子执行至少一种版区操作（如置顶、精华、锁帖或等价）并持久化，列表与详情可反映状态。
+      - 操作审计字段可核验（操作者 sub、目标帖子、时间）；非法或未授权请求有明确错误码。
+      依赖：论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。
+      非目标：完整 RBAC 中台、跨版区批量脚本、工单流。
+    milestone: M3 — 治理与增长
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: 标签体系后台管理（CRUD 与绑定规则）
+    body: |
+      验收标准：
+      - 提供标签的创建、编辑、禁用/合并等最小管理能力（API 或管理端择一），与前台只读词表同源；帖子绑定/解绑规则可文档化或演示。
+      - 与论坛帖子 tags 字段及列表筛选行为一致，禁止与硬编码占位词表分裂。
+      依赖：论坛版区与标签只读展示与首页对齐（已关闭条目）；forum-homepage-shell 与 forum 内容 API 约定。
+      非目标：多语言同义词图谱、运营标签 A/B、第三方标签云同步。
+    milestone: M3 — 治理与增长
+    priority: 主要
+    state: open
+    module: 版区与标签
+    classification: feature
+  - title: 个性化推荐与算法化热榜
+    body: |
+      验收标准：
+      - 在「时间序 / 简易热度」之上，增加可配置的算法化排序或热榜策略至少一种（规则或离线分可接受），与 Feed/侧栏数据合同对齐；可观测指标（曝光、点击等择一）占位或与 report-service 衔接说明。
+      - 与 M2「公告位与热门数据接口」、M3「推荐排序与运营报表出口占位」的边界写清：本条负责推荐/热榜算法侧进阶，不重复占位接口验收。
+      依赖：论坛帖子与互动数据基础；推荐排序与运营报表出口占位（同里程碑 open Issue，可并行演进）。
+      非目标：深度学习实时训练、多业务线统一推荐中台、商业级冷启动策略。
+    milestone: M3 — 治理与增长
+    priority: 主要
+    state: open
+    module: 搜索与发现
+    classification: feature
   - title: 帖子点赞与收藏基础
     body: |
       验收标准：
@@ -143,7 +179,7 @@ issues:
       - 列表或 Feed 可切换「时间序 / 简易热度」等占位策略之一，查询参数、默认值与回退行为文档化或可联调。
       - 报表或 BFF 提供至少一种只读运营指标出口（与现有 report-service 或占位路由对齐）；失败与空数据可处理。
       依赖：openspec/specs/report-service（若适用）；里程碑 M3。
-      非目标：个性化推荐算法、A/B 实验平台、计费级报表。
+      非目标：A/B 实验平台、计费级报表；个性化与算法化热榜见同里程碑 Issue「个性化推荐与算法化热榜」。
     milestone: M3 — 治理与增长
     priority: 次要
     state: open

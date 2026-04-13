@@ -11,12 +11,7 @@ Enter explore mode. Think deeply. Visualize freely. Follow the conversation wher
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
-**Input**: The argument after `/opsx:explore` is whatever the user wants to think about. Could be:
-- A vague idea: "real-time collaboration"
-- A specific problem: "the auth system is getting unwieldy"
-- A change name: "add-dark-mode" (to explore in context of that change)
-- A comparison: "postgres vs sqlite for this"
-- Nothing (just enter explore mode)
+**Input**：尽量短——**change 名（kebab-case）**、**Issue 标题关键词**、**模块词**、**一句问题**或**对比话题**；无输入也可。**长分析、多方案**放进 **`openspec/changes/.../proposal.md` / `design.md`**，对话里 **`@` 路径**即可。
 
 ---
 
@@ -88,6 +83,13 @@ At the start, quickly check what exists:
 ```bash
 openspec list --json
 ```
+
+**需求 / Issue 探索（与 pm-plan + 图谱）**
+
+- 若用户要讨论 **Gitee / pm-plan 中的某条需求**：优先 **`@scripts/gitee-sync/PM_OPEN_ISSUES.md`**（由 **`npm run pm:pull` / `graph:refresh`** 生成；已 gitignore，用路径 `@` 或 Read；勿用仓库根目录同名文件）。
+- 若该文件缺失或明显过旧：执行 **`npm run graph:refresh`**（或先 **`/pm-pull`**）后再读。
+- 需要路由时，在仓库根：`npm run graph:route -- -- "<关键词或 issue 标题>"`。结果会覆盖写入 **`scripts/gitee-sync/.last-route.txt`**（终端也会打印路径）；**优先 `@scripts/gitee-sync/.last-route.txt`** 继续讨论，勿在对话里重复粘贴整段 route 输出。
+- 仍按需 **`@scripts/gitee-sync/pm-plan.yaml`**（条目级即可，避免整文件无必要重复）。
 
 This tells you:
 - If there are active changes
