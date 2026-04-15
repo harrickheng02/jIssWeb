@@ -1,0 +1,1144 @@
+{
+  "version": 1,
+  "generatedAt": "2026-04-15T21:31:00.230Z",
+  "nodes": [
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/design.md",
+      "title": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/proposal.md",
+      "title": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/auth-page-experience/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/auth-page-experience/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/auth-page-experience/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/frontend-app-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/frontend-app-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/user-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/user-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/specs/user-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/tasks.md",
+      "title": "openspec/changes/archive/2026-04-08-auth-page-ux-refresh/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/design.md",
+      "title": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/proposal.md",
+      "title": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/customer-profile-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/customer-profile-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/customer-profile-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/customer-record-crud/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/customer-record-crud/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/customer-record-crud/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/frontend-app-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/frontend-app-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/tasks.md",
+      "title": "openspec/changes/archive/2026-04-08-customer-domain-minimal-crud/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-docker-configuration/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-docker-configuration/design.md",
+      "title": "openspec/changes/archive/2026-04-08-docker-configuration/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-docker-configuration/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-docker-configuration/proposal.md",
+      "title": "openspec/changes/archive/2026-04-08-docker-configuration/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-compose-project/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-compose-project/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-compose-project/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-local-dependencies/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-local-dependencies/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-local-dependencies/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-runtime-connectivity/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-runtime-connectivity/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-docker-configuration/specs/docker-runtime-connectivity/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-docker-configuration/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-docker-configuration/tasks.md",
+      "title": "openspec/changes/archive/2026-04-08-docker-configuration/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-direct-login/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-direct-login/design.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-direct-login/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-direct-login/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-direct-login/proposal.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-direct-login/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/email-verification-registration/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/email-verification-registration/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/email-verification-registration/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/frontend-app-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/frontend-app-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/user-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/user-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-direct-login/specs/user-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-direct-login/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-direct-login/tasks.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-direct-login/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-profile-auth/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-profile-auth/design.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-profile-auth/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-profile-auth/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-profile-auth/proposal.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-profile-auth/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-email-verification-profile-auth/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-email-verification-profile-auth/tasks.md",
+      "title": "openspec/changes/archive/2026-04-08-email-verification-profile-auth/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/design.md",
+      "title": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/proposal.md",
+      "title": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/shared-foundation/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/shared-foundation/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/shared-foundation/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/token-identity-consistency/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/token-identity-consistency/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/token-identity-consistency/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/user-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/user-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/specs/user-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/tasks.md",
+      "title": "openspec/changes/archive/2026-04-08-jwt-sub-userid-consistency/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/design.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/proposal.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/accounting-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/accounting-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/accounting-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/customer-profile-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/customer-profile-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/customer-profile-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/frontend-app-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/frontend-app-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/model-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/model-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/model-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/report-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/report-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/report-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/shared-foundation/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/shared-foundation/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/shared-foundation/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/user-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/user-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/specs/user-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-multi-service-skeleton/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-multi-service-skeleton/tasks.md",
+      "title": "openspec/changes/archive/2026-04-08-multi-service-skeleton/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/design.md",
+      "title": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/proposal.md",
+      "title": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/docker-compose-project/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/docker-compose-project/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/docker-compose-project/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/docker-runtime-connectivity/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/docker-runtime-connectivity/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/docker-runtime-connectivity/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/frontend-app-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/frontend-app-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/frontend-bff-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/frontend-bff-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/frontend-bff-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/yarp-api-gateway/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/yarp-api-gateway/spec.md",
+      "title": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/specs/yarp-api-gateway/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/tasks.md",
+      "title": "openspec/changes/archive/2026-04-08-yarp-gateway-bff-foundation/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/design.md",
+      "title": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/proposal.md",
+      "title": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/specs/forum-homepage-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/specs/forum-homepage-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/specs/forum-homepage-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/specs/frontend-app-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/specs/frontend-app-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/tasks.md",
+      "title": "openspec/changes/archive/2026-04-10-add-forum-homepage-skeleton/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-forum-mvp-api-feed/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/design.md",
+      "title": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-forum-mvp-api-feed/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/proposal.md",
+      "title": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/forum-content-api/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/forum-content-api/spec.md",
+      "title": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/forum-content-api/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/model-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/model-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/model-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/yarp-api-gateway/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/yarp-api-gateway/spec.md",
+      "title": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/specs/yarp-api-gateway/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-forum-mvp-api-feed/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/tasks.md",
+      "title": "openspec/changes/archive/2026-04-11-forum-mvp-api-feed/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-gitee-pm-sync/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-gitee-pm-sync/design.md",
+      "title": "openspec/changes/archive/2026-04-11-gitee-pm-sync/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-gitee-pm-sync/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-gitee-pm-sync/proposal.md",
+      "title": "openspec/changes/archive/2026-04-11-gitee-pm-sync/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-gitee-pm-sync/specs/gitee-pm-sync/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-gitee-pm-sync/specs/gitee-pm-sync/spec.md",
+      "title": "openspec/changes/archive/2026-04-11-gitee-pm-sync/specs/gitee-pm-sync/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-gitee-pm-sync/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-gitee-pm-sync/tasks.md",
+      "title": "openspec/changes/archive/2026-04-11-gitee-pm-sync/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-password-reset-email-flow/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-password-reset-email-flow/design.md",
+      "title": "openspec/changes/archive/2026-04-11-password-reset-email-flow/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-password-reset-email-flow/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-password-reset-email-flow/proposal.md",
+      "title": "openspec/changes/archive/2026-04-11-password-reset-email-flow/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/frontend-app-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/frontend-app-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/password-reset-email/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/password-reset-email/spec.md",
+      "title": "openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/password-reset-email/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/user-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/user-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-11-password-reset-email-flow/specs/user-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-11-password-reset-email-flow/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-11-password-reset-email-flow/tasks.md",
+      "title": "openspec/changes/archive/2026-04-11-password-reset-email-flow/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-axios-401-refresh-retry/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-axios-401-refresh-retry/design.md",
+      "title": "openspec/changes/archive/2026-04-12-axios-401-refresh-retry/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-axios-401-refresh-retry/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-axios-401-refresh-retry/proposal.md",
+      "title": "openspec/changes/archive/2026-04-12-axios-401-refresh-retry/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-axios-401-refresh-retry/specs/frontend-app-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-axios-401-refresh-retry/specs/frontend-app-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-axios-401-refresh-retry/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-axios-401-refresh-retry/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-axios-401-refresh-retry/tasks.md",
+      "title": "openspec/changes/archive/2026-04-12-axios-401-refresh-retry/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-forum-post-search/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-forum-post-search/design.md",
+      "title": "openspec/changes/archive/2026-04-12-forum-post-search/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-forum-post-search/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-forum-post-search/proposal.md",
+      "title": "openspec/changes/archive/2026-04-12-forum-post-search/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-forum-post-search/specs/forum-homepage-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-forum-post-search/specs/forum-homepage-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-forum-post-search/specs/forum-homepage-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-forum-post-search/specs/forum-post-search/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-forum-post-search/specs/forum-post-search/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-forum-post-search/specs/forum-post-search/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-forum-post-search/specs/model-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-forum-post-search/specs/model-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-forum-post-search/specs/model-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-forum-post-search/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-forum-post-search/tasks.md",
+      "title": "openspec/changes/archive/2026-04-12-forum-post-search/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-in-app-notifications/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/design.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-in-app-notifications/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/proposal.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/forum-content-api/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/forum-content-api/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/forum-content-api/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/forum-homepage-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/forum-homepage-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/forum-homepage-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/in-app-notifications/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/in-app-notifications/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/in-app-notifications/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/model-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/model-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/specs/model-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-in-app-notifications/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/tasks.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-in-app-notifications/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/design.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/proposal.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/specs/forum-content-api/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/specs/forum-content-api/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/specs/forum-content-api/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/specs/token-identity-consistency/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/specs/token-identity-consistency/spec.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/specs/token-identity-consistency/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/tasks.md",
+      "title": "openspec/changes/archive/2026-04-12-m2-user-sub-query-consistency/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/design.md",
+      "title": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/proposal.md",
+      "title": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/specs/forum-content-api/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/specs/forum-content-api/spec.md",
+      "title": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/specs/forum-content-api/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/specs/forum-homepage-shell/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/specs/forum-homepage-shell/spec.md",
+      "title": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/specs/forum-homepage-shell/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/tasks.md",
+      "title": "openspec/changes/archive/2026-04-13-forum-boards-tags-readonly-homepage/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-node-knowledge-graph-router/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/design.md",
+      "title": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-node-knowledge-graph-router/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/proposal.md",
+      "title": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-node-knowledge-graph-router/specs/repo-knowledge-router/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/specs/repo-knowledge-router/spec.md",
+      "title": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/specs/repo-knowledge-router/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-13-node-knowledge-graph-router/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/tasks.md",
+      "title": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/tasks.md"
+    },
+    {
+      "id": "cursor-rule:.cursor/rules/forum-ui.mdc",
+      "kind": "cursor-rule",
+      "path": ".cursor/rules/forum-ui.mdc",
+      "title": "Forum UI（设计 + 实现）"
+    },
+    {
+      "id": "cursor-rule:.cursor/rules/pm-plan.mdc",
+      "kind": "cursor-rule",
+      "path": ".cursor/rules/pm-plan.mdc",
+      "title": "pm-plan 工程对照与编辑（`scripts/github-sync/pm-plan.yaml`）"
+    },
+    {
+      "id": "issue:1",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "帖子点赞与收藏基础",
+      "state": "open",
+      "issue_number": 1,
+      "bodyPreview": "验收标准：\n- 提供可对帖子（及必要时回复）点赞与收藏的 HTTP API 或经 BFF 暴露的统一接口；登录态下操作与取消可验证，未登录行为有约定（拒绝或匿名策略文档化）。\n- 列表或详情可展示计数或状态（至少其一可联调）；与 JWT `sub` 身份一致，不另造用户键。\n依赖：openspec/specs/token-identity-consistency；论坛帖子实体与鉴权现状。\n非目标：积分等级、踩、关注链；实时推送。\n",
+      "milestone": "M2 — 互动与发现",
+      "module": "互动与声望"
+    },
+    {
+      "id": "issue:10",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "工作流程：策划案入库与 pm-plan/OpenSpec 衔接",
+      "state": "open",
+      "issue_number": 10,
+      "bodyPreview": "验收标准：\n- 提供与业务需求解耦的「策划案/需求说明」入库位置与命名约定（如 `docs/pm/` 或等价模板），写明如何映射到 `pm-plan.yaml` Issue 与 `openspec/changes/**`。\n- README 或 `.cursor/skills/pm-plan/SKILL.md` 中增加指向，使跨会话可复用同一入口；不包含论坛/账号等业务功能验收。\n依赖：`.cursor/skills/pm-plan/SKILL.md`；`openspec/s",
+      "milestone": "W — 工作流程与工程效能",
+      "module": "平台与基础设施"
+    },
+    {
+      "id": "issue:11",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "工作流程：变更审阅与合并门禁清单",
+      "state": "open",
+      "issue_number": 11,
+      "bodyPreview": "验收标准：\n- 提供与业务无关的 PR/合并检查单（Markdown 或模板），至少包含：关联 pm-plan Issue（若适用）、OpenSpec 任务勾选或变更归档引用、`npm run graph:verify` 或等价说明。\n- 团队可勾选演示一次「未满足门禁则不合并」的流程（可为人工执行，须文档化）。\n- 可选：与业务用例解耦的横切「契约/集成测试」清单（如 graph:verify、身份相关最小用例），仅作合入参考项。\n依赖：`openspec/specs/re",
+      "milestone": "W — 工作流程与工程效能",
+      "module": "平台与基础设施"
+    },
+    {
+      "id": "issue:12",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "工作流程：Issue 文档路径与知识路由工程化",
+      "state": "open",
+      "issue_number": 12,
+      "bodyPreview": "验收标准：\n- 约定 pm-plan 中工程类 Issue 的 `body` 须含至少一条可校验 `openspec/specs/**` 或 `.cursor/rules/**` 路径；提供校验方式（脚本或 CI 调用 `npm run graph:verify`）。\n- `graph:route` 或 `PM_OPEN_ISSUES.md` 生成逻辑中，对「无路径」Issue 有可见提示或分级策略；与业务 Issue 的验收条款解耦（本条不验收业务功能）。\n依赖：`open",
+      "milestone": "W — 工作流程与工程效能",
+      "module": "平台与基础设施"
+    },
+    {
+      "id": "issue:13",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "工作流程：CI 与可选 Git hooks 闭环",
+      "state": "open",
+      "issue_number": 13,
+      "bodyPreview": "验收标准：\n- CI 或文档中明确 `graph:verify`（及可选测试子集）在合并前的触发点；失败时阻断合并或标红（与具体业务测试解耦）。\n- 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明与失败时的「终止提交」行为写清；stop 语义为「校验失败即不进入后续步骤」。\n依赖：仓库根 `package.json` 中 `graph:verify`；`.githooks/pre-commit`（若存在）。\n非目标：全量 ",
+      "milestone": "W — 工作流程与工程效能",
+      "module": "平台与基础设施"
+    },
+    {
+      "id": "issue:14",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "工作流程：复盘沉淀与图谱刷新节奏",
+      "state": "open",
+      "issue_number": 14,
+      "bodyPreview": "验收标准：\n- 文档化「复盘 → 更新 `.cursor/rules` 或 `openspec/specs` → 执行 `npm run graph:refresh`」的节奏（如每迭代或每归档一次），与业务发版节奏解耦说明。\n- 一次演练记录：从合并 PR 到刷新 `graph.json` / `PM_OPEN_ISSUES.md` 的责任人/触发条件可核验。\n依赖：`openspec/specs/repo-knowledge-router/spec.md`；`npm run",
+      "milestone": "W — 工作流程与工程效能",
+      "module": "平台与基础设施"
+    },
+    {
+      "id": "issue:2",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "个人中心与内容管理最小集",
+      "state": "open",
+      "issue_number": 2,
+      "bodyPreview": "验收标准：\n- 个人中心页（或等价路由）可维护资料（与现有 Profile 能力衔接）、入口到「我的帖子/回复」列表且查询键与 token `sub` 一致。\n- 基础设置或占位（如主题、退出）与空态、失败提示可演示；与 customer-profile 或既有 Profile API 不冲突。\n依赖：openspec/specs/customer-profile-service（若适用）；openspec/specs/token-identity-consistency；论",
+      "milestone": "M2 — 互动与发现",
+      "module": "个人中心"
+    },
+    {
+      "id": "issue:3",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "公告位与热门数据接口",
+      "state": "open",
+      "issue_number": 3,
+      "bodyPreview": "验收标准：\n- 公告：提供至少一种可读公告数据源（静态配置、CMS 占位或 API），与首页/论坛壳右侧公告模块字段约定一致并可空态展示。\n- 热门：提供榜单或热门帖子列表接口（可由 Model/BFF/报表占位），与首页「热门」区块对齐；分页或条数上限有约定。\n- 鉴权边界（公开只读 vs 管理端）在文档或代码中可核验。\n依赖：openspec/specs/forum-homepage-shell/spec.md（若含侧栏）；里程碑 M2 描述。\n非目标：推荐算法、A/B、",
+      "milestone": "M2 — 互动与发现",
+      "module": "运营与公告"
+    },
+    {
+      "id": "issue:4",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "论坛举报与处理最小闭环",
+      "state": "open",
+      "issue_number": 4,
+      "bodyPreview": "验收标准：\n- 用户可对帖子或回复发起举报并产生可查询记录；处理侧至少具备列表查看或状态流转占位，行为可演示。\n- 与鉴权、审计字段约定一致（操作者、目标资源标识）。\n依赖：里程碑 M3；openspec 治理相关条款（若有）。\n非目标：完整工单 SLA、法务级证据链、多租户隔离策略。\n",
+      "milestone": "M3 — 治理与增长",
+      "module": "治理与审核"
+    },
+    {
+      "id": "issue:5",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "反垃圾与自动处置占位",
+      "state": "open",
+      "issue_number": 5,
+      "bodyPreview": "验收标准：\n- 在文档或配置层定义反垃圾策略占位（关键词、频率、人机挑战接入点等择一），与发帖/回复链路的挂钩方式可说明。\n- 与现有 user-service / Model 限流能力可复用处有对照说明。\n依赖：里程碑 M3。\n非目标：自建大模型审核、全站实时风控中台。\n",
+      "milestone": "M3 — 治理与增长",
+      "module": "治理与审核"
+    },
+    {
+      "id": "issue:6",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "推荐排序与运营报表出口占位",
+      "state": "open",
+      "issue_number": 6,
+      "bodyPreview": "验收标准：\n- 列表或 Feed 可切换「时间序 / 简易热度」等占位策略之一，查询参数、默认值与回退行为文档化或可联调。\n- 报表或 BFF 提供至少一种只读运营指标出口（与现有 report-service 或占位路由对齐）；失败与空数据可处理。\n依赖：openspec/specs/report-service（若适用）；里程碑 M3。\n非目标：A/B 实验平台、计费级报表；个性化与算法化热榜见同里程碑 Issue「个性化推荐与算法化热榜」。\n",
+      "milestone": "M3 — 治理与增长",
+      "module": "平台与基础设施"
+    },
+    {
+      "id": "issue:7",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "版主版区与帖子操作后台（最小集）",
+      "state": "open",
+      "issue_number": 7,
+      "bodyPreview": "验收标准：\n- 具备版主或管理员角色边界（与 JWT/角色声明一致）；可对帖子执行至少一种版区操作（如置顶、精华、锁帖或等价）并持久化，列表与详情可反映状态。\n- 操作审计字段可核验（操作者 sub、目标帖子、时间）；非法或未授权请求有明确错误码。\n依赖：论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。\n非目标：完整 RBAC 中台、跨版区批量脚本、工单流。\n",
+      "milestone": "M3 — 治理与增长",
+      "module": "治理与审核"
+    },
+    {
+      "id": "issue:8",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "标签体系后台管理（CRUD 与绑定规则）",
+      "state": "open",
+      "issue_number": 8,
+      "bodyPreview": "验收标准：\n- 提供标签的创建、编辑、禁用/合并等最小管理能力（API 或管理端择一），与前台只读词表同源；帖子绑定/解绑规则可文档化或演示。\n- 与论坛帖子 tags 字段及列表筛选行为一致，禁止与硬编码占位词表分裂。\n依赖：论坛版区与标签只读展示与首页对齐（已关闭条目）；forum-homepage-shell 与 forum 内容 API 约定。\n非目标：多语言同义词图谱、运营标签 A/B、第三方标签云同步。\n",
+      "milestone": "M3 — 治理与增长",
+      "module": "版区与标签"
+    },
+    {
+      "id": "issue:9",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "个性化推荐与算法化热榜",
+      "state": "open",
+      "issue_number": 9,
+      "bodyPreview": "验收标准：\n- 在「时间序 / 简易热度」之上，增加可配置的算法化排序或热榜策略至少一种（规则或离线分可接受），与 Feed/侧栏数据合同对齐；可观测指标（曝光、点击等择一）占位或与 report-service 衔接说明。\n- 与 M2「公告位与热门数据接口」、M3「推荐排序与运营报表出口占位」的边界写清：本条负责推荐/热榜算法侧进阶，不重复占位接口验收。\n依赖：论坛帖子与互动数据基础；推荐排序与运营报表出口占位（同里程碑 open Issue，可并行演进）。\n非目标：深度",
+      "milestone": "M3 — 治理与增长",
+      "module": "搜索与发现"
+    },
+    {
+      "id": "module:版区与标签",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "版区与标签",
+      "description": "分区、置顶、精华、标签体系与筛选"
+    },
+    {
+      "id": "module:个人中心",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "个人中心",
+      "description": "资料、我的帖子/回复、设置；与现有 Profile 能力合并演进"
+    },
+    {
+      "id": "module:互动与声望",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "互动与声望",
+      "description": "点赞/踩、收藏、关注、积分或等级（可与用户服务扩展）"
+    },
+    {
+      "id": "module:论坛壳与导航",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "论坛壳与导航",
+      "description": "全局顶栏、版区/分类入口、主题切换、统一发帖入口（与首页壳衔接）"
+    },
+    {
+      "id": "module:平台与基础设施",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "平台与基础设施",
+      "description": "多服务鉴权、BFF/网关、限流、文件存储、Mongo/Redis 使用规范"
+    },
+    {
+      "id": "module:搜索与发现",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "搜索与发现",
+      "description": "全站/分区内搜索、热门与推荐 Feed（对接报表或检索占位）"
+    },
+    {
+      "id": "module:帖子与回复",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "帖子与回复",
+      "description": "发帖、正文与附件策略、楼层回复、编辑删除、草稿"
+    },
+    {
+      "id": "module:消息与通知",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "消息与通知",
+      "description": "回复提醒、@、系统通知；可选站内信"
+    },
+    {
+      "id": "module:运营与公告",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "运营与公告",
+      "description": "公告位、活动 Banner（与首页右侧公告模块衔接）"
+    },
+    {
+      "id": "module:账号与访问",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "账号与访问",
+      "description": "邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时与 401 拦截后的 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange 换票）；登录/注册页合规入口与路由守卫；找回密码（邮箱重置）已交付；第三方登录仅前端占位；登录错误码与限流以 user-service 为准；身份 claims（sub）与 Profile/论坛内容作者 ID 的对齐见 openspec/specs/token-identity-consistency，与帖子与回复、个人中心协同定义。"
+    },
+    {
+      "id": "module:治理与审核",
+      "kind": "module",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "治理与审核",
+      "description": "举报、屏蔽词、版主操作、审计日志"
+    },
+    {
+      "id": "skill:.cursor/skills/jissweb-change-review/SKILL.md",
+      "kind": "skill",
+      "path": ".cursor/skills/jissweb-change-review/SKILL.md",
+      "title": "jIssWeb Change Review（只读）"
+    },
+    {
+      "id": "skill:.cursor/skills/openspec-apply-change/SKILL.md",
+      "kind": "skill",
+      "path": ".cursor/skills/openspec-apply-change/SKILL.md",
+      "title": ".cursor/skills/openspec-apply-change/SKILL.md"
+    },
+    {
+      "id": "skill:.cursor/skills/openspec-archive-change/SKILL.md",
+      "kind": "skill",
+      "path": ".cursor/skills/openspec-archive-change/SKILL.md",
+      "title": ".cursor/skills/openspec-archive-change/SKILL.md"
+    },
+    {
+      "id": "skill:.cursor/skills/openspec-explore/SKILL.md",
+      "kind": "skill",
+      "path": ".cursor/skills/openspec-explore/SKILL.md",
+      "title": ".cursor/skills/openspec-explore/SKILL.md"
+    },
+    {
+      "id": "skill:.cursor/skills/openspec-propose/SKILL.md",
+      "kind": "skill",
+      "path": ".cursor/skills/openspec-propose/SKILL.md",
+      "title": ".cursor/skills/openspec-propose/SKILL.md"
+    },
+    {
+      "id": "skill:.cursor/skills/pm-plan/SKILL.md",
+      "kind": "skill",
+      "path": ".cursor/skills/pm-plan/SKILL.md",
+      "title": "pm-plan 分析维护"
+    },
+    {
+      "id": "spec:openspec/specs/accounting-service/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/accounting-service/spec.md",
+      "title": "openspec/specs/accounting-service/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/auth-page-experience/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/auth-page-experience/spec.md",
+      "title": "auth-page-experience Specification"
+    },
+    {
+      "id": "spec:openspec/specs/customer-profile-service/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/customer-profile-service/spec.md",
+      "title": "openspec/specs/customer-profile-service/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/customer-record-crud/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/customer-record-crud/spec.md",
+      "title": "openspec/specs/customer-record-crud/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/docker-compose-project/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/docker-compose-project/spec.md",
+      "title": "openspec/specs/docker-compose-project/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/docker-local-dependencies/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/docker-local-dependencies/spec.md",
+      "title": "openspec/specs/docker-local-dependencies/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/docker-runtime-connectivity/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/docker-runtime-connectivity/spec.md",
+      "title": "openspec/specs/docker-runtime-connectivity/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/email-verification-registration/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/email-verification-registration/spec.md",
+      "title": "email-verification-registration Specification"
+    },
+    {
+      "id": "spec:openspec/specs/forum-content-api/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/forum-content-api/spec.md",
+      "title": "openspec/specs/forum-content-api/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/forum-homepage-shell/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/forum-homepage-shell/spec.md",
+      "title": "openspec/specs/forum-homepage-shell/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/forum-post-search/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/forum-post-search/spec.md",
+      "title": "openspec/specs/forum-post-search/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/frontend-app-shell/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/frontend-app-shell/spec.md",
+      "title": "openspec/specs/frontend-app-shell/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/frontend-bff-service/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/frontend-bff-service/spec.md",
+      "title": "frontend-bff-service Specification"
+    },
+    {
+      "id": "spec:openspec/specs/github-pm-sync/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/github-pm-sync/spec.md",
+      "title": "gitee-pm-sync Specification"
+    },
+    {
+      "id": "spec:openspec/specs/in-app-notifications/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/in-app-notifications/spec.md",
+      "title": "openspec/specs/in-app-notifications/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/model-service/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/model-service/spec.md",
+      "title": "openspec/specs/model-service/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/password-reset-email/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/password-reset-email/spec.md",
+      "title": "password-reset-email Specification"
+    },
+    {
+      "id": "spec:openspec/specs/repo-knowledge-router/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/repo-knowledge-router/spec.md",
+      "title": "repo-knowledge-router Specification"
+    },
+    {
+      "id": "spec:openspec/specs/report-service/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/report-service/spec.md",
+      "title": "openspec/specs/report-service/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/shared-foundation/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/shared-foundation/spec.md",
+      "title": "openspec/specs/shared-foundation/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/token-identity-consistency/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/token-identity-consistency/spec.md",
+      "title": "openspec/specs/token-identity-consistency/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/user-profile-record/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/user-profile-record/spec.md",
+      "title": "user-profile-record Specification"
+    },
+    {
+      "id": "spec:openspec/specs/user-service/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/user-service/spec.md",
+      "title": "openspec/specs/user-service/spec.md"
+    },
+    {
+      "id": "spec:openspec/specs/yarp-api-gateway/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/yarp-api-gateway/spec.md",
+      "title": "yarp-api-gateway Specification"
+    }
+  ],
+  "edges": [
+    {
+      "from": "issue:1",
+      "to": "module:互动与声望",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:10",
+      "to": "module:平台与基础设施",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:10",
+      "to": "spec:openspec/specs/shared-foundation/spec.md",
+      "rel": "references"
+    },
+    {
+      "from": "issue:11",
+      "to": "module:平台与基础设施",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:11",
+      "to": "spec:openspec/specs/repo-knowledge-router/spec.md",
+      "rel": "references"
+    },
+    {
+      "from": "issue:12",
+      "to": "module:平台与基础设施",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:12",
+      "to": "spec:openspec/specs/repo-knowledge-router/spec.md",
+      "rel": "references"
+    },
+    {
+      "from": "issue:13",
+      "to": "module:平台与基础设施",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:14",
+      "to": "module:平台与基础设施",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:14",
+      "to": "spec:openspec/specs/repo-knowledge-router/spec.md",
+      "rel": "references"
+    },
+    {
+      "from": "issue:2",
+      "to": "module:个人中心",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:3",
+      "to": "module:运营与公告",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:3",
+      "to": "spec:openspec/specs/forum-homepage-shell/spec.md",
+      "rel": "references"
+    },
+    {
+      "from": "issue:4",
+      "to": "module:治理与审核",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:5",
+      "to": "module:治理与审核",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:6",
+      "to": "module:平台与基础设施",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:7",
+      "to": "module:治理与审核",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:8",
+      "to": "module:版区与标签",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:9",
+      "to": "module:搜索与发现",
+      "rel": "module-of"
+    }
+  ]
+}
