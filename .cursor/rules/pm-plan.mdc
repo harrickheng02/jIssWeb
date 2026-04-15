@@ -1,12 +1,12 @@
 ---
-description: pm-plan.yaml 与 Gitee 同步脚本的对照、编辑与 Issue 契约
+description: pm-plan.yaml 与远端同步脚本的对照、编辑与 Issue 契约
 globs:
-  - scripts/gitee-sync/pm-plan.yaml
-  - scripts/gitee-sync/**/*.mjs
+  - scripts/github-sync/pm-plan.yaml
+  - scripts/github-sync/**/*.mjs
 alwaysApply: false
 ---
 
-# pm-plan 工程对照与编辑（`scripts/gitee-sync/pm-plan.yaml`）
+# pm-plan 工程对照与编辑（`scripts/github-sync/pm-plan.yaml`）
 
 ## 角色
 
@@ -16,7 +16,7 @@ alwaysApply: false
 
 1. **规范文档**：如 `openspec/specs/**`；进行中的变更目录（`tasks.md`、`proposal.md` 等，若存在）。
 2. **工程实现**：可核验的入口（服务、路由、构建与部署相关配置）、健康检查、与规划相关的真实代码路径；区分「已落地」与「占位」。
-3. **当前** `scripts/gitee-sync/pm-plan.yaml`：作为本次修订的基线。
+3. **当前** `scripts/github-sync/pm-plan.yaml`：作为本次修订的基线。
 
 ## 分析要点
 
@@ -37,7 +37,7 @@ alwaysApply: false
 ## issues 范围
 
 - **待跟踪**：**`state` 为 `open` 或 `progressing`**。
-- **已完结/已拒绝**：将对应条目的 **`state` 改为 `closed` 或 `rejected`**，**保留**该 Issue 的 `title`、`body`、`gitee_number` 等字段，便于与 `scripts/gitee-sync` 推送及远端对照；**勿**因完结而删除整条 Issue。
+- **已完结/已拒绝**：将对应条目的 **`state` 改为 `closed` 或 `rejected`**，**保留**该 Issue 的 `title`、`body`、`gitee_number` 等字段，便于与同步脚本推送及远端对照；**勿**因完结而删除整条 Issue。
 
 ## Issue 条目
 
@@ -46,7 +46,7 @@ alwaysApply: false
 - **`milestone`**：与 `milestones[].title` 完全一致。
 - **`module`** + **`classification`**：须在 `modules` 中有对应模块名；**`classification`** 为 **`gitee_content_classifications`** 中的英文键。
 - **`gitee_number`**：与远端 Issue 编号一致（若已绑定）。
-- **`state`**：**`open`、`progressing`、`closed`、`rejected`**；与 Gitee 及 `scripts/gitee-sync/index.mjs` 中 `ALLOWED_ISSUE_STATES` 一致。
+- **`state`**：**`open`、`progressing`、`closed`、`rejected`**；与同步脚本中 `ALLOWED_ISSUE_STATES` 一致。
 - **`body`**：**不得**仅有一句口号或单条模糊描述。应写清：
   - **验收标准**或**完成定义**（可多条，建议列表）；
   - 必要时 **范围/非目标**、**依赖**（前置 spec、服务、接口）；

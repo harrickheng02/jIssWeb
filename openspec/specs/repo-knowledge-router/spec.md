@@ -7,7 +7,7 @@
 ## Requirements
 ### Requirement: Authoritative indexing sources
 
-The repo knowledge router tooling SHALL index only repository paths under version control: `openspec/specs/**/*.md`, `openspec/changes/**/*.md`, `scripts/gitee-sync/pm-plan.yaml`, and `.cursor/rules/**/*.mdc` (and MAY include `.cursor/skills/**/SKILL.md` when present). It SHALL NOT require network access for indexing.
+The repo knowledge router tooling SHALL index only repository paths under version control: `openspec/specs/**/*.md`, `openspec/changes/**/*.md`, `scripts/github-sync/pm-plan.yaml`, and `.cursor/rules/**/*.mdc` (and MAY include `.cursor/skills/**/SKILL.md` when present). It SHALL NOT require network access for indexing.
 
 #### Scenario: Offline build succeeds
 
@@ -25,7 +25,7 @@ The tooling SHALL write a single JSON graph document containing at minimum: `ver
 
 ### Requirement: Explicit reference edges from pm-plan
 
-The tooling SHALL parse `scripts/gitee-sync/pm-plan.yaml` issue bodies and SHALL create `references` edges from each issue node to every distinct `openspec/` path string found in that issue's `body` when the referenced path exists in the workspace.
+The tooling SHALL parse `scripts/github-sync/pm-plan.yaml` issue bodies and SHALL create `references` edges from each issue node to every distinct `openspec/` path string found in that issue's `body` when the referenced path exists in the workspace.
 
 #### Scenario: Missing referenced spec
 
@@ -43,7 +43,7 @@ The tooling SHALL provide a `route` command accepting a non-empty query string a
 
 ### Requirement: refresh command validates before write
 
-The tooling SHALL provide a `refresh` subcommand. It SHALL build the graph once in memory, SHALL apply the same broken-reference detection as `verify`, and SHALL exit non-zero without writing `scripts/repo-knowledge-router/data/graph.json` or `scripts/gitee-sync/PM_OPEN_ISSUES.md` when any broken reference exists. When no broken reference exists, it SHALL write `graph.json` and SHALL regenerate `scripts/gitee-sync/PM_OPEN_ISSUES.md` using the same logic as `build`.
+The tooling SHALL provide a `refresh` subcommand. It SHALL build the graph once in memory, SHALL apply the same broken-reference detection as `verify`, and SHALL exit non-zero without writing `scripts/repo-knowledge-router/data/graph.json` or `scripts/github-sync/PM_OPEN_ISSUES.md` when any broken reference exists. When no broken reference exists, it SHALL write `graph.json` and SHALL regenerate `scripts/github-sync/PM_OPEN_ISSUES.md` using the same logic as `build`.
 
 #### Scenario: refresh aborts on broken pm-plan references
 
@@ -57,7 +57,7 @@ The tooling SHALL provide a `refresh` subcommand. It SHALL build the graph once 
 
 ### Requirement: route persists last-route file
 
-On successful `route` invocation, the tooling SHALL overwrite `scripts/gitee-sync/.last-route.txt` with a header block (`# graph:route`, `# generated:` ISO-8601 UTC, `query:` tab and the query string), a blank line, and for each result row the same `path<TAB>reason` as printed to stdout before the summary line. It SHALL print to stdout a final line beginning with `# last-route:` followed by the repo-relative path of `.last-route.txt`.
+On successful `route` invocation, the tooling SHALL overwrite `scripts/github-sync/.last-route.txt` with a header block (`# graph:route`, `# generated:` ISO-8601 UTC, `query:` tab and the query string), a blank line, and for each result row the same `path<TAB>reason` as printed to stdout before the summary line. It SHALL print to stdout a final line beginning with `# last-route:` followed by the repo-relative path of `.last-route.txt`.
 
 #### Scenario: last-route lists paths from stdout
 
@@ -66,7 +66,7 @@ On successful `route` invocation, the tooling SHALL overwrite `scripts/gitee-syn
 
 ### Requirement: PM_OPEN_ISSUES index generation
 
-During `build` and during successful `refresh`, the tooling SHALL write `scripts/gitee-sync/PM_OPEN_ISSUES.md`. It SHALL include issues from `pm-plan.yaml` whose `state` is `open` or `progressing` in the summary table and per-issue sections, SHALL list distinct `openspec/` path strings extracted from each included issue's `body`, and SHALL include a ranked path list per issue computed with the same scoring rules as `route` when invoked with that issue's title (result cap as implemented in code).
+During `build` and during successful `refresh`, the tooling SHALL write `scripts/github-sync/PM_OPEN_ISSUES.md`. It SHALL include issues from `pm-plan.yaml` whose `state` is `open` or `progressing` in the summary table and per-issue sections, SHALL list distinct `openspec/` path strings extracted from each included issue's `body`, and SHALL include a ranked path list per issue computed with the same scoring rules as `route` when invoked with that issue's title (result cap as implemented in code).
 
 #### Scenario: closed issues omitted from summary table
 
@@ -77,7 +77,7 @@ During `build` and during successful `refresh`, the tooling SHALL write `scripts
 
 The root `package.json` SHALL expose npm scripts that delegate to `scripts/repo-knowledge-router` for `build`, `route`, `verify`, and `refresh` (names prefixed with `graph:` or equivalent). The package SHALL declare its Node engine constraint compatible with the repository CI image.
 
-The root `package.json` SHALL expose `pm:pull`, `pm:push`, and `pm:publish` that compose `scripts/gitee-sync` with graph scripts as follows: `pm:pull` SHALL run the gitee-sync pull entrypoint and then `graph:refresh`; `pm:push` SHALL run `graph:verify` and then the gitee-sync push entrypoint; `pm:publish` SHALL run `graph:refresh` and then `pm:push`. It SHALL expose `pm:ci` that installs dependencies for both `scripts/gitee-sync` and `scripts/repo-knowledge-router` (for CI and fresh clones).
+The root `package.json` SHALL expose `pm:pull`, `pm:push`, and `pm:publish` that compose `scripts/github-sync` with graph scripts as follows: `pm:pull` SHALL run the sync pull entrypoint and then `graph:refresh`; `pm:push` SHALL run `graph:verify` and then the sync push entrypoint; `pm:publish` SHALL run `graph:refresh` and then `pm:push`. It SHALL expose `pm:ci` that installs dependencies for both `scripts/github-sync` and `scripts/repo-knowledge-router` (for CI and fresh clones).
 
 **Host Git:** The repository MAY ship `.githooks/pre-commit` that runs `npm run graph:verify`; hooks are not active until the user sets `git config core.hooksPath .githooks` (documented in `.cursor/skills/pm-plan/SKILL.md`).
 
@@ -89,12 +89,12 @@ The root `package.json` SHALL expose `pm:pull`, `pm:push`, and `pm:publish` that
 #### Scenario: Pull then refresh
 
 - **WHEN** `pm:pull` completes successfully
-- **THEN** it SHALL have run `graph:refresh` after the gitee-sync pull step
+- **THEN** it SHALL have run `graph:refresh` after the sync pull step
 
 #### Scenario: Push gated by verify
 
 - **WHEN** `pm:push` is invoked
-- **THEN** it SHALL run `graph:verify` before the gitee-sync push step
+- **THEN** it SHALL run `graph:verify` before the sync push step
 
 #### Scenario: Publish chain
 

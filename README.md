@@ -20,7 +20,7 @@
 
 ### 环境要求
 
-- **Node.js**：建议 18+（用于前端与 `scripts/gitee-sync`）
+- **Node.js**：建议 18+（用于前端与 `scripts/github-sync`）
 - **.NET SDK**：8.x（构建 `backend/src` 解决方案）
 - **Docker**：用于本地 MongoDB / Redis（及部分示例 API 镜像）
 
@@ -75,7 +75,7 @@ docker compose up -d --build
 | 前端开发代理 | **`.env`** 中 `VITE_*`，由 `frontend/vite.config.ts` 读取仓库根 `.env` |
 | 后端连接串与外链 | 各 `*.Api/appsettings.json`（占位）+ **`appsettings.Local.json`**（从 `*.Local.example.json` 复制） |
 | 网关（本地 dotnet） | `JIssWeb.Gateway.Api` 的 **`appsettings.Local.json`**（见 `appsettings.Local.example.json`） |
-| Gitee 同步脚本 | `scripts/gitee-sync/.env.example` → 本地 `.env`（勿提交令牌） |
+| 远端同步脚本 | `scripts/github-sync/.env.example` → 本地 `.env`（勿提交令牌） |
 
 敏感信息一律通过上述本地文件或环境变量注入，不要写入仓库。
 
@@ -90,7 +90,7 @@ jIssWeb/
 ├── backend/src/           # .NET 解决方案：Common、Domain、各 *.Api、Gateway、Bff 等
 ├── frontend/              # Vue 3 + TypeScript + Vite + Element Plus + Vitest
 ├── docker/                # Redis 配置、Dockerfile 等
-├── scripts/gitee-sync/    # pm-plan YAML、Gitee 同步脚本
+├── scripts/github-sync/   # pm-plan YAML、远端同步脚本
 ├── openspec/              # OpenSpec 变更与归档 specs
 └── docker-compose.yml     # 本地依赖与 API、网关（变量来自 .env）
 ```

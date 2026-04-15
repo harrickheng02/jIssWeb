@@ -92,7 +92,7 @@ Archive a completed change in the experimental workflow.
    提醒用户：由 **Agent 启用 `pm-plan` skill** 在本机按序完成（用户无需找 bat）：
 
    1. **对照** `openspec/changes/archive/YYYY-MM-DD-<name>/` 与 **`openspec/specs/**`**。
-   2. **skill 直接编辑** `scripts/gitee-sync/pm-plan.yaml`（`state`、`body` 路径与验收、与 Gitee 对齐）。
+   2. **skill 直接编辑** `scripts/github-sync/pm-plan.yaml`（`state`、`body` 路径与验收、与远端 Issue 对齐）。
    3. 在仓库根 **`npm run pm:publish`**（= `graph:refresh` + `pm:push`，含 `graph:verify` 门禁）。失败则根据终端报错修 `body` 路径或 spec 后再执行一次。
 
 **Output On Success**
