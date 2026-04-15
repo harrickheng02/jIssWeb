@@ -1,11 +1,11 @@
 ---
 name: pm-plan
 description: >-
-  分析、对照与维护 scripts/github-sync/pm-plan.yaml（远端为 GitHub 时优先；亦支持 Gitee origin）；在仓库根代执行 npm（pm:pull、graph:refresh、pm:publish 等）。用户提到 pm 规划、里程碑、Issue、pm-plan、同步 GitHub、归档后回写规划时启用。
+  分析、对照与维护 scripts/github-sync/pm-plan.yaml（本仓库远端为 GitHub）；在仓库根代执行 npm（graph:refresh、pm:publish 等）。用户提到 pm 规划、里程碑、Issue、pm-plan、归档后回写规划时启用。
 license: MIT
 metadata:
   author: project
-  version: "1.4.2"
+  version: "1.4.4"
 ---
 
 # pm-plan 分析维护
@@ -13,14 +13,15 @@ metadata:
 ## 默认执行约定
 
 - 在**仓库根**用 **`npm run …`**（由 Agent 跑终端）；不依赖仓库根 `.bat`。
-- **先同步再改**：用户未声明「已 pull / 已与远端对齐」时，**先** `npm run pm:pull`；失败则说明原因并停止。不在「是否要先 pull」上反复追问。
+- **先同步再改**：用户未声明已对齐时，**先 `git pull`**（与 GitHub 仓库对齐代码与已提交的 `pm-plan.yaml`）。**不要**把 `git pull` 当成 `npm run pm:pull`。
+- 仅当需要从 **GitHub Issues API** 把里程碑/Issue **回填进本地** `pm-plan.yaml` 时执行 **`npm run pm:pull`**（需 `GITHUB_TOKEN`，会串联 **`graph:refresh`**）。不需要 API 回填则改完 yaml/openspec 后直接 **`npm run graph:refresh`** 即可。
 - 缺 `scripts/github-sync` 或 `repo-knowledge-router` 依赖时执行 **`npm run pm:ci`**。对话与 Git 中勿出现 `GITHUB_TOKEN`/`GH_TOKEN`、`.env` 内容。
 
 ## 命令速查（仓库根）
 
 | 目的 | 命令 |
 |------|------|
-| 拉远端 + 写回 `pm-plan.yaml` + 图册校验与产物 | `npm run pm:pull` |
+| 用 GitHub API 拉 Issue → 写回 `pm-plan.yaml` + 图册产物 | `npm run pm:pull`（需 token） |
 | 仅改完 yaml / openspec 后刷新图与 `PM_OPEN_ISSUES.md` | `npm run graph:refresh` |
 | 路由（关键词可含空格） | `npm run graph:route -- -- "<关键词>"` |
 | 改完规划后推远端（先 refresh 再 push 门禁） | `npm run pm:publish` |
@@ -58,5 +59,5 @@ metadata:
 ## 相关文件
 
 - `scripts/github-sync/pm-plan.yaml`（由 `scripts/repo-knowledge-router/src/pm-sync-dir.mjs` 解析）
-- 同目录下 `PM_OPEN_ISSUES.md`、`.last-route.txt`（生成物，已 gitignore）
+- 同目录下 `PM_OPEN_ISSUES.md`（`graph:refresh` 生成，宜提交）、`.last-route.txt`（生成物，已 gitignore）
 - `.cursor/rules/pm-plan.mdc`

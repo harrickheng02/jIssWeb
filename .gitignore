@@ -15,5 +15,4 @@ scripts/repo-knowledge-router/data/graph.json
 /PM_OPEN_ISSUES.md
 scripts/gitee-sync/PM_OPEN_ISSUES.md
 scripts/gitee-sync/.last-route.txt
-scripts/github-sync/PM_OPEN_ISSUES.md
 scripts/github-sync/.last-route.txt

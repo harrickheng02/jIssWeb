@@ -86,7 +86,7 @@ openspec list --json
 
 **需求 / Issue 探索（与 pm-plan + 图谱）**
 
-- 若用户要讨论 **pm-plan 中的某条需求**：优先 **`@scripts/github-sync/PM_OPEN_ISSUES.md`**（由 **`npm run pm:pull` / `graph:refresh`** 生成；已 gitignore，用路径 `@` 或 Read；勿用仓库根目录同名文件）。
+- 若用户要讨论 **pm-plan 中的某条需求**：优先 **`@scripts/github-sync/PM_OPEN_ISSUES.md`**（由 **`npm run pm:pull` / `graph:refresh`** 生成；用路径 `@` 或 Read；勿用仓库根目录同名文件）。
 - 若该文件缺失或明显过旧：执行 **`npm run graph:refresh`**（或先 **`/pm-pull`**）后再读。
 - 需要路由时，在仓库根：`npm run graph:route -- -- "<关键词或 issue 标题>"`。结果会覆盖写入 **`scripts/github-sync/.last-route.txt`**（终端也会打印路径）；**优先 `@scripts/github-sync/.last-route.txt`** 继续讨论，勿在对话里重复粘贴整段 route 输出。
 - 仍按需 **`@scripts/github-sync/pm-plan.yaml`**（条目级即可，避免整文件无必要重复）。
