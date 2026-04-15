@@ -31,22 +31,22 @@ alwaysApply: false
 
 ## 优先级
 
-- Issue 的 **`priority`** 使用 **`priority_definitions`** 中的五档中文，与 **`gitee_priority.api_numeric`** 一致。
+- Issue 的 **`priority`** 使用 **`priority_definitions`** 中的五档中文，与 **`remote_priority.api_numeric`**（Gitee 路径下与远端数字优先级字段）或 GitHub 侧标签一致。
 - **禁止**在 `priority` 中写 P0/P1/P2 等别名。
 
 ## issues 范围
 
 - **待跟踪**：**`state` 为 `open` 或 `progressing`**。
-- **已完结/已拒绝**：将对应条目的 **`state` 改为 `closed` 或 `rejected`**，**保留**该 Issue 的 `title`、`body`、`gitee_number` 等字段，便于与同步脚本推送及远端对照；**勿**因完结而删除整条 Issue。
+- **已完结/已拒绝**：将对应条目的 **`state` 改为 `closed` 或 `rejected`**，**保留**该 Issue 的 `title`、`body`、`issue_number` 等字段，便于与同步脚本推送及远端对照；**勿**因完结而删除整条 Issue。
 
 ## Issue 条目
 
 - **`meta`**：仅 **`product`**（若使用）。
 - **`title`**：短句概括，**不要**带里程碑前缀；阶段用 **`milestone`**。
 - **`milestone`**：与 `milestones[].title` 完全一致。
-- **`module`** + **`classification`**：须在 `modules` 中有对应模块名；**`classification`** 为 **`gitee_content_classifications`** 中的英文键。
-- **`gitee_number`**：与远端 Issue 编号一致（若已绑定）。
-- **`state`**：**`open`、`progressing`、`closed`、`rejected`**；与同步脚本中 `ALLOWED_ISSUE_STATES` 一致。
+- **`module`** + **`classification`**：须在 `modules` 中有对应模块名；**`classification`** 为 **`issue_content_classifications`** 中的英文键。
+- **`issue_number`**：与远端 Issue 编号一致（若已绑定）；旧数据可能仍为 **`gitee_number`**，由脚本兼容读取。
+- **`state`**：**`open`、`progressing`、`closed`、`rejected`**；与远端及 `scripts/github-sync/index.mjs` 中 `ALLOWED_ISSUE_STATES` 一致。
 - **`body`**：**不得**仅有一句口号或单条模糊描述。应写清：
   - **验收标准**或**完成定义**（可多条，建议列表）；
   - 必要时 **范围/非目标**、**依赖**（前置 spec、服务、接口）；
@@ -54,7 +54,7 @@ alwaysApply: false
 
 ## 内容分类（权威定义）
 
-`gitee_content_classifications` 为与远端一致的键列表；下列语义以本节约束为准（改定义只改本节）。
+`issue_content_classifications` 为与远端一致的键列表；下列语义以本节约束为准（改定义只改本节）。
 
 - **bug**：缺陷或异常行为，需修复。
 - **duplicate**：与已有 Issue 重复。
@@ -67,4 +67,4 @@ alwaysApply: false
 ## 禁止
 
 - 在 `pm-plan.yaml` 中写入令牌、密钥或凭据。
-- 删除 **`gitee_priority`、`gitee_content_classifications`** 等契约节名（列表内容可与远端策略对齐，**分类语义**改本节）。
+- 删除 **`remote_priority`、`issue_content_classifications`** 等契约节名（列表内容可与远端策略对齐，**分类语义**改本节）。旧键名 **`gitee_*`** 仅作读兼容，新编辑用 **`remote_priority` / `issue_content_classifications`**。

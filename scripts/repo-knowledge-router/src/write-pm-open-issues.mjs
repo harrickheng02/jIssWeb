@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { extractOpenspecPaths } from "./openspec-paths.mjs";
+import { getPmIssueNumber } from "./pm-issue-fields.mjs";
 import { resolvePmPlanPaths } from "./pm-sync-dir.mjs";
 import { routeQuery } from "./route-query.mjs";
 
@@ -26,12 +27,12 @@ export function writePmOpenIssuesMd(repoRoot, graph) {
     `> 由 \`graph:build\` / \`graph:refresh\` 生成（\`npm run pm:pull\` 已串联 \`graph:refresh\`）。请 **\`@${path.posix.join(path.posix.dirname(pmPlanRel), "PM_OPEN_ISSUES.md")}\`** 引用；勿使用仓库根目录同名文件。`
   );
   lines.push("");
-  lines.push("| # | Gitee | 状态 | 里程碑 | 模块 | 标题 |");
+  lines.push("| # | Issue | 状态 | 里程碑 | 模块 | 标题 |");
   lines.push("|---|-------|------|--------|------|------|");
   open.forEach((x, j) => {
     const { issue } = x;
     lines.push(
-      `| ${j + 1} | ${escCell(issue?.gitee_number)} | ${escCell(issue?.state)} | ${escCell(issue?.milestone)} | ${escCell(issue?.module)} | ${escCell(issue?.title)} |`
+      `| ${j + 1} | ${escCell(getPmIssueNumber(issue))} | ${escCell(issue?.state)} | ${escCell(issue?.milestone)} | ${escCell(issue?.module)} | ${escCell(issue?.title)} |`
     );
   });
   lines.push("");
@@ -45,7 +46,8 @@ export function writePmOpenIssuesMd(repoRoot, graph) {
     }
     shown++;
     const title = issue?.title || `issue-${index}`;
-    const gn = issue?.gitee_number != null ? String(issue.gitee_number) : "—";
+    const inum = getPmIssueNumber(issue);
+    const gn = inum != null ? String(inum) : "—";
     const body = issue?.body || "";
     lines.push(`## ${gn} · ${title}`);
     lines.push("");

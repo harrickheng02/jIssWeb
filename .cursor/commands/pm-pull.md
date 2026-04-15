@@ -15,4 +15,4 @@ npm run pm:pull
 
 细则与自动化约定见 **`.cursor/skills/pm-plan/SKILL.md`**。
 
-勿在对话中输出 `GITHUB_TOKEN`/`GITEE_*` 或 `.env` 内容。完成后简要说明是否成功。
+勿在对话中输出 `GITHUB_TOKEN`/`GH_TOKEN` 或 `.env` 内容。完成后简要说明是否成功。

@@ -15,4 +15,4 @@ npm run pm:push
 
 `pm:push` 会先 **`graph:verify`**（`body` 中 `openspec/...` 须存在），失败则不推远端。
 
-勿在对话中输出 `GITHUB_TOKEN`/`GITEE_*` 或 `.env` 内容。完成后简要说明更新条数或错误。
+勿在对话中输出 `GITHUB_TOKEN`/`GH_TOKEN` 或 `.env` 内容。完成后简要说明更新条数或错误。

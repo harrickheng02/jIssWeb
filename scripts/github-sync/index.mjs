@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { resolvePmSyncDir } from '../repo-knowledge-router/src/pm-sync-dir.mjs'
+import { getPmIssueNumber } from '../repo-knowledge-router/src/pm-issue-fields.mjs'
 import {
   createGithubClient,
   createGiteeClient,
@@ -105,13 +106,22 @@ const DEFAULT_CLASSIFICATIONS = [
   'wontfix',
 ]
 
-function classificationKeysFromPlan(plan) {
-  const gc = plan?.gitee_content_classifications
+function issueContentClassificationsFromPlan(plan) {
+  const gc =
+    plan?.issue_content_classifications ?? plan?.gitee_content_classifications
   if (Array.isArray(gc)) return gc
   if (gc && typeof gc === 'object') {
     return Object.keys(gc).filter((k) => typeof gc[k] === 'string')
   }
   return DEFAULT_CLASSIFICATIONS
+}
+
+function classificationKeysFromPlan(plan) {
+  return issueContentClassificationsFromPlan(plan)
+}
+
+function remotePriorityFromPlan(plan) {
+  return plan?.remote_priority ?? plan?.gitee_priority
 }
 
 function classificationSetFromPlan(plan) {
@@ -202,7 +212,7 @@ function validateIssuePlan(item, classSet) {
     }
     if (!classSet.has(item.classification)) {
       throw new Error(
-        `Issue "${item.title}": classification 须为 pm-plan.yaml 中 gitee_content_classifications 之一`,
+        `Issue "${item.title}": classification 须为 pm-plan.yaml 中 issue_content_classifications 之一`,
       )
     }
   }
@@ -272,7 +282,7 @@ function remoteIssuesToYamlRows(detailed, msList, classSet, provider) {
       title: i.title,
       body: i.body || '',
       milestone: i.milestone?.title || undefined,
-      gitee_number: i.number,
+      issue_number: i.number,
     }
     if (pr) row.priority = pr
     const st = issueStateFromRemote(i, provider)
@@ -344,8 +354,8 @@ async function pullPlan(client, provider, outPath, dryRun, existingPlan) {
     meta: existing.meta,
     modules: existing.modules,
     priority_definitions: existing.priority_definitions,
-    gitee_priority: existing.gitee_priority,
-    gitee_content_classifications: existing.gitee_content_classifications,
+    remote_priority: remotePriorityFromPlan(existing),
+    issue_content_classifications: issueContentClassificationsFromPlan(existing),
     milestones,
     issues,
   }
@@ -426,9 +436,10 @@ async function pushPlanGithub(client, planPath, dryRun) {
   const byNumber = new Map(issueList.map((i) => [String(i.number), i]))
   const seenNumbers = new Set()
   for (const item of issues) {
-    if (item.gitee_number != null && item.gitee_number !== '') {
-      const k = String(item.gitee_number)
-      if (seenNumbers.has(k)) throw new Error(`重复的 gitee_number: ${k}`)
+    const inum = getPmIssueNumber(item)
+    if (inum != null && inum !== '') {
+      const k = String(inum)
+      if (seenNumbers.has(k)) throw new Error(`重复的 issue_number: ${k}`)
       seenNumbers.add(k)
     }
   }
@@ -446,8 +457,9 @@ async function pushPlanGithub(client, planPath, dryRun) {
     const apiState = st === 'closed' || st === 'rejected' ? 'closed' : 'open'
 
     let existing
-    if (item.gitee_number != null && item.gitee_number !== '') {
-      existing = byNumber.get(String(item.gitee_number))
+    const inum = getPmIssueNumber(item)
+    if (inum != null && inum !== '') {
+      existing = byNumber.get(String(inum))
     }
     if (!existing) existing = byTitle.get(item.title)
     if (existing) {
@@ -539,9 +551,10 @@ async function pushPlanGitee(client, planPath, dryRun) {
   const byNumber = new Map(issueList.map((i) => [String(i.number), i]))
   const seenNumbers = new Set()
   for (const item of issues) {
-    if (item.gitee_number != null && item.gitee_number !== '') {
-      const k = String(item.gitee_number)
-      if (seenNumbers.has(k)) throw new Error(`重复的 gitee_number: ${k}`)
+    const inum = getPmIssueNumber(item)
+    if (inum != null && inum !== '') {
+      const k = String(inum)
+      if (seenNumbers.has(k)) throw new Error(`重复的 issue_number: ${k}`)
       seenNumbers.add(k)
     }
   }
@@ -563,8 +576,9 @@ async function pushPlanGitee(client, planPath, dryRun) {
       item.state,
     )
     let existing
-    if (item.gitee_number != null && item.gitee_number !== '') {
-      existing = byNumber.get(String(item.gitee_number))
+    const inum = getPmIssueNumber(item)
+    if (inum != null && inum !== '') {
+      existing = byNumber.get(String(inum))
     }
     if (!existing) existing = byTitle.get(item.title)
     if (existing) {

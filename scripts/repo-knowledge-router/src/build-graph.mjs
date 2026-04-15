@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { extractOpenspecPaths } from "./openspec-paths.mjs";
+import { getPmIssueNumber } from "./pm-issue-fields.mjs";
 import { resolvePmPlanPaths } from "./pm-sync-dir.mjs";
 import { walkFiles } from "./walk-md.mjs";
 
@@ -99,7 +100,8 @@ export function buildGraph(repoRoot) {
   const issues = Array.isArray(doc.issues) ? doc.issues : [];
   issues.forEach((issue, i) => {
     const title = issue?.title || `issue-${i}`;
-    const idKey = issue?.gitee_number ? String(issue.gitee_number) : `i${i}`;
+    const inum = getPmIssueNumber(issue);
+    const idKey = inum ? String(inum) : `i${i}`;
     const id = `issue:${idKey}`;
     const body = issue?.body || "";
     addNode({
@@ -108,7 +110,7 @@ export function buildGraph(repoRoot) {
       path: pmPlanRel,
       title,
       state: String(issue?.state || "open"),
-      gitee_number: issue?.gitee_number ?? null,
+      issue_number: inum ?? null,
       bodyPreview: body.slice(0, 240),
       milestone: issue?.milestone || "",
       module: issue?.module || "",

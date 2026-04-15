@@ -31,14 +31,14 @@ priority_definitions:
   次要: 规模与合规、非核心路径或体验增强；可延后。
   主要: 留存与活跃相关；搜索、通知、互动基础等。
   严重: 闭环必备；账号与访问、帖子与回复最小闭环、论坛壳与导航、个人中心基础等。
-gitee_priority:
+remote_priority:
   api_numeric:
     不指定: 0
     不重要: 1
     次要: 2
     主要: 3
     严重: 4
-gitee_content_classifications:
+issue_content_classifications:
   - bug
   - duplicate
   - enhancement
@@ -68,7 +68,6 @@ issues:
       依赖：openspec/specs/token-identity-consistency；论坛帖子实体与鉴权现状。
       非目标：积分等级、踩、关注链；实时推送。
     milestone: M2 — 互动与发现
-    gitee_number: IILVW7
     priority: 主要
     state: open
     module: 互动与声望
@@ -86,7 +85,6 @@ issues:
 
       非目标：完整账号安全中心、第三方绑定、消息全渠道设置。
     milestone: M2 — 互动与发现
-    gitee_number: IILVWJ
     priority: 主要
     state: open
     module: 个人中心
@@ -100,7 +98,6 @@ issues:
       依赖：openspec/specs/forum-homepage-shell/spec.md（若含侧栏）；里程碑 M2 描述。
       非目标：推荐算法、A/B、运营后台完整 CMS。
     milestone: M2 — 互动与发现
-    gitee_number: IILVWO
     priority: 次要
     state: open
     module: 运营与公告
@@ -113,7 +110,6 @@ issues:
       依赖：里程碑 M3；openspec 治理相关条款（若有）。
       非目标：完整工单 SLA、法务级证据链、多租户隔离策略。
     milestone: M3 — 治理与增长
-    gitee_number: IIM4TY
     priority: 主要
     state: open
     module: 治理与审核
@@ -126,7 +122,6 @@ issues:
       依赖：里程碑 M3。
       非目标：自建大模型审核、全站实时风控中台。
     milestone: M3 — 治理与增长
-    gitee_number: IIM4U6
     priority: 次要
     state: open
     module: 治理与审核
@@ -139,7 +134,6 @@ issues:
       依赖：openspec/specs/report-service（若适用）；里程碑 M3。
       非目标：A/B 实验平台、计费级报表；个性化与算法化热榜见同里程碑 Issue「个性化推荐与算法化热榜」。
     milestone: M3 — 治理与增长
-    gitee_number: IIM4UA
     priority: 次要
     state: open
     module: 平台与基础设施
@@ -152,7 +146,6 @@ issues:
       依赖：论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。
       非目标：完整 RBAC 中台、跨版区批量脚本、工单流。
     milestone: M3 — 治理与增长
-    gitee_number: IIMOBM
     priority: 主要
     state: open
     module: 治理与审核
@@ -165,7 +158,6 @@ issues:
       依赖：论坛版区与标签只读展示与首页对齐（已关闭条目）；forum-homepage-shell 与 forum 内容 API 约定。
       非目标：多语言同义词图谱、运营标签 A/B、第三方标签云同步。
     milestone: M3 — 治理与增长
-    gitee_number: IIMOBP
     priority: 主要
     state: open
     module: 版区与标签
@@ -178,7 +170,6 @@ issues:
       依赖：论坛帖子与互动数据基础；推荐排序与运营报表出口占位（同里程碑 open Issue，可并行演进）。
       非目标：深度学习实时训练、多业务线统一推荐中台、商业级冷启动策略。
     milestone: M3 — 治理与增长
-    gitee_number: IIMOBV
     priority: 主要
     state: open
     module: 搜索与发现
@@ -189,7 +180,7 @@ issues:
       - 提供与业务需求解耦的「策划案/需求说明」入库位置与命名约定（如 `docs/pm/` 或等价模板），写明如何映射到 `pm-plan.yaml` Issue 与 `openspec/changes/**`。
       - README 或 `.cursor/skills/pm-plan/SKILL.md` 中增加指向，使跨会话可复用同一入口；不包含论坛/账号等业务功能验收。
       依赖：`.cursor/skills/pm-plan/SKILL.md`；`openspec/specs/shared-foundation/spec.md`（若需统一文档层级）。
-      非目标：替代 Gitee Issue；业务领域 spec 编写。
+      非目标：替代 GitHub Issue；业务领域 spec 编写。
     milestone: W — 工作流程与工程效能
     priority: 次要
     state: open
@@ -214,7 +205,7 @@ issues:
       - 约定 pm-plan 中工程类 Issue 的 `body` 须含至少一条可校验 `openspec/specs/**` 或 `.cursor/rules/**` 路径；提供校验方式（脚本或 CI 调用 `npm run graph:verify`）。
       - `graph:route` 或 `PM_OPEN_ISSUES.md` 生成逻辑中，对「无路径」Issue 有可见提示或分级策略；与业务 Issue 的验收条款解耦（本条不验收业务功能）。
       依赖：`openspec/specs/repo-knowledge-router/spec.md`；`scripts/repo-knowledge-router/` 现状。
-      非目标：语义向量检索；替换 Gitee 标签体系。
+      非目标：语义向量检索；替换 GitHub 标签体系。
     milestone: W — 工作流程与工程效能
     priority: 次要
     state: open
