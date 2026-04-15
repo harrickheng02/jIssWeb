@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { extractOpenspecPaths } from "./openspec-paths.mjs";
+import { resolvePmPlanPaths } from "./pm-sync-dir.mjs";
 import { routeQuery } from "./route-query.mjs";
 
 const ACTIVE = new Set(["open", "progressing"]);
@@ -11,7 +12,7 @@ function escCell(s) {
 }
 
 export function writePmOpenIssuesMd(repoRoot, graph) {
-  const pmPlanPath = path.join(repoRoot, "scripts", "gitee-sync", "pm-plan.yaml");
+  const { pmPlan: pmPlanPath, pmOpenIssues, pmPlanRel } = resolvePmPlanPaths(repoRoot);
   const doc = YAML.parse(fs.readFileSync(pmPlanPath, "utf8"));
   const issues = Array.isArray(doc.issues) ? doc.issues : [];
   const open = issues
@@ -22,7 +23,7 @@ export function writePmOpenIssuesMd(repoRoot, graph) {
   lines.push("# PM 进行中 Issue 索引");
   lines.push("");
   lines.push(
-    "> 由 `graph:build` / `graph:refresh` 生成（`npm run pm:pull` 已串联 `graph:refresh`）。请 **`@scripts/gitee-sync/PM_OPEN_ISSUES.md`** 引用；勿使用仓库根目录同名文件。"
+    `> 由 \`graph:build\` / \`graph:refresh\` 生成（\`npm run pm:pull\` 已串联 \`graph:refresh\`）。请 **\`@${path.posix.join(path.posix.dirname(pmPlanRel), "PM_OPEN_ISSUES.md")}\`** 引用；勿使用仓库根目录同名文件。`
   );
   lines.push("");
   lines.push("| # | Gitee | 状态 | 里程碑 | 模块 | 标题 |");
@@ -64,7 +65,6 @@ export function writePmOpenIssuesMd(repoRoot, graph) {
     lines.push("");
   }
 
-  const out = path.join(repoRoot, "scripts", "gitee-sync", "PM_OPEN_ISSUES.md");
-  fs.writeFileSync(out, `${lines.join("\n")}\n`, "utf8");
-  return out;
+  fs.writeFileSync(pmOpenIssues, `${lines.join("\n")}\n`, "utf8");
+  return pmOpenIssues;
 }

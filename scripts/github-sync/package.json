@@ -1,5 +1,5 @@
 {
-  "name": "gitee-pm-sync",
+  "name": "pm-remote-sync",
   "private": true,
   "type": "module",
   "scripts": {

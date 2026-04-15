@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { buildGraph, listBrokenReferences } from "./build-graph.mjs";
 import { findRepoRoot } from "./repo-root.mjs";
 import { routeQuery } from "./route-query.mjs";
+import { resolvePmPlanPaths } from "./pm-sync-dir.mjs";
 import { writePmOpenIssuesMd } from "./write-pm-open-issues.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -87,7 +88,7 @@ try {
     const graph = JSON.parse(fs.readFileSync(gp, "utf8"));
     const rows = routeQuery(graph, query, limit);
     for (const r of rows) console.log(`${r.path}\t${r.reason}`);
-    const lastPath = path.join(repoRoot, "scripts", "gitee-sync", ".last-route.txt");
+    const { lastRoute: lastPath } = resolvePmPlanPaths(repoRoot);
     const stamp = new Date().toISOString();
     const body = [
       "# graph:route",

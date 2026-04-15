@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { extractOpenspecPaths } from "./openspec-paths.mjs";
+import { resolvePmPlanPaths } from "./pm-sync-dir.mjs";
 import { walkFiles } from "./walk-md.mjs";
 
 function toPosix(p) {
@@ -81,8 +82,7 @@ export function buildGraph(repoRoot) {
     });
   }
 
-  const pmPlanPath = path.join(repoRoot, "scripts", "gitee-sync", "pm-plan.yaml");
-  const pmPlanRel = "scripts/gitee-sync/pm-plan.yaml";
+  const { pmPlan: pmPlanPath, pmPlanRel } = resolvePmPlanPaths(repoRoot);
   const doc = YAML.parse(fs.readFileSync(pmPlanPath, "utf8"));
   const modules = Array.isArray(doc.modules) ? doc.modules : [];
   modules.forEach((m, i) => {
