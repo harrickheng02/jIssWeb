@@ -53,8 +53,8 @@ export function resolveCredentials(provider, repoRoot) {
   const parsed = parseRemoteOwnerRepo(origin, provider)
   if (provider === 'github') {
     const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN
-    const owner = process.env.GITHUB_OWNER || parsed?.owner
-    const repo = process.env.GITHUB_REPO || parsed?.repo
+    const owner = parsed?.owner || process.env.GITHUB_OWNER
+    const repo = parsed?.repo || process.env.GITHUB_REPO
     return { token, owner, repo }
   }
   const token = process.env.GITEE_ACCESS_TOKEN
