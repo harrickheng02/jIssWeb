@@ -41,6 +41,5 @@ export function resolvePmPlanPaths(repoRoot) {
     pmPlan: path.join(dir, "pm-plan.yaml"),
     pmPlanRel: path.posix.join(rel, "pm-plan.yaml"),
     pmOpenIssues: path.join(dir, "PM_OPEN_ISSUES.md"),
-    lastRoute: path.join(dir, ".last-route.txt"),
   };
 }

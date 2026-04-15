@@ -2,7 +2,7 @@
 
 ## Purpose
 
-本地只读索引 `pm-plan` / OpenSpec / Cursor 规则，生成 `graph.json`、校验 `openspec/` 引用、提供 `route` 与进行中 Issue 索引（`PM_OPEN_ISSUES.md`、`.last-route.txt`）。
+本地只读索引 `pm-plan` / OpenSpec / Cursor 规则，生成 `graph.json`、校验 `openspec/` 引用、提供 `route` 与进行中 Issue 索引（`PM_OPEN_ISSUES.md`）。
 
 ## Requirements
 ### Requirement: Authoritative indexing sources
@@ -54,15 +54,6 @@ The tooling SHALL provide a `refresh` subcommand. It SHALL build the graph once 
 
 - **WHEN** `refresh` runs and no broken reference edges exist
 - **THEN** it SHALL write `graph.json` and SHALL write `PM_OPEN_ISSUES.md`
-
-### Requirement: route persists last-route file
-
-On successful `route` invocation, the tooling SHALL overwrite `scripts/github-sync/.last-route.txt` with a header block (`# graph:route`, `# generated:` ISO-8601 UTC, `query:` tab and the query string), a blank line, and for each result row the same `path<TAB>reason` as printed to stdout before the summary line. It SHALL print to stdout a final line beginning with `# last-route:` followed by the repo-relative path of `.last-route.txt`.
-
-#### Scenario: last-route lists paths from stdout
-
-- **WHEN** `route` exits zero with at least one result row
-- **THEN** `.last-route.txt` SHALL contain every `path` from those stdout rows (excluding the `# last-route:` line)
 
 ### Requirement: PM_OPEN_ISSUES index generation
 

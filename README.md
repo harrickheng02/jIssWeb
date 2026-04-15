@@ -81,7 +81,42 @@ docker compose up -d --build
 
 ---
 
-## 四、技术架构
+## 四、需求与 OpenSpec 工作流
+
+在 **GitHub** 维护 Issue 与里程碑。本地以 **`scripts/github-sync/pm-plan.yaml`** 为规划源，与 **`openspec/`**、图谱脚本配合；细则见 **`.cursor/skills/pm-plan/SKILL.md`**。
+
+**前置**：本机安装 **openspec** CLI（`/opsx-*` 与命令行归档依赖）；在仓库根执行 **`npm run pm:ci`** 安装 **`scripts/github-sync`** 与 **`scripts/repo-knowledge-router`** 依赖。
+
+| 步骤 | 操作 |
+|------|------|
+| 同步代码与依赖 | 开工前 **`git pull`**；多人改 **`pm-plan.yaml`** 前先拉再改，减少冲突 |
+| 同步 Issue → 本地规划 | 配置 **`scripts/github-sync/.env`**（从 **`.env.example`**，勿提交令牌）。需用 GitHub API 回填 **`pm-plan.yaml`** 并刷新图册时：**`npm run pm:pull`**（**不是** `git pull`；内含 **`graph:refresh`**）。Cursor 中可用 **`/pm-pull`** |
+| 查看进行中 Issue | 读 **`scripts/github-sync/PM_OPEN_ISSUES.md`**（由 **`pm:pull` / `graph:refresh`** 生成，已 gitignore） |
+| 讨论方案 | **`/opsx-explore`**（探索不写业务代码） |
+| 立项与实现 | **`/opsx-propose`** 建 change → **`/opsx-apply`** 实现；**一条 Issue 可拆多个 change/多 PR**，与条目、里程碑对齐即可 |
+| 自测与审查 | 自测后 **`change-review`**（只读；**不等同于 CI 通过**） |
+| 提交与合并 | **`git commit`**，按约定走 **PR**；**建议 CI 通过后再 `/opsx-archive`** |
+| 归档 | **`/opsx-archive`** |
+| 回写规划并推送 | 编辑 **`pm-plan.yaml`** 后 **`npm run pm:publish`**（**`graph:refresh` + `pm:push`**）。**默认在实现已合并进主分支后再执行**，避免远端规划与主分支代码不一致；仅改规划后不要只跑 **`pm:push`** 而跳过 refresh，否则 **`PM_OPEN_ISSUES.md`** 与图会旧 |
+
+**异常与排查**
+
+- **`npm run pm:publish` 失败**：多为 **`graph:verify`** 不通过，检查 **`pm-plan.yaml`** 各 Issue **`body`** 中的 **`openspec/...`** 路径是否在仓库内存在。
+- **紧急修复**：可先合代码，再补 OpenSpec / **`pm-plan`**，由团队约定。
+
+**仓库根常用命令**
+
+| 目的 | 命令 |
+|------|------|
+| 拉 Issue 写回 yaml + 刷新图 | `npm run pm:pull` |
+| 只刷新图与 `PM_OPEN_ISSUES.md` | `npm run graph:refresh` |
+| 关键词路由（终端输出） | `npm run graph:route -- -- "<关键词>"` |
+| 校验 `pm-plan` 中 openspec 引用 | `npm run graph:verify` |
+| 改完规划后刷新并推远端 | `npm run pm:publish` |
+
+---
+
+## 五、技术架构
 
 ### 目录结构（节选）
 
@@ -108,7 +143,7 @@ jIssWeb/
 
 ---
 
-## 五、本地数据库（Docker）
+## 六、本地数据库（Docker）
 
 Mongo / Redis 的宿主机端口、账号及连接串均在根目录 **`.env`** 中配置；与容器内监听、数据卷名等对应关系见 **`.env.example`** 中的键名。
 

@@ -68,6 +68,7 @@ issues:
       依赖：openspec/specs/token-identity-consistency；论坛帖子实体与鉴权现状。
       非目标：积分等级、踩、关注链；实时推送。
     milestone: M2 — 互动与发现
+    issue_number: 1
     priority: 主要
     state: open
     module: 互动与声望
@@ -85,6 +86,7 @@ issues:
 
       非目标：完整账号安全中心、第三方绑定、消息全渠道设置。
     milestone: M2 — 互动与发现
+    issue_number: 2
     priority: 主要
     state: open
     module: 个人中心
@@ -98,6 +100,7 @@ issues:
       依赖：openspec/specs/forum-homepage-shell/spec.md（若含侧栏）；里程碑 M2 描述。
       非目标：推荐算法、A/B、运营后台完整 CMS。
     milestone: M2 — 互动与发现
+    issue_number: 3
     priority: 次要
     state: open
     module: 运营与公告
@@ -110,6 +113,7 @@ issues:
       依赖：里程碑 M3；openspec 治理相关条款（若有）。
       非目标：完整工单 SLA、法务级证据链、多租户隔离策略。
     milestone: M3 — 治理与增长
+    issue_number: 4
     priority: 主要
     state: open
     module: 治理与审核
@@ -122,6 +126,7 @@ issues:
       依赖：里程碑 M3。
       非目标：自建大模型审核、全站实时风控中台。
     milestone: M3 — 治理与增长
+    issue_number: 5
     priority: 次要
     state: open
     module: 治理与审核
@@ -134,6 +139,7 @@ issues:
       依赖：openspec/specs/report-service（若适用）；里程碑 M3。
       非目标：A/B 实验平台、计费级报表；个性化与算法化热榜见同里程碑 Issue「个性化推荐与算法化热榜」。
     milestone: M3 — 治理与增长
+    issue_number: 6
     priority: 次要
     state: open
     module: 平台与基础设施
@@ -146,6 +152,7 @@ issues:
       依赖：论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。
       非目标：完整 RBAC 中台、跨版区批量脚本、工单流。
     milestone: M3 — 治理与增长
+    issue_number: 7
     priority: 主要
     state: open
     module: 治理与审核
@@ -158,6 +165,7 @@ issues:
       依赖：论坛版区与标签只读展示与首页对齐（已关闭条目）；forum-homepage-shell 与 forum 内容 API 约定。
       非目标：多语言同义词图谱、运营标签 A/B、第三方标签云同步。
     milestone: M3 — 治理与增长
+    issue_number: 8
     priority: 主要
     state: open
     module: 版区与标签
@@ -170,6 +178,7 @@ issues:
       依赖：论坛帖子与互动数据基础；推荐排序与运营报表出口占位（同里程碑 open Issue，可并行演进）。
       非目标：深度学习实时训练、多业务线统一推荐中台、商业级冷启动策略。
     milestone: M3 — 治理与增长
+    issue_number: 9
     priority: 主要
     state: open
     module: 搜索与发现
@@ -182,6 +191,7 @@ issues:
       依赖：`.cursor/skills/pm-plan/SKILL.md`；`openspec/specs/shared-foundation/spec.md`（若需统一文档层级）。
       非目标：替代 GitHub Issue；业务领域 spec 编写。
     milestone: W — 工作流程与工程效能
+    issue_number: 10
     priority: 次要
     state: open
     module: 平台与基础设施
@@ -195,18 +205,25 @@ issues:
       依赖：`openspec/specs/repo-knowledge-router/spec.md`（索引与校验范围）；仓库既有 CI 配置（若有）。
       非目标：强制特定商业审批流；替代代码审查讨论。
     milestone: W — 工作流程与工程效能
+    issue_number: 11
     priority: 次要
     state: open
     module: 平台与基础设施
     classification: enhancement
   - title: 工作流程：Issue 文档路径与知识路由工程化
-    body: |
+    body: >
       验收标准：
-      - 约定 pm-plan 中工程类 Issue 的 `body` 须含至少一条可校验 `openspec/specs/**` 或 `.cursor/rules/**` 路径；提供校验方式（脚本或 CI 调用 `npm run graph:verify`）。
+
+      - 约定 pm-plan 中工程类 Issue 的 `body` 须含至少一条可校验 `openspec/specs/**` 或 `.cursor/rules/**` 路径；提供校验方式（脚本或 CI 调用 `npm run
+      graph:verify`）。
+
       - `graph:route` 或 `PM_OPEN_ISSUES.md` 生成逻辑中，对「无路径」Issue 有可见提示或分级策略；与业务 Issue 的验收条款解耦（本条不验收业务功能）。
+
       依赖：`openspec/specs/repo-knowledge-router/spec.md`；`scripts/repo-knowledge-router/` 现状。
+
       非目标：语义向量检索；替换 GitHub 标签体系。
     milestone: W — 工作流程与工程效能
+    issue_number: 12
     priority: 次要
     state: open
     module: 平台与基础设施
@@ -219,6 +236,7 @@ issues:
       依赖：仓库根 `package.json` 中 `graph:verify`；`.githooks/pre-commit`（若存在）。
       非目标：全量 E2E 替代；Cursor 云端强制策略。
     milestone: W — 工作流程与工程效能
+    issue_number: 13
     priority: 次要
     state: open
     module: 平台与基础设施
@@ -231,6 +249,7 @@ issues:
       依赖：`openspec/specs/repo-knowledge-router/spec.md`；`npm run graph:refresh`。
       非目标：自动从对话蒸馏规则；多仓库联邦图谱。
     milestone: W — 工作流程与工程效能
+    issue_number: 14
     priority: 不重要
     state: open
     module: 平台与基础设施

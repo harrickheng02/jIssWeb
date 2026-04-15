@@ -1,18 +1,18 @@
 ---
-name: jissweb-change-review
+name: change-review
 description: >-
-  Read-only review of jIssWeb changes against OpenSpec tasks/specs, SOLID
-  principles, and project conventions (Vue3/TS/Element Plus frontend, .NET
-  backend). Produces a findings report only; does not modify code. Use when
-  reviewing a PR or branch, validating an OpenSpec change after implementation,
-  or when the user asks for a review / SOLID check / alignment / 对照规范 / 需求核对.
+  Read-only review of changes against OpenSpec tasks/specs, SOLID principles,
+  and project conventions (stack-specific notes live in this skill body). Produces
+  a findings report only; does not modify code. Use when reviewing a PR or
+  branch, validating an OpenSpec change after implementation, or when the user
+  asks for a review / SOLID check / alignment / 对照规范 / 需求核对.
 ---
 
-# jIssWeb Change Review（只读）
+# 变更审查（只读）
 
 ## 角色
 
-- **只做审查与报告**：不执行修改、不运行会**改动业务代码或 OpenSpec 制品**的命令（可只读查看文件、diff）。**例外**：为对照规范面，允许在仓库根执行 **`npm run graph:route`**，其唯一副作用是覆盖 **`scripts/github-sync/.last-route.txt`**（已 gitignore，非源码）。
+- **只做审查与报告**：不执行修改、不运行会**改动业务代码或 OpenSpec 制品**的命令（可只读查看文件、diff）。**例外**：为对照规范面，允许在仓库根执行 **`npm run graph:route`**（仅终端输出，不写入业务/OpenSpec 源码）。
 - **目标**：对照 **OpenSpec 变更需求**（`openspec/changes/<change>/tasks.md`、`specs/**/*.md`）与 **仓库约定**，列出偏差与风险。
 - **与自动化测试的关系**：本技能**不等于**跑测试套件；**静态对照**（规范、任务、代码）与 **可重复验证**（`dotnet test`、`npm run test`、CI）互补。验收应以 **tasks.md 记录 + CI/PR 门禁** 为主；审查报告可注明测试是否已执行或仅作规范核对（见下节「测试与验收」）。
 
@@ -44,7 +44,7 @@ description: >-
 
 ## 后端（`backend/`）
 
-栈：.NET、多项目（`JIssWeb.*.Api`、BFF、Gateway、Domain/Application 等）。
+栈：.NET、多项目（各 `*.Api`、BFF、Gateway、Domain/Application 等）。
 
 | 维度 | 核对要点 |
 |------|----------|
@@ -82,7 +82,7 @@ description: >-
 
 **仓库内测试入口（核对时引用）**
 
-- 后端：`.NET` + **xUnit**，示例 `backend/tests/JIssWeb.Model.Api.Tests/`；`dotnet test <csproj或sln>`。
+- 后端：`.NET` + **xUnit**，示例见 `backend/tests/`；`dotnet test <csproj或sln>`。
 - 前端：`frontend/` 下 **Vitest**，`npm run test`（配置见 `vitest.config.ts`）。
 
 **何时在报告中强调测试缺口**：鉴权/多租户/资金相关、或 `tasks.md` 声明已用测试验收但分支中未见对应用例或记录时，在发现项或「测试与验证」中标 **中**/**高**。
@@ -97,7 +97,7 @@ description: >-
 
 - 在仓库根执行：  
   `npm run graph:route -- -- "<change 名、需求短语或关联 issue 标题>"`  
-  结果写入 **`scripts/github-sync/.last-route.txt`**；审查时优先 **`@` 该文件**（或终端 `path` 列）作为「应读规范面」。报告中写明：是否覆盖本次 diff 所涉能力；遗漏则标 **中**/**低** 并建议补 `pm-plan` / OpenSpec 引用。
+  审查时以终端 `path` 列作为「应读规范面」。报告中写明：是否覆盖本次 diff 所涉能力；遗漏则标 **中**/**低** 并建议补 `pm-plan` / OpenSpec 引用。
 
 ## 报告格式（输出给用户）
 
@@ -128,7 +128,7 @@ description: >-
 
 ## OpenSpec 任务对照
 | 任务 | 状态 | 说明 |
-|------|------|------|
+|------|------|
 | … | 满足 / 部分 / 未体现 | … |
 
 ## 测试与验证（可选小节）

@@ -5,10 +5,21 @@ description: >-
 license: MIT
 metadata:
   author: project
-  version: "1.4.4"
+  version: "1.4.5"
 ---
 
 # pm-plan 分析维护
+
+## 端到端工作流（参考）
+
+1. 在 **GitHub** 维护 Issue、里程碑（与团队约定一致即可）。
+2. **前置**：本机 **openspec** CLI；仓库根 **`npm run pm:ci`**（首次或缺依赖）。动手前 **`git pull`**；多人改 **`pm-plan.yaml`** 前先拉再改。`npm run pm:pull` / `npm run pm:push` 需 **`scripts/github-sync/.env`**（勿泄露 token）。
+3. 需把 **Issues API** 回填进 **`pm-plan.yaml`** 并刷新图册：**`/pm-pull`** 或 **`npm run pm:pull`**（内含 **`graph:refresh`**）。**勿与 `git pull` 混淆。**
+4. **`scripts/github-sync/PM_OPEN_ISSUES.md`** 查看进行中 Issue（**`pm:pull` / `graph:refresh`** 生成；已 gitignore）。
+5. **`/opsx-explore`** 讨论方案（**不写业务实现**）；**`/opsx-propose` → `/opsx-apply`**。**一条 Issue 可多个 change/PR**。
+6. 自测；**`change-review`**（审查≠CI）；**`git commit`**，**PR**；**建议 CI 通过后再 `/opsx-archive`**。
+7. **`/opsx-archive`**。
+8. 对照归档与实现改 **`pm-plan.yaml`**；**`npm run pm:publish`**。**默认在实现已合并主分支后再 publish**；**勿**只 **`pm:push`** 跳过 refresh。**`publish` 失败**多因 **`graph:verify`**：检查 **`body`** 内 **`openspec/...`** 是否存在。**紧急修复**可先合代码再补规范，团队约定。
 
 ## 默认执行约定
 
@@ -59,5 +70,5 @@ metadata:
 ## 相关文件
 
 - `scripts/github-sync/pm-plan.yaml`（由 `scripts/repo-knowledge-router/src/pm-sync-dir.mjs` 解析）
-- 同目录下 `PM_OPEN_ISSUES.md`（`graph:refresh` 生成，宜提交）、`.last-route.txt`（生成物，已 gitignore）
+- 同目录下 `PM_OPEN_ISSUES.md`（生成物，已 gitignore）
 - `.cursor/rules/pm-plan.mdc`

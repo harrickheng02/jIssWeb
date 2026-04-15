@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-15T21:31:00.230Z",
+  "generatedAt": "2026-04-15T22:34:27.858Z",
   "nodes": [
     {
       "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/design.md",
@@ -864,10 +864,10 @@
       "description": "举报、屏蔽词、版主操作、审计日志"
     },
     {
-      "id": "skill:.cursor/skills/jissweb-change-review/SKILL.md",
+      "id": "skill:.cursor/skills/change-review/SKILL.md",
       "kind": "skill",
-      "path": ".cursor/skills/jissweb-change-review/SKILL.md",
-      "title": "jIssWeb Change Review（只读）"
+      "path": ".cursor/skills/change-review/SKILL.md",
+      "title": "变更审查（只读）"
     },
     {
       "id": "skill:.cursor/skills/openspec-apply-change/SKILL.md",

@@ -11,5 +11,3 @@ obj/
 *.log
 .tmpbuild/
 .history/
-scripts/gitee-sync/.last-route.txt
-scripts/github-sync/.last-route.txt
