@@ -58,7 +58,6 @@ meta:
     - issue_number: 12
       related_title: 工作流程：Issue 文档路径与知识路由工程化
       out_of_scope:
-        - 语义向量检索
         - 替换 GitHub 标签体系
     - issue_number: 14
       related_title: 工作流程：复盘沉淀与图谱刷新节奏
@@ -307,3 +306,29 @@ issues:
     module: 平台与基础设施
     classification: enhancement
     requires_openspec_spec_reference: true
+  - title: 论坛帖子关键词搜索与请求限流契约
+    body: |
+      验收标准：
+      - `GET /api/forum/posts` 支持 `q` 关键词筛选与分页，列表摘要与非搜索列表合同一致；空或仅空白 `q` 按规范拒绝或等价处理。
+      - 带非空 `q` 的请求限流可配置，超限返回 429。
+      依赖：`openspec/specs/forum-post-search/spec.md`；`openspec/specs/token-identity-consistency`。
+      非目标：全网语义搜索与向量检索；独立搜索集群专有云运维与 SLA。
+    milestone: M2 — 互动与发现
+    issue_number: 15
+    priority: 主要
+    state: open
+    module: 搜索与发现
+    classification: feature
+  - title: 站内通知列表与已读状态最小集
+    body: |
+      验收标准：
+      - 通知列表仅返回当前 JWT `sub` 对应收件人数据；分页、已读/未读与深链字段可演示。
+      - 他人回复帖子时向楼主生成通知（不自通知）；与帖子/回复创建链路可联调。
+      依赖：`openspec/specs/in-app-notifications/spec.md`；`openspec/specs/token-identity-consistency`。
+      非目标：邮件/短信/WebPush 等站外推送；多端实时送达 SLA 与消息中台。
+    milestone: M2 — 互动与发现
+    issue_number: 16
+    priority: 主要
+    state: open
+    module: 消息与通知
+    classification: feature

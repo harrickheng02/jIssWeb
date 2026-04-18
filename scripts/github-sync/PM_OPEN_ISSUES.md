@@ -13,8 +13,9 @@
 | 7 | 8 | open | M3 — 治理与增长 | 版区与标签 | 标签体系后台管理（CRUD 与绑定规则） |
 | 8 | 9 | open | M3 — 治理与增长 | 搜索与发现 | 个性化推荐与算法化热榜 |
 | 9 | 11 | open | W — 工作流程与工程效能 | 平台与基础设施 | 工作流程：变更审阅与合并门禁清单 |
-| 10 | 12 | open | W — 工作流程与工程效能 | 平台与基础设施 | 工作流程：Issue 文档路径与知识路由工程化 |
-| 11 | 14 | open | W — 工作流程与工程效能 | 平台与基础设施 | 工作流程：复盘沉淀与图谱刷新节奏 |
+| 10 | 14 | open | W — 工作流程与工程效能 | 平台与基础设施 | 工作流程：复盘沉淀与图谱刷新节奏 |
+| 11 | 15 | open | M2 — 互动与发现 | 搜索与发现 | 论坛帖子关键词搜索与请求限流契约 |
+| 12 | 16 | open | M2 — 互动与发现 | 消息与通知 | 站内通知列表与已读状态最小集 |
 
 ## 2 · 个人中心与内容管理最小集
 
@@ -154,25 +155,6 @@
 - `scripts/github-sync/pm-plan.yaml` — text match
 - `openspec/specs/repo-knowledge-router/spec.md` — from issue "工作流程：变更审阅与合并门禁清单"
 
-## 12 · 工作流程：Issue 文档路径与知识路由工程化
-
-- **state**: open
-- **milestone**: W — 工作流程与工程效能
-- **module**: 平台与基础设施
-
-### `body` 中的 openspec 路径
-- `openspec/specs/`
-- `openspec/specs/repo-knowledge-router/spec.md`
-- `openspec/specs/repo-knowledge-semantic-index/spec.md`
-
-### `body` 中的 .cursor/rules 路径
-- （无）
-
-### `graph:route`（以标题为查询）
-- `scripts/github-sync/pm-plan.yaml` — text match
-- `openspec/specs/repo-knowledge-router/spec.md` — from issue "工作流程：Issue 文档路径与知识路由工程化"
-- `openspec/specs/repo-knowledge-semantic-index/spec.md` — from issue "工作流程：Issue 文档路径与知识路由工程化"
-
 ## 14 · 工作流程：复盘沉淀与图谱刷新节奏
 
 - **state**: open
@@ -189,4 +171,38 @@
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
 - `openspec/specs/repo-knowledge-router/spec.md` — from issue "工作流程：复盘沉淀与图谱刷新节奏"
+
+## 15 · 论坛帖子关键词搜索与请求限流契约
+
+- **state**: open
+- **milestone**: M2 — 互动与发现
+- **module**: 搜索与发现
+
+### `body` 中的 openspec 路径
+- `openspec/specs/forum-post-search/spec.md`
+- `openspec/specs/token-identity-consistency`
+
+### `body` 中的 .cursor/rules 路径
+- （无）
+
+### `graph:route`（以标题为查询）
+- `scripts/github-sync/pm-plan.yaml` — text match
+- `openspec/specs/forum-post-search/spec.md` — from issue "论坛帖子关键词搜索与请求限流契约"
+
+## 16 · 站内通知列表与已读状态最小集
+
+- **state**: open
+- **milestone**: M2 — 互动与发现
+- **module**: 消息与通知
+
+### `body` 中的 openspec 路径
+- `openspec/specs/in-app-notifications/spec.md`
+- `openspec/specs/token-identity-consistency`
+
+### `body` 中的 .cursor/rules 路径
+- （无）
+
+### `graph:route`（以标题为查询）
+- `scripts/github-sync/pm-plan.yaml` — text match
+- `openspec/specs/in-app-notifications/spec.md` — from issue "站内通知列表与已读状态最小集"
 

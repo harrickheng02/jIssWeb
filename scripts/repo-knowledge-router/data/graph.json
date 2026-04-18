@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-18T15:55:11.692Z",
+  "generatedAt": "2026-04-18T16:12:07.150Z",
   "nodes": [
     {
       "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/design.md",
@@ -657,6 +657,36 @@
       "title": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/tasks.md"
     },
     {
+      "id": "change:openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/design.md",
+      "title": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/proposal.md",
+      "title": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/specs/repo-knowledge-router/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/specs/repo-knowledge-router/spec.md",
+      "title": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/specs/repo-knowledge-router/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/specs/repo-knowledge-semantic-index/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/specs/repo-knowledge-semantic-index/spec.md",
+      "title": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/specs/repo-knowledge-semantic-index/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/tasks.md",
+      "title": "openspec/changes/archive/2026-04-18-repo-knowledge-engineering-and-vectors/tasks.md"
+    },
+    {
       "id": "change:openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/design.md",
       "kind": "change",
       "path": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/design.md",
@@ -679,36 +709,6 @@
       "kind": "change",
       "path": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/tasks.md",
       "title": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/tasks.md"
-    },
-    {
-      "id": "change:openspec/changes/repo-knowledge-engineering-and-vectors/design.md",
-      "kind": "change",
-      "path": "openspec/changes/repo-knowledge-engineering-and-vectors/design.md",
-      "title": "openspec/changes/repo-knowledge-engineering-and-vectors/design.md"
-    },
-    {
-      "id": "change:openspec/changes/repo-knowledge-engineering-and-vectors/proposal.md",
-      "kind": "change",
-      "path": "openspec/changes/repo-knowledge-engineering-and-vectors/proposal.md",
-      "title": "openspec/changes/repo-knowledge-engineering-and-vectors/proposal.md"
-    },
-    {
-      "id": "change:openspec/changes/repo-knowledge-engineering-and-vectors/specs/repo-knowledge-router/spec.md",
-      "kind": "change",
-      "path": "openspec/changes/repo-knowledge-engineering-and-vectors/specs/repo-knowledge-router/spec.md",
-      "title": "openspec/changes/repo-knowledge-engineering-and-vectors/specs/repo-knowledge-router/spec.md"
-    },
-    {
-      "id": "change:openspec/changes/repo-knowledge-engineering-and-vectors/specs/repo-knowledge-semantic-index/spec.md",
-      "kind": "change",
-      "path": "openspec/changes/repo-knowledge-engineering-and-vectors/specs/repo-knowledge-semantic-index/spec.md",
-      "title": "openspec/changes/repo-knowledge-engineering-and-vectors/specs/repo-knowledge-semantic-index/spec.md"
-    },
-    {
-      "id": "change:openspec/changes/repo-knowledge-engineering-and-vectors/tasks.md",
-      "kind": "change",
-      "path": "openspec/changes/repo-knowledge-engineering-and-vectors/tasks.md",
-      "title": "openspec/changes/repo-knowledge-engineering-and-vectors/tasks.md"
     },
     {
       "id": "cursor-rule:.cursor/rules/forum-ui.mdc",
@@ -739,12 +739,12 @@
       "kind": "issue",
       "path": "scripts/github-sync/pm-plan.yaml",
       "title": "工作流程：Issue 文档路径与知识路由工程化",
-      "state": "open",
+      "state": "closed",
       "issue_number": 12,
       "bodyPreview": "验收标准：\n- 约定 pm-plan 中工程类 Issue 的 `body` 须含至少一条可校验 `openspec/specs/**` 或 `.cursor/rules/**` 路径；提供校验方式（脚本或 CI 调用 `npm run graph:verify`）。\n- `graph:route` 或 `PM_OPEN_ISSUES.md` 生成逻辑中，对「无路径」Issue 有可见提示或分级策略；与业务 Issue 的验收条款解耦（本条不验收业务功能）。\n依赖：`open",
       "milestone": "W — 工作流程与工程效能",
       "module": "平台与基础设施",
-      "requires_openspec_spec_reference": true
+      "requires_openspec_spec_reference": false
     },
     {
       "id": "issue:13",
@@ -769,6 +769,30 @@
       "milestone": "W — 工作流程与工程效能",
       "module": "平台与基础设施",
       "requires_openspec_spec_reference": true
+    },
+    {
+      "id": "issue:15",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "论坛帖子关键词搜索与请求限流契约",
+      "state": "open",
+      "issue_number": 15,
+      "bodyPreview": "验收标准：\n- `GET /api/forum/posts` 支持 `q` 关键词筛选与分页，列表摘要与非搜索列表合同一致；空或仅空白 `q` 按规范拒绝或等价处理。\n- 带非空 `q` 的请求限流可配置，超限返回 429。\n依赖：`openspec/specs/forum-post-search/spec.md`；`openspec/specs/token-identity-consistency`。\n非目标：全网语义搜索与向量检索；独立搜索集群专有云运维与 SLA。\n",
+      "milestone": "M2 — 互动与发现",
+      "module": "搜索与发现",
+      "requires_openspec_spec_reference": false
+    },
+    {
+      "id": "issue:16",
+      "kind": "issue",
+      "path": "scripts/github-sync/pm-plan.yaml",
+      "title": "站内通知列表与已读状态最小集",
+      "state": "open",
+      "issue_number": 16,
+      "bodyPreview": "验收标准：\n- 通知列表仅返回当前 JWT `sub` 对应收件人数据；分页、已读/未读与深链字段可演示。\n- 他人回复帖子时向楼主生成通知（不自通知）；与帖子/回复创建链路可联调。\n依赖：`openspec/specs/in-app-notifications/spec.md`；`openspec/specs/token-identity-consistency`。\n非目标：邮件/短信/WebPush 等站外推送；多端实时送达 SLA 与消息中台。\n",
+      "milestone": "M2 — 互动与发现",
+      "module": "消息与通知",
+      "requires_openspec_spec_reference": false
     },
     {
       "id": "issue:2",
@@ -1186,6 +1210,26 @@
     {
       "from": "issue:14",
       "to": "spec:openspec/specs/repo-knowledge-router/spec.md",
+      "rel": "references"
+    },
+    {
+      "from": "issue:15",
+      "to": "module:搜索与发现",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:15",
+      "to": "spec:openspec/specs/forum-post-search/spec.md",
+      "rel": "references"
+    },
+    {
+      "from": "issue:16",
+      "to": "module:消息与通知",
+      "rel": "module-of"
+    },
+    {
+      "from": "issue:16",
+      "to": "spec:openspec/specs/in-app-notifications/spec.md",
       "rel": "references"
     },
     {
