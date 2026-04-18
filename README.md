@@ -114,7 +114,7 @@ docker compose up -d --build
 
 **PR 与合并**
 
-- 合并前检查单见 **[docs/engineering/pr-merge-checklist.md](docs/engineering/pr-merge-checklist.md)**；开 PR 时 **`.github/pull_request_template.md`** 中的自检项与之对应。
+- 开 PR 时按 **`.github/pull_request_template.md`** 中的关联项与自检勾选完成说明。
 
 **异常与排查**
 
