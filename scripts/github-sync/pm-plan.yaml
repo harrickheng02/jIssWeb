@@ -1,5 +1,80 @@
 meta:
   product: 论坛方向 Web 应用
+  scope_note: |
+    Issue 正文只写验收标准与依赖；不在本条内写「非目标」清单（已拆到 `meta.deferred_scope`）。
+    `deferred_scope` 仅作范围索引，不作验收缺口；若要交付其中任一项，单开 Issue。
+  deferred_scope:
+    - issue_number: 2
+      related_title: 个人中心与内容管理最小集
+      out_of_scope:
+        - 完整账号安全中心
+        - 第三方账号绑定
+        - 消息全渠道设置
+    - issue_number: 3
+      related_title: 公告位与热门数据接口
+      out_of_scope:
+        - 个性化推荐算法与 A/B（独立产品）
+        - 运营后台完整 CMS
+    - issue_number: 4
+      related_title: 论坛举报与处理最小闭环
+      out_of_scope:
+        - 完整工单 SLA
+        - 法务级证据链
+        - 多租户隔离策略（专有云/合规单独立项）
+    - issue_number: 5
+      related_title: 反垃圾与自动处置占位
+      out_of_scope:
+        - 自建大模型审核管线
+        - 全站实时风控中台
+    - issue_number: 6
+      related_title: 推荐排序与运营报表出口占位
+      out_of_scope:
+        - A/B 实验平台
+        - 计费级报表
+        - 算法化热榜进阶（见 issue_number 9）
+    - issue_number: 7
+      related_title: 版主版区与帖子操作后台（最小集）
+      out_of_scope:
+        - 完整 RBAC 中台
+        - 跨版区批量脚本
+        - 工单流引擎
+    - issue_number: 8
+      related_title: 标签体系后台管理（CRUD 与绑定规则）
+      out_of_scope:
+        - 多语言同义词图谱
+        - 运营标签 A/B
+        - 第三方标签云同步
+    - issue_number: 9
+      related_title: 个性化推荐与算法化热榜
+      out_of_scope:
+        - 深度学习实时训练
+        - 多业务线统一推荐中台
+        - 商业级冷启动策略
+    - issue_number: 11
+      related_title: 工作流程：变更审阅与合并门禁清单
+      out_of_scope:
+        - 强制特定商业审批流
+        - 替代代码审查与研发讨论
+    - issue_number: 12
+      related_title: 工作流程：Issue 文档路径与知识路由工程化
+      out_of_scope:
+        - 语义向量检索
+        - 替换 GitHub 标签体系
+    - issue_number: 14
+      related_title: 工作流程：复盘沉淀与图谱刷新节奏
+      out_of_scope:
+        - 从对话自动蒸馏规则
+        - 多仓库联邦知识图谱
+    - issue_number: 15
+      related_title: 论坛帖子关键词搜索与请求限流契约
+      out_of_scope:
+        - 全网语义搜索与向量检索
+        - 独立搜索集群专有云运维与 SLA
+    - issue_number: 16
+      related_title: 站内通知列表与已读状态最小集
+      out_of_scope:
+        - 邮件/短信/WebPush 等站外推送
+        - 多端实时送达 SLA 与消息中台
 modules:
   - name: 账号与访问
     description: 邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时与 401 拦截后的 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange
@@ -10,7 +85,7 @@ modules:
   - name: 帖子与回复
     description: 发帖、正文与附件策略、楼层回复、编辑删除、草稿
   - name: 互动与声望
-    description: 点赞/踩、收藏、关注、积分或等级（可与用户服务扩展）
+    description: 点赞、收藏；关注与积分/等级等可与用户服务扩展（点踩未在本期范围）
   - name: 版区与标签
     description: 分区、置顶、精华、标签体系与筛选
   - name: 搜索与发现
@@ -60,19 +135,6 @@ milestones:
     description: 与 M1–M3 产品交付解耦：策划案入库、审阅门禁、路由与路径校验、CI/hooks、复盘与图谱刷新；排期与业务里程碑独立叙述。
     due_on: 2026-12-31
 issues:
-  - title: 帖子点赞与收藏基础
-    body: |
-      验收标准：
-      - 提供可对帖子（及必要时回复）点赞与收藏的 HTTP API 或经 BFF 暴露的统一接口；登录态下操作与取消可验证，未登录行为有约定（拒绝或匿名策略文档化）。
-      - 列表或详情可展示计数或状态（至少其一可联调）；与 JWT `sub` 身份一致，不另造用户键。
-      依赖：openspec/specs/token-identity-consistency；论坛帖子实体与鉴权现状。
-      非目标：积分等级、踩、关注链；实时推送。
-    milestone: M2 — 互动与发现
-    issue_number: 1
-    priority: 主要
-    state: open
-    module: 互动与声望
-    classification: feature
   - title: 个人中心与内容管理最小集
     body: >
       验收标准：
@@ -183,19 +245,6 @@ issues:
     state: open
     module: 搜索与发现
     classification: feature
-  - title: 工作流程：策划案入库与 pm-plan/OpenSpec 衔接
-    body: |
-      验收标准：
-      - 提供与业务需求解耦的「策划案/需求说明」入库位置与命名约定（如 `docs/pm/` 或等价模板），写明如何映射到 `pm-plan.yaml` Issue 与 `openspec/changes/**`。
-      - README 或 `.cursor/skills/pm-plan/SKILL.md` 中增加指向，使跨会话可复用同一入口；不包含论坛/账号等业务功能验收。
-      依赖：`.cursor/skills/pm-plan/SKILL.md`；`openspec/specs/shared-foundation/spec.md`（若需统一文档层级）。
-      非目标：替代 GitHub Issue；业务领域 spec 编写。
-    milestone: W — 工作流程与工程效能
-    issue_number: 10
-    priority: 次要
-    state: open
-    module: 平台与基础设施
-    classification: enhancement
   - title: 工作流程：变更审阅与合并门禁清单
     body: |
       验收标准：
@@ -233,12 +282,13 @@ issues:
       验收标准：
       - CI 或文档中明确 `graph:verify`（及可选测试子集）在合并前的触发点；失败时阻断合并或标红（与具体业务测试解耦）。
       - 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明与失败时的「终止提交」行为写清；stop 语义为「校验失败即不进入后续步骤」。
-      依赖：仓库根 `package.json` 中 `graph:verify`；`.githooks/pre-commit`（若存在）。
+      依赖：`openspec/specs/repo-ci-graph-verify/spec.md`；仓库根 `package.json` 中 `graph:verify`；`.githooks/pre-commit`（若存在）。
       非目标：全量 E2E 替代；Cursor 云端强制策略。
+      关闭：`openspec/specs/repo-ci-graph-verify/spec.md`；`.github/workflows/repo-graph-verify.yml`；`.githooks/pre-commit`（`npm run graph:verify` 失败则退出非零）。
     milestone: W — 工作流程与工程效能
     issue_number: 13
     priority: 次要
-    state: open
+    state: closed
     module: 平台与基础设施
     classification: enhancement
   - title: 工作流程：复盘沉淀与图谱刷新节奏

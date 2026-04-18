@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-15T22:34:27.858Z",
+  "generatedAt": "2026-04-18T15:02:58.727Z",
   "nodes": [
     {
       "id": "change:openspec/changes/archive/2026-04-08-auth-page-ux-refresh/design.md",
@@ -621,6 +621,66 @@
       "title": "openspec/changes/archive/2026-04-13-node-knowledge-graph-router/tasks.md"
     },
     {
+      "id": "change:openspec/changes/archive/2026-04-18-post-like-favorite-foundation/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/design.md",
+      "title": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-post-like-favorite-foundation/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/proposal.md",
+      "title": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/forum-content-api/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/forum-content-api/spec.md",
+      "title": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/forum-content-api/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/forum-post-like-favorite/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/forum-post-like-favorite/spec.md",
+      "title": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/forum-post-like-favorite/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/model-service/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/model-service/spec.md",
+      "title": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/specs/model-service/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-post-like-favorite-foundation/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/tasks.md",
+      "title": "openspec/changes/archive/2026-04-18-post-like-favorite-foundation/tasks.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/design.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/design.md",
+      "title": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/design.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/proposal.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/proposal.md",
+      "title": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/proposal.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/specs/repo-ci-graph-verify/spec.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/specs/repo-ci-graph-verify/spec.md",
+      "title": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/specs/repo-ci-graph-verify/spec.md"
+    },
+    {
+      "id": "change:openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/tasks.md",
+      "kind": "change",
+      "path": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/tasks.md",
+      "title": "openspec/changes/archive/2026-04-18-workflow-ci-graph-verify-gate/tasks.md"
+    },
+    {
       "id": "cursor-rule:.cursor/rules/forum-ui.mdc",
       "kind": "cursor-rule",
       "path": ".cursor/rules/forum-ui.mdc",
@@ -631,28 +691,6 @@
       "kind": "cursor-rule",
       "path": ".cursor/rules/pm-plan.mdc",
       "title": "pm-plan 工程对照与编辑（`scripts/github-sync/pm-plan.yaml`）"
-    },
-    {
-      "id": "issue:1",
-      "kind": "issue",
-      "path": "scripts/github-sync/pm-plan.yaml",
-      "title": "帖子点赞与收藏基础",
-      "state": "open",
-      "issue_number": 1,
-      "bodyPreview": "验收标准：\n- 提供可对帖子（及必要时回复）点赞与收藏的 HTTP API 或经 BFF 暴露的统一接口；登录态下操作与取消可验证，未登录行为有约定（拒绝或匿名策略文档化）。\n- 列表或详情可展示计数或状态（至少其一可联调）；与 JWT `sub` 身份一致，不另造用户键。\n依赖：openspec/specs/token-identity-consistency；论坛帖子实体与鉴权现状。\n非目标：积分等级、踩、关注链；实时推送。\n",
-      "milestone": "M2 — 互动与发现",
-      "module": "互动与声望"
-    },
-    {
-      "id": "issue:10",
-      "kind": "issue",
-      "path": "scripts/github-sync/pm-plan.yaml",
-      "title": "工作流程：策划案入库与 pm-plan/OpenSpec 衔接",
-      "state": "open",
-      "issue_number": 10,
-      "bodyPreview": "验收标准：\n- 提供与业务需求解耦的「策划案/需求说明」入库位置与命名约定（如 `docs/pm/` 或等价模板），写明如何映射到 `pm-plan.yaml` Issue 与 `openspec/changes/**`。\n- README 或 `.cursor/skills/pm-plan/SKILL.md` 中增加指向，使跨会话可复用同一入口；不包含论坛/账号等业务功能验收。\n依赖：`.cursor/skills/pm-plan/SKILL.md`；`openspec/s",
-      "milestone": "W — 工作流程与工程效能",
-      "module": "平台与基础设施"
     },
     {
       "id": "issue:11",
@@ -681,9 +719,9 @@
       "kind": "issue",
       "path": "scripts/github-sync/pm-plan.yaml",
       "title": "工作流程：CI 与可选 Git hooks 闭环",
-      "state": "open",
+      "state": "closed",
       "issue_number": 13,
-      "bodyPreview": "验收标准：\n- CI 或文档中明确 `graph:verify`（及可选测试子集）在合并前的触发点；失败时阻断合并或标红（与具体业务测试解耦）。\n- 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明与失败时的「终止提交」行为写清；stop 语义为「校验失败即不进入后续步骤」。\n依赖：仓库根 `package.json` 中 `graph:verify`；`.githooks/pre-commit`（若存在）。\n非目标：全量 ",
+      "bodyPreview": "验收标准：\n- CI 或文档中明确 `graph:verify`（及可选测试子集）在合并前的触发点；失败时阻断合并或标红（与具体业务测试解耦）。\n- 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明与失败时的「终止提交」行为写清；stop 语义为「校验失败即不进入后续步骤」。\n依赖：`openspec/specs/repo-ci-graph-verify/spec.md`；仓库根 `package.json` 中 `grap",
       "milestone": "W — 工作流程与工程效能",
       "module": "平台与基础设施"
     },
@@ -805,7 +843,7 @@
       "kind": "module",
       "path": "scripts/github-sync/pm-plan.yaml",
       "title": "互动与声望",
-      "description": "点赞/踩、收藏、关注、积分或等级（可与用户服务扩展）"
+      "description": "点赞、收藏；关注与积分/等级等可与用户服务扩展（点踩未在本期范围）"
     },
     {
       "id": "module:论坛壳与导航",
@@ -960,6 +998,12 @@
       "title": "openspec/specs/forum-homepage-shell/spec.md"
     },
     {
+      "id": "spec:openspec/specs/forum-post-like-favorite/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/forum-post-like-favorite/spec.md",
+      "title": "openspec/specs/forum-post-like-favorite/spec.md"
+    },
+    {
       "id": "spec:openspec/specs/forum-post-search/spec.md",
       "kind": "spec",
       "path": "openspec/specs/forum-post-search/spec.md",
@@ -1000,6 +1044,12 @@
       "kind": "spec",
       "path": "openspec/specs/password-reset-email/spec.md",
       "title": "password-reset-email Specification"
+    },
+    {
+      "id": "spec:openspec/specs/repo-ci-graph-verify/spec.md",
+      "kind": "spec",
+      "path": "openspec/specs/repo-ci-graph-verify/spec.md",
+      "title": "repo-ci-graph-verify Specification"
     },
     {
       "id": "spec:openspec/specs/repo-knowledge-router/spec.md",
@@ -1046,21 +1096,6 @@
   ],
   "edges": [
     {
-      "from": "issue:1",
-      "to": "module:互动与声望",
-      "rel": "module-of"
-    },
-    {
-      "from": "issue:10",
-      "to": "module:平台与基础设施",
-      "rel": "module-of"
-    },
-    {
-      "from": "issue:10",
-      "to": "spec:openspec/specs/shared-foundation/spec.md",
-      "rel": "references"
-    },
-    {
       "from": "issue:11",
       "to": "module:平台与基础设施",
       "rel": "module-of"
@@ -1084,6 +1119,11 @@
       "from": "issue:13",
       "to": "module:平台与基础设施",
       "rel": "module-of"
+    },
+    {
+      "from": "issue:13",
+      "to": "spec:openspec/specs/repo-ci-graph-verify/spec.md",
+      "rel": "references"
     },
     {
       "from": "issue:14",
