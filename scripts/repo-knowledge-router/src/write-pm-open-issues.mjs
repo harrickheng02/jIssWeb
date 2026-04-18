@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
-import { extractOpenspecPaths } from "./openspec-paths.mjs";
+import {
+  extractCursorRulesPaths,
+  extractOpenspecPaths,
+  hasResolvableOpenspecSpecPath,
+} from "./openspec-paths.mjs";
 import { getPmIssueNumber } from "./pm-issue-fields.mjs";
 import { resolvePmPlanPaths } from "./pm-sync-dir.mjs";
 import { routeQuery } from "./route-query.mjs";
@@ -60,6 +64,17 @@ export function writePmOpenIssuesMd(repoRoot, graph) {
     if (!refs.length) lines.push("- （无）");
     else for (const r of refs) lines.push(`- \`${r}\``);
     lines.push("");
+    lines.push("### `body` 中的 .cursor/rules 路径");
+    const cr = extractCursorRulesPaths(body);
+    if (!cr.length) lines.push("- （无）");
+    else for (const r of cr) lines.push(`- \`${r}\``);
+    lines.push("");
+    if (issue?.requires_openspec_spec_reference && !hasResolvableOpenspecSpecPath(body, repoRoot)) {
+      lines.push(
+        "> **警告**：`requires_openspec_spec_reference: true` 但 body 中无已存在的 `openspec/specs/**` 路径；`graph:verify` 将失败。"
+      );
+      lines.push("");
+    }
     lines.push("### `graph:route`（以标题为查询）");
     const rows = routeQuery(graph, title, 12);
     if (!rows.length) lines.push("- （无命中）");

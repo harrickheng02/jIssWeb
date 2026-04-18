@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
-import { extractOpenspecPaths } from "./openspec-paths.mjs";
+import { extractCursorRulesPaths, extractOpenspecPaths } from "./openspec-paths.mjs";
 import { getPmIssueNumber } from "./pm-issue-fields.mjs";
 import { resolvePmPlanPaths } from "./pm-sync-dir.mjs";
 import { walkFiles } from "./walk-md.mjs";
@@ -114,6 +114,7 @@ export function buildGraph(repoRoot) {
       bodyPreview: body.slice(0, 240),
       milestone: issue?.milestone || "",
       module: issue?.module || "",
+      requires_openspec_spec_reference: Boolean(issue?.requires_openspec_spec_reference),
     });
     const refs = extractOpenspecPaths(body);
     for (const ref of refs) {
@@ -136,6 +137,12 @@ export function buildGraph(repoRoot) {
         if (hit) toId = hit.id;
       }
       if (toId) addEdge({ from: id, to: toId, rel: "references" });
+    }
+    for (const ref of extractCursorRulesPaths(body)) {
+      const absRef = path.join(repoRoot, ...ref.split("/"));
+      if (!fs.existsSync(absRef)) continue;
+      const crId = `cursor-rule:${ref}`;
+      if (nodeById.has(crId)) addEdge({ from: id, to: crId, rel: "references" });
     }
     if (issue?.module) {
       const mid = `module:${issue.module}`;

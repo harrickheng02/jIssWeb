@@ -10,6 +10,8 @@
     "graph:refresh": "npm run refresh --prefix scripts/repo-knowledge-router",
     "graph:build": "npm run build --prefix scripts/repo-knowledge-router",
     "graph:route": "npm run route --prefix scripts/repo-knowledge-router --",
-    "graph:verify": "npm run verify --prefix scripts/repo-knowledge-router"
+    "graph:verify": "npm run verify --prefix scripts/repo-knowledge-router",
+    "graph:semantic-index": "npm run semantic-index --prefix scripts/repo-knowledge-router",
+    "graph:semantic-search": "npm run semantic-search --prefix scripts/repo-knowledge-router --"
   }
 }

@@ -259,6 +259,7 @@ issues:
     state: open
     module: 平台与基础设施
     classification: enhancement
+    requires_openspec_spec_reference: true
   - title: 工作流程：Issue 文档路径与知识路由工程化
     body: >
       验收标准：
@@ -268,15 +269,16 @@ issues:
 
       - `graph:route` 或 `PM_OPEN_ISSUES.md` 生成逻辑中，对「无路径」Issue 有可见提示或分级策略；与业务 Issue 的验收条款解耦（本条不验收业务功能）。
 
-      依赖：`openspec/specs/repo-knowledge-router/spec.md`；`scripts/repo-knowledge-router/` 现状。
+      依赖：`openspec/specs/repo-knowledge-router/spec.md`；`openspec/specs/repo-knowledge-semantic-index/spec.md`；`scripts/repo-knowledge-router/` 现状。
 
-      非目标：语义向量检索；替换 GitHub 标签体系。
+      非目标：替换 GitHub 标签体系。
     milestone: W — 工作流程与工程效能
     issue_number: 12
     priority: 次要
     state: open
     module: 平台与基础设施
     classification: enhancement
+    requires_openspec_spec_reference: true
   - title: 工作流程：CI 与可选 Git hooks 闭环
     body: |
       验收标准：
@@ -304,3 +306,4 @@ issues:
     state: open
     module: 平台与基础设施
     classification: enhancement
+    requires_openspec_spec_reference: true

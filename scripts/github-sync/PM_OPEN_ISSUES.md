@@ -26,6 +26,9 @@
 - `openspec/specs/customer-profile-service`
 - `openspec/specs/token-identity-consistency`
 
+### `body` 中的 .cursor/rules 路径
+- （无）
+
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
 
@@ -37,6 +40,9 @@
 
 ### `body` 中的 openspec 路径
 - `openspec/specs/forum-homepage-shell/spec.md`
+
+### `body` 中的 .cursor/rules 路径
+- （无）
 
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
@@ -51,6 +57,9 @@
 ### `body` 中的 openspec 路径
 - （无）
 
+### `body` 中的 .cursor/rules 路径
+- （无）
+
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
 
@@ -61,6 +70,9 @@
 - **module**: 治理与审核
 
 ### `body` 中的 openspec 路径
+- （无）
+
+### `body` 中的 .cursor/rules 路径
 - （无）
 
 ### `graph:route`（以标题为查询）
@@ -75,6 +87,9 @@
 ### `body` 中的 openspec 路径
 - `openspec/specs/report-service`
 
+### `body` 中的 .cursor/rules 路径
+- （无）
+
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
 
@@ -87,6 +102,9 @@
 ### `body` 中的 openspec 路径
 - `openspec/specs/token-identity-consistency`
 
+### `body` 中的 .cursor/rules 路径
+- （无）
+
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
 
@@ -97,6 +115,9 @@
 - **module**: 版区与标签
 
 ### `body` 中的 openspec 路径
+- （无）
+
+### `body` 中的 .cursor/rules 路径
 - （无）
 
 ### `graph:route`（以标题为查询）
@@ -111,6 +132,9 @@
 ### `body` 中的 openspec 路径
 - （无）
 
+### `body` 中的 .cursor/rules 路径
+- （无）
+
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
 
@@ -122,6 +146,9 @@
 
 ### `body` 中的 openspec 路径
 - `openspec/specs/repo-knowledge-router/spec.md`
+
+### `body` 中的 .cursor/rules 路径
+- （无）
 
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
@@ -136,10 +163,15 @@
 ### `body` 中的 openspec 路径
 - `openspec/specs/`
 - `openspec/specs/repo-knowledge-router/spec.md`
+- `openspec/specs/repo-knowledge-semantic-index/spec.md`
+
+### `body` 中的 .cursor/rules 路径
+- （无）
 
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
 - `openspec/specs/repo-knowledge-router/spec.md` — from issue "工作流程：Issue 文档路径与知识路由工程化"
+- `openspec/specs/repo-knowledge-semantic-index/spec.md` — from issue "工作流程：Issue 文档路径与知识路由工程化"
 
 ## 14 · 工作流程：复盘沉淀与图谱刷新节奏
 
@@ -150,6 +182,9 @@
 ### `body` 中的 openspec 路径
 - `openspec/specs`
 - `openspec/specs/repo-knowledge-router/spec.md`
+
+### `body` 中的 .cursor/rules 路径
+- （无）
 
 ### `graph:route`（以标题为查询）
 - `scripts/github-sync/pm-plan.yaml` — text match
