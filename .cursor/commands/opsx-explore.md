@@ -61,7 +61,7 @@ Depending on what the user brings, you might:
 │                                         │
 │   System diagrams, state machines,      │
 │   data flows, architecture sketches,    │
-│   dependency graphs, comparison tables  │
+│   dependency diagrams, comparison tables  │
 │                                         │
 └─────────────────────────────────────────┘
 ```
@@ -84,7 +84,7 @@ At the start, quickly check what exists:
 openspec list --json
 ```
 
-**需求 / Issue 探索（与 pm-plan + 图谱）**
+**需求 / Issue 探索（与 pm-plan）**
 
 - 本命令为 **探索**：可读代码、讨论方案、必要时写 OpenSpec 草案思路；**不实现业务功能代码**——实现请 **`/opsx-propose`** 后 **`/opsx-apply`**。完整步骤见 **`.cursor/skills/pm-plan/SKILL.md`「端到端工作流」**。
 - 若用户要讨论 **pm-plan 中的某条需求**：按需 **`@scripts/github-sync/pm-plan.yaml`**（条目级即可，避免整文件无必要重复）；需要远端最新条目时可先 **`/pm-pull`** 或 **`npm run pm:pull`**。

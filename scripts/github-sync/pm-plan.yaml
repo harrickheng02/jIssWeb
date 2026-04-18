@@ -41,7 +41,7 @@ meta:
     - issue_number: 8
       related_title: 标签体系后台管理（CRUD 与绑定规则）
       out_of_scope:
-        - 多语言同义词图谱
+        - 多语言同义词关系网
         - 运营标签 A/B
         - 第三方标签云同步
     - issue_number: 9
@@ -117,7 +117,7 @@ milestones:
     description: 审核举报、反垃圾占位；推荐排序；运营与报表
     due_on: 2026-12-31
   - title: W — 工作流程与工程效能
-    description: 与 M1–M3 产品交付解耦：策划案入库、审阅门禁、路由与路径校验、CI/hooks、复盘与图谱刷新；排期与业务里程碑独立叙述。
+    description: 与 M1–M3 产品交付解耦：策划案入库、审阅与 PR 自检、CI/hooks、复盘与远端规划同步；排期与业务里程碑独立叙述。
     due_on: 2026-12-31
 issues:
   - title: 个人中心与内容管理最小集
@@ -151,6 +151,32 @@ issues:
     priority: 次要
     state: open
     module: 运营与公告
+    classification: feature
+  - title: 论坛帖子关键词搜索与请求限流契约
+    body: |
+      验收标准：
+      - `GET /api/forum/posts` 支持 `q` 关键词筛选与分页，列表摘要与非搜索列表合同一致；空或仅空白 `q` 按规范拒绝或等价处理。
+      - 带非空 `q` 的请求限流可配置，超限返回 429。
+      依赖：`openspec/specs/forum-post-search/spec.md`；`openspec/specs/token-identity-consistency`。
+      非目标：全网语义搜索与向量检索；独立搜索集群专有云运维与 SLA。
+    milestone: M2 — 互动与发现
+    issue_number: 15
+    priority: 主要
+    state: open
+    module: 搜索与发现
+    classification: feature
+  - title: 站内通知列表与已读状态最小集
+    body: |
+      验收标准：
+      - 通知列表仅返回当前 JWT `sub` 对应收件人数据；分页、已读/未读与深链字段可演示。
+      - 他人回复帖子时向楼主生成通知（不自通知）；与帖子/回复创建链路可联调。
+      依赖：`openspec/specs/in-app-notifications/spec.md`；`openspec/specs/token-identity-consistency`。
+      非目标：邮件/短信/WebPush 等站外推送；多端实时送达 SLA 与消息中台。
+    milestone: M2 — 互动与发现
+    issue_number: 16
+    priority: 主要
+    state: open
+    module: 消息与通知
     classification: feature
   - title: 论坛举报与处理最小闭环
     body: |
@@ -210,7 +236,7 @@ issues:
       - 提供标签的创建、编辑、禁用/合并等最小管理能力（API 或管理端择一），与前台只读词表同源；帖子绑定/解绑规则可文档化或演示。
       - 与论坛帖子 tags 字段及列表筛选行为一致，禁止与硬编码占位词表分裂。
       依赖：论坛版区与标签只读展示与首页对齐（已关闭条目）；forum-homepage-shell 与 forum 内容 API 约定。
-      非目标：多语言同义词图谱、运营标签 A/B、第三方标签云同步。
+      非目标：多语言同义词关系网、运营标签 A/B、第三方标签云同步。
     milestone: M3 — 治理与增长
     issue_number: 8
     priority: 主要
@@ -229,86 +255,4 @@ issues:
     priority: 主要
     state: open
     module: 搜索与发现
-    classification: feature
-  - title: 工作流程：变更审阅与合并门禁清单
-    body: |
-      验收标准：
-      - 提供与业务无关的 PR/合并检查单（Markdown 或模板），至少包含：关联 pm-plan Issue（若适用）、OpenSpec 任务勾选或变更归档引用。
-      - 团队可勾选演示一次「未满足审阅清单则不合并」的流程（可为人工执行，须文档化）。
-      - 可选：与业务用例解耦的横切「契约/集成测试」清单（身份相关最小用例等），仅作合入参考项。
-      依赖：`openspec/specs/repo-pr-merge-checklist/spec.md`。
-      非目标：强制特定商业审批流；替代代码审查讨论。
-      关闭：`.github/pull_request_template.md`；`docs/engineering/pr-merge-checklist.md`；`openspec/specs/repo-pr-merge-checklist/spec.md`。
-    milestone: W — 工作流程与工程效能
-    issue_number: 11
-    priority: 次要
-    state: closed
-    module: 平台与基础设施
-    classification: enhancement
-  - title: 工作流程：Issue 文档路径与知识路由工程化
-    body: |
-      验收标准：
-      - （已下线）仓库已移除独立「知识路由」脚本与相关 CI；工程类 Issue 的 `body` 仍建议在人工评审可核验的前提下包含 `openspec/specs/**` 或 `.cursor/rules/**` 路径引用。
-      依赖：无（历史交付见归档变更）。
-      非目标：替换 GitHub 标签体系。
-      关闭：本条随工具移除结案。
-    milestone: W — 工作流程与工程效能
-    issue_number: 12
-    priority: 次要
-    state: closed
-    module: 平台与基础设施
-    classification: enhancement
-  - title: 工作流程：CI 与可选 Git hooks 闭环
-    body: |
-      验收标准：
-      - 合并前以团队 PR 检查单与既有 CI（如 dotnet/frontend）为准；原图谱校验工作流已删除。
-      - 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明（当前为占位 hook）。
-      依赖：`openspec/specs/repo-pr-merge-checklist/spec.md`。
-      非目标：全量 E2E 替代；Cursor 云端强制策略。
-      关闭：`.githooks/pre-commit`（占位）；原图谱校验 CI 工作流已删除。
-    milestone: W — 工作流程与工程效能
-    issue_number: 13
-    priority: 次要
-    state: closed
-    module: 平台与基础设施
-    classification: enhancement
-  - title: 工作流程：复盘沉淀与图谱刷新节奏
-    body: |
-      验收标准：
-      - 文档化「复盘 → 更新 `.cursor/rules` 或 `openspec/specs` → 提交 / 必要时 `pm:publish`」的节奏（如每迭代或每归档一次），与业务发版节奏解耦说明。
-      - 不再要求刷新离线图谱或生成本地索引 MD（已移除）。
-      依赖：`openspec/specs/readme-workflow-section/spec.md`。
-      非目标：自动从对话蒸馏规则；多仓库联邦索引。
-      关闭：`README.md`（第四节「需求与 OpenSpec 工作流」）；`openspec/specs/readme-workflow-section/spec.md`。
-    milestone: W — 工作流程与工程效能
-    issue_number: 14
-    priority: 不重要
-    state: closed
-    module: 平台与基础设施
-    classification: enhancement
-  - title: 论坛帖子关键词搜索与请求限流契约
-    body: |
-      验收标准：
-      - `GET /api/forum/posts` 支持 `q` 关键词筛选与分页，列表摘要与非搜索列表合同一致；空或仅空白 `q` 按规范拒绝或等价处理。
-      - 带非空 `q` 的请求限流可配置，超限返回 429。
-      依赖：`openspec/specs/forum-post-search/spec.md`；`openspec/specs/token-identity-consistency`。
-      非目标：全网语义搜索与向量检索；独立搜索集群专有云运维与 SLA。
-    milestone: M2 — 互动与发现
-    issue_number: 15
-    priority: 主要
-    state: open
-    module: 搜索与发现
-    classification: feature
-  - title: 站内通知列表与已读状态最小集
-    body: |
-      验收标准：
-      - 通知列表仅返回当前 JWT `sub` 对应收件人数据；分页、已读/未读与深链字段可演示。
-      - 他人回复帖子时向楼主生成通知（不自通知）；与帖子/回复创建链路可联调。
-      依赖：`openspec/specs/in-app-notifications/spec.md`；`openspec/specs/token-identity-consistency`。
-      非目标：邮件/短信/WebPush 等站外推送；多端实时送达 SLA 与消息中台。
-    milestone: M2 — 互动与发现
-    issue_number: 16
-    priority: 主要
-    state: open
-    module: 消息与通知
     classification: feature
