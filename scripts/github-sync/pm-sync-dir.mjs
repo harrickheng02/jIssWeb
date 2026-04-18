@@ -32,14 +32,3 @@ export function resolvePmSyncDir(repoRoot) {
   if (hasPlan(ghDir)) return ghDir;
   return isGt ? gtDir : ghDir;
 }
-
-export function resolvePmPlanPaths(repoRoot) {
-  const dir = resolvePmSyncDir(repoRoot);
-  const rel = path.relative(repoRoot, dir).split(path.sep).join("/");
-  return {
-    dir,
-    pmPlan: path.join(dir, "pm-plan.yaml"),
-    pmPlanRel: path.posix.join(rel, "pm-plan.yaml"),
-    pmOpenIssues: path.join(dir, "PM_OPEN_ISSUES.md"),
-  };
-}

@@ -3,8 +3,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
-import { resolvePmSyncDir } from '../repo-knowledge-router/src/pm-sync-dir.mjs'
-import { getPmIssueNumber } from '../repo-knowledge-router/src/pm-issue-fields.mjs'
+import { resolvePmSyncDir } from './pm-sync-dir.mjs'
+import { getPmIssueNumber } from './pm-issue-fields.mjs'
 import {
   createGithubClient,
   createGiteeClient,

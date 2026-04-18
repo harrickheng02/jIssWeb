@@ -83,36 +83,50 @@ docker compose up -d --build
 
 ## 四、需求与 OpenSpec 工作流
 
-在 **GitHub** 维护 Issue 与里程碑。本地以 **`scripts/github-sync/pm-plan.yaml`** 为规划源，与 **`openspec/`**、图谱脚本配合；细则见 **`.cursor/skills/pm-plan/SKILL.md`**。
+在 **GitHub** 维护 Issue 与里程碑。本地以 **`scripts/github-sync/pm-plan.yaml`** 为规划源，与 **`openspec/`** 配合；细则见 **`.cursor/skills/pm-plan/SKILL.md`**。
 
-**前置**：本机安装 **openspec** CLI（`/opsx-*` 与命令行归档依赖）；在仓库根执行 **`npm run pm:ci`** 安装 **`scripts/github-sync`** 与 **`scripts/repo-knowledge-router`** 依赖。
+**前置**：本机安装 **openspec** CLI（`/opsx-*` 与命令行归档依赖）；在仓库根执行 **`npm run pm:ci`** 安装 **`scripts/github-sync`** 依赖。
+
+**代码同步与 Issue 同步（勿混用）**
+
+| 命令 | 作用 |
+|------|------|
+| **`git pull`** | 只更新本仓库 **Git** 历史中的代码与已提交的 `pm-plan.yaml`；**不**调用 GitHub Issues API。 |
+| **`npm run pm:pull`** | 用 GitHub API 把远端 **open** Issue / 里程碑回填进 **`pm-plan.yaml`**。 |
+
+下表中的「同步代码」指 Git；「同步 Issue → 本地规划」指 `pm:pull`。
 
 | 步骤 | 操作 |
 |------|------|
 | 同步代码与依赖 | 开工前 **`git pull`**；多人改 **`pm-plan.yaml`** 前先拉再改，减少冲突 |
-| 同步 Issue → 本地规划 | 配置 **`scripts/github-sync/.env`**（从 **`.env.example`**，勿提交令牌）。需用 GitHub API 回填 **`pm-plan.yaml`** 并刷新图册时：**`npm run pm:pull`**（**不是** `git pull`；内含 **`graph:refresh`**）。Cursor 中可用 **`/pm-pull`** |
-| 查看进行中 Issue | 读 **`scripts/github-sync/PM_OPEN_ISSUES.md`**（由 **`pm:pull` / `graph:refresh`** 生成，已 gitignore） |
+| 同步 Issue → 本地规划 | 配置 **`scripts/github-sync/.env`**（从 **`.env.example`**，勿提交令牌）。需用 GitHub API 回填 **`pm-plan.yaml`** 时：**`npm run pm:pull`**（**不是** `git pull`）。Cursor 中可用 **`/pm-pull`** |
+| 查看进行中 Issue | 在 **`scripts/github-sync/pm-plan.yaml`** 中筛选 `state` 为 `open` / `progressing` 的条目 |
 | 讨论方案 | **`/opsx-explore`**（探索不写业务代码） |
 | 立项与实现 | **`/opsx-propose`** 建 change → **`/opsx-apply`** 实现；**一条 Issue 可拆多个 change/多 PR**，与条目、里程碑对齐即可 |
 | 自测与审查 | 自测后 **`change-review`**（只读；**不等同于 CI 通过**） |
 | 提交与合并 | **`git commit`**，按约定走 **PR**；**建议 CI 通过后再 `/opsx-archive`** |
 | 归档 | **`/opsx-archive`** |
-| 回写规划并推送 | 编辑 **`pm-plan.yaml`** 后 **`npm run pm:publish`**（**`graph:refresh` + `pm:push`**）。**默认在实现已合并进主分支后再执行**，避免远端规划与主分支代码不一致；仅改规划后不要只跑 **`pm:push`** 而跳过 refresh，否则 **`PM_OPEN_ISSUES.md`** 与图会旧 |
+| 回写规划并推送 | 编辑 **`pm-plan.yaml`** 后 **`npm run pm:publish`**（等同 **`pm:push`**）。**默认在实现已合并进主分支后再执行**，避免远端规划与主分支代码不一致 |
+
+**复盘与归档（建议节奏）**
+
+- 迭代复盘或 **`/opsx-archive`** 后若更新了 **`.cursor/rules`** 或 **`openspec/specs/**`**：按需提交；若需把规划同步到 GitHub Issue，使用 **`npm run pm:publish`**。
+
+**PR 与合并**
+
+- 合并前检查单见 **[docs/engineering/pr-merge-checklist.md](docs/engineering/pr-merge-checklist.md)**；开 PR 时 **`.github/pull_request_template.md`** 中的自检项与之对应。
 
 **异常与排查**
 
-- **`npm run pm:publish` 失败**：多为 **`graph:verify`** 不通过，检查 **`pm-plan.yaml`** 各 Issue **`body`** 中的 **`openspec/...`** 路径是否在仓库内存在。
+- **`npm run pm:publish` 失败**：检查 **`scripts/github-sync/.env`** 与 GitHub API 权限、**`pm-plan.yaml`** 格式与远端同步脚本报错信息。
 - **紧急修复**：可先合代码，再补 OpenSpec / **`pm-plan`**，由团队约定。
 
 **仓库根常用命令**
 
 | 目的 | 命令 |
 |------|------|
-| 拉 Issue 写回 yaml + 刷新图 | `npm run pm:pull` |
-| 只刷新图与 `PM_OPEN_ISSUES.md` | `npm run graph:refresh` |
-| 关键词路由（终端输出） | `npm run graph:route -- -- "<关键词>"` |
-| 校验 `pm-plan` 中 openspec 引用 | `npm run graph:verify` |
-| 改完规划后刷新并推远端 | `npm run pm:publish` |
+| 拉 Issue 写回 yaml | `npm run pm:pull` |
+| 将本地规划推远端（GitHub） | `npm run pm:publish` 或 `npm run pm:push` |
 
 ---
 

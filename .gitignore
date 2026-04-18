@@ -11,4 +11,3 @@ obj/
 *.log
 .tmpbuild/
 .history/
-scripts/repo-knowledge-router/data/semantic-index.json

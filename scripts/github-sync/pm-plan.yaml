@@ -50,20 +50,6 @@ meta:
         - 深度学习实时训练
         - 多业务线统一推荐中台
         - 商业级冷启动策略
-    - issue_number: 11
-      related_title: 工作流程：变更审阅与合并门禁清单
-      out_of_scope:
-        - 强制特定商业审批流
-        - 替代代码审查与研发讨论
-    - issue_number: 12
-      related_title: 工作流程：Issue 文档路径与知识路由工程化
-      out_of_scope:
-        - 替换 GitHub 标签体系
-    - issue_number: 14
-      related_title: 工作流程：复盘沉淀与图谱刷新节奏
-      out_of_scope:
-        - 从对话自动蒸馏规则
-        - 多仓库联邦知识图谱
     - issue_number: 15
       related_title: 论坛帖子关键词搜索与请求限流契约
       out_of_scope:
@@ -247,45 +233,39 @@ issues:
   - title: 工作流程：变更审阅与合并门禁清单
     body: |
       验收标准：
-      - 提供与业务无关的 PR/合并检查单（Markdown 或模板），至少包含：关联 pm-plan Issue（若适用）、OpenSpec 任务勾选或变更归档引用、`npm run graph:verify` 或等价说明。
-      - 团队可勾选演示一次「未满足门禁则不合并」的流程（可为人工执行，须文档化）。
-      - 可选：与业务用例解耦的横切「契约/集成测试」清单（如 graph:verify、身份相关最小用例），仅作合入参考项。
-      依赖：`openspec/specs/repo-knowledge-router/spec.md`（索引与校验范围）；仓库既有 CI 配置（若有）。
+      - 提供与业务无关的 PR/合并检查单（Markdown 或模板），至少包含：关联 pm-plan Issue（若适用）、OpenSpec 任务勾选或变更归档引用。
+      - 团队可勾选演示一次「未满足审阅清单则不合并」的流程（可为人工执行，须文档化）。
+      - 可选：与业务用例解耦的横切「契约/集成测试」清单（身份相关最小用例等），仅作合入参考项。
+      依赖：`openspec/specs/repo-pr-merge-checklist/spec.md`。
       非目标：强制特定商业审批流；替代代码审查讨论。
+      关闭：`.github/pull_request_template.md`；`docs/engineering/pr-merge-checklist.md`；`openspec/specs/repo-pr-merge-checklist/spec.md`。
     milestone: W — 工作流程与工程效能
     issue_number: 11
     priority: 次要
-    state: open
+    state: closed
     module: 平台与基础设施
     classification: enhancement
-    requires_openspec_spec_reference: true
   - title: 工作流程：Issue 文档路径与知识路由工程化
-    body: >
+    body: |
       验收标准：
-
-      - 约定 pm-plan 中工程类 Issue 的 `body` 须含至少一条可校验 `openspec/specs/**` 或 `.cursor/rules/**` 路径；提供校验方式（脚本或 CI 调用 `npm run
-      graph:verify`）。
-
-      - `graph:route` 或 `PM_OPEN_ISSUES.md` 生成逻辑中，对「无路径」Issue 有可见提示或分级策略；与业务 Issue 的验收条款解耦（本条不验收业务功能）。
-
-      依赖：`openspec/specs/repo-knowledge-router/spec.md`；`openspec/specs/repo-knowledge-semantic-index/spec.md`；`scripts/repo-knowledge-router/` 现状。
-
+      - （已下线）仓库已移除独立「知识路由」脚本与相关 CI；工程类 Issue 的 `body` 仍建议在人工评审可核验的前提下包含 `openspec/specs/**` 或 `.cursor/rules/**` 路径引用。
+      依赖：无（历史交付见归档变更）。
       非目标：替换 GitHub 标签体系。
+      关闭：本条随工具移除结案。
     milestone: W — 工作流程与工程效能
     issue_number: 12
     priority: 次要
-    state: open
+    state: closed
     module: 平台与基础设施
     classification: enhancement
-    requires_openspec_spec_reference: true
   - title: 工作流程：CI 与可选 Git hooks 闭环
     body: |
       验收标准：
-      - CI 或文档中明确 `graph:verify`（及可选测试子集）在合并前的触发点；失败时阻断合并或标红（与具体业务测试解耦）。
-      - 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明与失败时的「终止提交」行为写清；stop 语义为「校验失败即不进入后续步骤」。
-      依赖：`openspec/specs/repo-ci-graph-verify/spec.md`；仓库根 `package.json` 中 `graph:verify`；`.githooks/pre-commit`（若存在）。
+      - 合并前以团队 PR 检查单与既有 CI（如 dotnet/frontend）为准；原图谱校验工作流已删除。
+      - 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明（当前为占位 hook）。
+      依赖：`openspec/specs/repo-pr-merge-checklist/spec.md`。
       非目标：全量 E2E 替代；Cursor 云端强制策略。
-      关闭：`openspec/specs/repo-ci-graph-verify/spec.md`；`.github/workflows/repo-graph-verify.yml`；`.githooks/pre-commit`（`npm run graph:verify` 失败则退出非零）。
+      关闭：`.githooks/pre-commit`（占位）；原图谱校验 CI 工作流已删除。
     milestone: W — 工作流程与工程效能
     issue_number: 13
     priority: 次要
@@ -295,17 +275,17 @@ issues:
   - title: 工作流程：复盘沉淀与图谱刷新节奏
     body: |
       验收标准：
-      - 文档化「复盘 → 更新 `.cursor/rules` 或 `openspec/specs` → 执行 `npm run graph:refresh`」的节奏（如每迭代或每归档一次），与业务发版节奏解耦说明。
-      - 一次演练记录：从合并 PR 到刷新 `graph.json` / `PM_OPEN_ISSUES.md` 的责任人/触发条件可核验。
-      依赖：`openspec/specs/repo-knowledge-router/spec.md`；`npm run graph:refresh`。
-      非目标：自动从对话蒸馏规则；多仓库联邦图谱。
+      - 文档化「复盘 → 更新 `.cursor/rules` 或 `openspec/specs` → 提交 / 必要时 `pm:publish`」的节奏（如每迭代或每归档一次），与业务发版节奏解耦说明。
+      - 不再要求刷新离线图谱或生成本地索引 MD（已移除）。
+      依赖：`openspec/specs/readme-workflow-section/spec.md`。
+      非目标：自动从对话蒸馏规则；多仓库联邦索引。
+      关闭：`README.md`（第四节「需求与 OpenSpec 工作流」）；`openspec/specs/readme-workflow-section/spec.md`。
     milestone: W — 工作流程与工程效能
     issue_number: 14
     priority: 不重要
-    state: open
+    state: closed
     module: 平台与基础设施
     classification: enhancement
-    requires_openspec_spec_reference: true
   - title: 论坛帖子关键词搜索与请求限流契约
     body: |
       验收标准：

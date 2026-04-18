@@ -5,9 +5,9 @@
 
 ## 自检
 
-- [ ] 已运行 `npm run graph:verify` 通过；或确认本次变更会触发 CI 且将在检查通过后再合并
+- [ ] 已对照 **[docs/engineering/pr-merge-checklist.md](docs/engineering/pr-merge-checklist.md)** 完成合并前检查（含关联 Issue / OpenSpec、自测说明）
 - [ ] （可选）横切测试 / 契约说明：<!-- 无则写「无」-->
 
 ## 说明
 
-详细合并门禁与分支保护约定见 **[docs/engineering/pr-merge-checklist.md](docs/engineering/pr-merge-checklist.md)**。
+详细合并审阅与分支保护约定见 **[docs/engineering/pr-merge-checklist.md](docs/engineering/pr-merge-checklist.md)**。

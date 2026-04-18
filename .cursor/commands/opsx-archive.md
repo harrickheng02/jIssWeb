@@ -93,7 +93,7 @@ Archive a completed change in the experimental workflow.
 
    1. **对照** `openspec/changes/archive/YYYY-MM-DD-<name>/` 与 **`openspec/specs/**`**。
    2. **skill 直接编辑** `scripts/github-sync/pm-plan.yaml`（`state`、`body` 路径与验收、与远端 Issue 对齐）。
-   3. 在仓库根 **`npm run pm:publish`**（= `graph:refresh` + `pm:push`，含 `graph:verify` 门禁）。失败则根据终端报错修 `body` 路径或 spec 后再执行一次。
+   3. 在仓库根 **`npm run pm:publish`**（将本地 `pm-plan.yaml` 同步到远端）。失败则根据终端报错修 `body` 或 yaml 后再执行一次。
 
 **Output On Success**
 
