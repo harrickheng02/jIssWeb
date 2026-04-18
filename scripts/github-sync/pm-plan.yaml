@@ -231,7 +231,6 @@ issues:
   - title: 工作流程：CI 与可选 Git hooks 闭环
     body: |
       验收标准：
-      - openspec/specs/_intentional-broken-ref-for-ci-test/spec.md
       - CI 或文档中明确 `graph:verify`（及可选测试子集）在合并前的触发点；失败时阻断合并或标红（与具体业务测试解耦）。
       - 可选：`.githooks/pre-commit` 与 `core.hooksPath` 的启用说明与失败时的「终止提交」行为写清；stop 语义为「校验失败即不进入后续步骤」。
       依赖：仓库根 `package.json` 中 `graph:verify`；`.githooks/pre-commit`（若存在）。
