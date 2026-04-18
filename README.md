@@ -106,11 +106,11 @@ docker compose up -d --build
 | 自测与审查 | 自测后 **`change-review`**（只读；**不等同于 CI 通过**） |
 | 提交与合并 | **`git commit`**，按约定走 **PR**；**建议 CI 通过后再 `/opsx-archive`** |
 | 归档 | **`/opsx-archive`** |
-| 回写规划并推送 | 编辑 **`pm-plan.yaml`** 后 **`npm run pm:publish`**（等同 **`pm:push`**）。**默认在实现已合并进主分支后再执行**，避免远端规划与主分支代码不一致 |
+| 回写规划并推送 | 编辑 **`pm-plan.yaml`** 后 **`npm run pm:push`**。**默认在实现已合并进主分支后再执行**，避免远端规划与主分支代码不一致 |
 
 **复盘与归档（建议节奏）**
 
-- 迭代复盘或 **`/opsx-archive`** 后若更新了 **`.cursor/rules`** 或 **`openspec/specs/**`**：按需提交；若需把规划同步到 GitHub Issue，使用 **`npm run pm:publish`**。
+- 迭代复盘或 **`/opsx-archive`** 后若更新了 **`.cursor/rules`** 或 **`openspec/specs/**`**：按需提交；若需把规划同步到 GitHub Issue，使用 **`npm run pm:push`**。
 
 **PR 与合并**
 
@@ -118,7 +118,7 @@ docker compose up -d --build
 
 **异常与排查**
 
-- **`npm run pm:publish` 失败**：检查 **`scripts/github-sync/.env`** 与 GitHub API 权限、**`pm-plan.yaml`** 格式与远端同步脚本报错信息。
+- **`npm run pm:push` 失败**：检查 **`scripts/github-sync/.env`** 与 GitHub API 权限、**`pm-plan.yaml`** 格式与远端同步脚本报错信息。
 - **紧急修复**：可先合代码，再补 OpenSpec / **`pm-plan`**，由团队约定。
 
 **仓库根常用命令**
@@ -126,7 +126,7 @@ docker compose up -d --build
 | 目的 | 命令 |
 |------|------|
 | 拉 Issue 写回 yaml | `npm run pm:pull` |
-| 将本地规划推远端（GitHub） | `npm run pm:publish` 或 `npm run pm:push` |
+| 将本地规划推远端（GitHub） | `npm run pm:push` |
 
 ---
 

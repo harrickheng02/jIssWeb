@@ -1,11 +1,11 @@
 ---
 name: pm-plan
 description: >-
-  分析、对照与维护 scripts/github-sync/pm-plan.yaml（本仓库远端为 GitHub）；在仓库根代执行 npm（pm:pull、pm:publish 等）。用户提到 pm 规划、里程碑、Issue、pm-plan、归档后回写规划时启用。
+  分析、对照与维护 scripts/github-sync/pm-plan.yaml（本仓库远端为 GitHub）；在仓库根代执行 npm（pm:pull、pm:push 等）。用户提到 pm 规划、里程碑、Issue、pm-plan、归档后回写规划时启用。
 license: MIT
 metadata:
   author: project
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # pm-plan 分析维护
@@ -19,7 +19,7 @@ metadata:
 5. **`/opsx-explore`** 讨论方案（**不写业务实现**）；**`/opsx-propose` → `/opsx-apply`**。**一条 Issue 可多个 change/PR**。
 6. 自测；**`change-review`**（审查≠CI）；**`git commit`**，**PR**；**建议 CI 通过后再 `/opsx-archive`**。
 7. **`/opsx-archive`**。
-8. 对照归档与实现改 **`pm-plan.yaml`**；**`npm run pm:publish`**。**默认在实现已合并主分支后再 publish**；**勿**只 **`pm:push`** 跳过团队约定步骤。**`publish` 失败** 时根据终端报错检查 API、yaml 与网络。
+8. 对照归档与实现改 **`pm-plan.yaml`**；将规划同步到远端时执行 **`npm run pm:push`**。**默认在实现已合并主分支后再 push**；失败则根据终端报错检查 API、yaml 与网络。
 
 ## 默认执行约定
 
@@ -33,9 +33,9 @@ metadata:
 | 目的 | 命令 |
 |------|------|
 | 用 GitHub API 拉 Issue → 写回 `pm-plan.yaml` | `npm run pm:pull`（需 token） |
-| 将本地规划推远端（GitHub） | `npm run pm:publish` 或 `npm run pm:push` |
+| 将本地规划推远端（GitHub） | `npm run pm:push` |
 
-`pm:publish` 与 `pm:push` 在本仓库等价（均委托 `scripts/github-sync`）；远端由 origin 或 `PM_SYNC_PROVIDER` 决定。
+远端由 origin 或 `PM_SYNC_PROVIDER` 决定（见 **`scripts/github-sync`**）。
 
 ## 分析什么
 

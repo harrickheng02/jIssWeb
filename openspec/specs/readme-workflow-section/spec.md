@@ -8,7 +8,7 @@
 
 ### Requirement: README documents contributor workflow and sync discipline
 
-The repository root `README.md` SHALL include a section covering OpenSpec / pm-plan workflow (existing section four or successor) that states: (a) `git pull` synchronizes repository code from the remote, while `npm run pm:pull` fetches GitHub Issues into `scripts/github-sync/pm-plan.yaml`; (b) after editing `pm-plan.yaml`, contributors SHOULD use `npm run pm:publish` (or `pm:push`) when pushing plan changes to the remote as appropriate; (c) a pointer to `.github/pull_request_template.md` for PR self-check context.
+The repository root `README.md` SHALL include a section covering OpenSpec / pm-plan workflow (existing section four or successor) that states: (a) `git pull` synchronizes repository code from the remote, while `npm run pm:pull` fetches GitHub Issues into `scripts/github-sync/pm-plan.yaml`; (b) after editing `pm-plan.yaml`, contributors SHOULD use `npm run pm:push` when pushing plan changes to the remote as appropriate; (c) a pointer to `.github/pull_request_template.md` for PR self-check context.
 
 #### Scenario: Reader finds pull versus pm-pull distinction
 

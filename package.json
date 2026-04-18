@@ -5,7 +5,6 @@
     "pm:ci": "npm ci --prefix scripts/github-sync",
     "pm:pull": "npm run pm-pull --prefix scripts/github-sync",
     "pm:push": "npm run pm-push --prefix scripts/github-sync",
-    "pm:publish": "npm run pm:push",
     "pm:dry": "npm run pm-dry --prefix scripts/github-sync"
   }
 }
