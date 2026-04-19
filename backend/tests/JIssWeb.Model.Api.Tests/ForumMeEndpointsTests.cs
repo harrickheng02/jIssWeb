@@ -27,6 +27,13 @@ public class ForumMeEndpointsTests
     }
 
     [Fact]
+    public async Task MyFavorites_WithoutBearer_Returns401()
+    {
+        var res = await _fx.Client.GetAsync("/api/forum/me/favorites");
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
     public async Task MyPosts_InvalidPage_Returns400()
     {
         var req = new HttpRequestMessage(HttpMethod.Get, "/api/forum/me/posts?page=0");
@@ -40,6 +47,16 @@ public class ForumMeEndpointsTests
     public async Task MyReplies_InvalidPageSize_Returns400()
     {
         var req = new HttpRequestMessage(HttpMethod.Get, "/api/forum/me/replies?page=1&pageSize=0");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
+        var res = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        await AssertJsonCodeAsync(res, "INVALID_PAGINATION");
+    }
+
+    [Fact]
+    public async Task MyFavorites_InvalidPage_Returns400()
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, "/api/forum/me/favorites?page=0");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
         var res = await _fx.Client.SendAsync(req);
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -106,6 +123,21 @@ public class ForumMeEndpointsTests
         Assert.Equal(1, items.GetArrayLength());
         Assert.Equal("me-reply-a", items[0].GetProperty("id").GetString());
         Assert.Equal("user-a", items[0].GetProperty("authorId").GetString());
+    }
+
+    [Fact]
+    public async Task MyFavorites_UserA_ReturnsFavoritedPost()
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, "/api/forum/me/favorites?page=1&pageSize=20");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
+        var res = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        var items = root.GetProperty("data").GetProperty("items");
+        Assert.Equal(1, items.GetArrayLength());
+        Assert.Equal("me-post-a", items[0].GetProperty("id").GetString());
     }
 
     private static async Task AssertJsonCodeAsync(HttpResponseMessage res, string code)

@@ -25,6 +25,7 @@ public class ForumPostsController : ControllerBase
     private readonly IMongoCollection<InAppNotificationRecord> _notifications;
     private readonly IOptions<ForumBoardsOptions> _boardOptions;
     private readonly ForumAuthorDisplayResolver _authorNames;
+    private readonly ForumEngagementService _engagement;
     private readonly ILogger<ForumPostsController> _logger;
 
     public ForumPostsController(
@@ -32,6 +33,7 @@ public class ForumPostsController : ControllerBase
         IOptions<MongoSettings> mongoOptions,
         IOptions<ForumBoardsOptions> boardOptions,
         ForumAuthorDisplayResolver authorNames,
+        ForumEngagementService engagement,
         ILogger<ForumPostsController> logger)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
@@ -40,6 +42,7 @@ public class ForumPostsController : ControllerBase
         _notifications = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
         _boardOptions = boardOptions;
         _authorNames = authorNames;
+        _engagement = engagement;
         _logger = logger;
     }
 
@@ -99,6 +102,10 @@ public class ForumPostsController : ControllerBase
 
         var names = await _authorNames.ResolveAsync(items.Select(x => x.AuthorSubId));
         var dtos = items.Select(p => ForumDtoMapping.ToListItem(p, names)).ToList();
+        var viewer = TryGetAuthorId();
+        if (viewer is not null && dtos.Count > 0)
+            await ApplyEngagementToListItemsAsync(dtos, viewer);
+
         return Ok(ApiResult<PagedPostsDto>.Ok(new PagedPostsDto
         {
             Items = dtos,
@@ -191,7 +198,78 @@ public class ForumPostsController : ControllerBase
 
         var detailNames = await _authorNames.ResolveAsync(new[] { post.AuthorSubId });
         var dto = ForumDtoMapping.MapDetail(post, detailNames);
+        var viewer = TryGetAuthorId();
+        if (viewer is not null)
+        {
+            var snap = await _engagement.GetSnapshotAsync(id, viewer);
+            if (snap is not null)
+            {
+                dto.LikedByMe = snap.LikedByMe;
+                dto.FavoritedByMe = snap.FavoritedByMe;
+            }
+        }
+
         return Ok(ApiResult<PostDetailDto>.Ok(dto));
+    }
+
+    [HttpPost("{postId}/like")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<PostEngagementStateDto>>> LikePost(string postId)
+    {
+        var sub = TryGetAuthorId();
+        if (sub is null)
+            return Unauthorized(ApiResult<PostEngagementStateDto>.Fail("未授权", "UNAUTHORIZED"));
+
+        var snap = await _engagement.LikeAsync(postId, sub);
+        if (snap is null)
+            return NotFound(ApiResult<PostEngagementStateDto>.Fail("未找到", "NOT_FOUND"));
+
+        return Ok(ApiResult<PostEngagementStateDto>.Ok(ToEngagementState(postId, snap)));
+    }
+
+    [HttpDelete("{postId}/like")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<PostEngagementStateDto>>> UnlikePost(string postId)
+    {
+        var sub = TryGetAuthorId();
+        if (sub is null)
+            return Unauthorized(ApiResult<PostEngagementStateDto>.Fail("未授权", "UNAUTHORIZED"));
+
+        var snap = await _engagement.UnlikeAsync(postId, sub);
+        if (snap is null)
+            return NotFound(ApiResult<PostEngagementStateDto>.Fail("未找到", "NOT_FOUND"));
+
+        return Ok(ApiResult<PostEngagementStateDto>.Ok(ToEngagementState(postId, snap)));
+    }
+
+    [HttpPost("{postId}/favorite")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<PostEngagementStateDto>>> FavoritePost(string postId)
+    {
+        var sub = TryGetAuthorId();
+        if (sub is null)
+            return Unauthorized(ApiResult<PostEngagementStateDto>.Fail("未授权", "UNAUTHORIZED"));
+
+        var snap = await _engagement.FavoriteAsync(postId, sub);
+        if (snap is null)
+            return NotFound(ApiResult<PostEngagementStateDto>.Fail("未找到", "NOT_FOUND"));
+
+        return Ok(ApiResult<PostEngagementStateDto>.Ok(ToEngagementState(postId, snap)));
+    }
+
+    [HttpDelete("{postId}/favorite")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<PostEngagementStateDto>>> UnfavoritePost(string postId)
+    {
+        var sub = TryGetAuthorId();
+        if (sub is null)
+            return Unauthorized(ApiResult<PostEngagementStateDto>.Fail("未授权", "UNAUTHORIZED"));
+
+        var snap = await _engagement.UnfavoriteAsync(postId, sub);
+        if (snap is null)
+            return NotFound(ApiResult<PostEngagementStateDto>.Fail("未找到", "NOT_FOUND"));
+
+        return Ok(ApiResult<PostEngagementStateDto>.Ok(ToEngagementState(postId, snap)));
     }
 
     [HttpPost]
@@ -332,6 +410,27 @@ public class ForumPostsController : ControllerBase
 
         return (DefaultBoardTitle(), null, null);
     }
+
+    private static PostEngagementStateDto ToEngagementState(string postId, PostEngagementSnapshot snap) => new()
+    {
+        PostId = postId,
+        LikeCount = snap.LikeCount,
+        FavoriteCount = snap.FavoriteCount,
+        LikedByMe = snap.LikedByMe,
+        FavoritedByMe = snap.FavoritedByMe,
+    };
+
+    private async Task ApplyEngagementToListItemsAsync(IReadOnlyList<PostListItemDto> items, string userSubId)
+    {
+        if (items.Count == 0) return;
+        var ids = items.Select(x => x.Id).ToList();
+        var (liked, favorited) = await _engagement.GetEngagementSetsAsync(ids, userSubId);
+        foreach (var d in items)
+        {
+            d.LikedByMe = liked.Contains(d.Id);
+            d.FavoritedByMe = favorited.Contains(d.Id);
+        }
+    }
 }
 
 public class PagedPostsDto
@@ -353,8 +452,20 @@ public class PostListItemDto
     public string Board { get; set; } = "";
     public List<string> Tags { get; set; } = new();
     public int Likes { get; set; }
+    public int FavoriteCount { get; set; }
     public int Comments { get; set; }
     public int Views { get; set; }
+    public bool LikedByMe { get; set; }
+    public bool FavoritedByMe { get; set; }
+}
+
+public class PostEngagementStateDto
+{
+    public string PostId { get; set; } = "";
+    public int LikeCount { get; set; }
+    public int FavoriteCount { get; set; }
+    public bool LikedByMe { get; set; }
+    public bool FavoritedByMe { get; set; }
 }
 
 public class PostDetailDto : PostListItemDto

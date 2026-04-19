@@ -174,7 +174,7 @@ SPA SHALL 提供路由页面：其一用于提交邮箱以请求密码重置，�
 
 ### Requirement: 401 响应触发 refresh 且仅重试原请求一次
 
-SPA 的 HTTP 客户端在同时满足以下条件时必须处理响应：HTTP 状态为 **401**、请求曾携带 `Authorization: Bearer` access token、应用状态中仍存在 refresh token。此时客户端必须经既有 user-service refresh 端点获取新的 access token（若返回轮换的 refresh token 则一并更新），并以与登录成功或启动 refresh 成功相同的方式持久化会话，且必须仅重试失败请求 **一次**（使用新 access token）。客户端不得进入无限 refresh 循环：refresh 请求及其他鉴权提交类端点不得以同一失败链再次触发本 401 处理逻辑。
+SPA 的 HTTP 客户端 MUST 在同时满足以下条件时处理响应：HTTP 状态为 **401**、请求曾携带 `Authorization: Bearer` access token、应用状态中仍存在 refresh token。此时客户端 MUST 经既有 user-service refresh 端点获取新的 access token（若返回轮换的 refresh token 则一并更新），并以与登录成功或启动 refresh 成功相同的方式持久化会话，且 MUST 仅重试失败请求 **一次**（使用新 access token）。客户端不得进入无限 refresh 循环：refresh 请求及其他鉴权提交类端点不得以同一失败链再次触发本 401 处理逻辑。
 
 #### Scenario: access 过期且 refresh 仍有效
 
@@ -190,7 +190,7 @@ SPA 的 HTTP 客户端在同时满足以下条件时必须处理响应：HTTP �
 
 ### Requirement: 并发 401 合并为单次 refresh
 
-当多个在途请求并行收到 401 时，SPA 对该波失败至多执行 **一次** refresh；并发调用方必须在重试各自请求前等待同一 refresh 结果。
+当多个在途请求并行收到 401 时，SPA MUST 对该波失败至多执行 **一次** refresh；并发调用方 MUST 在重试各自请求前等待同一 refresh 结果。
 
 #### Scenario: access 过期后并行多个受保护请求
 
@@ -199,10 +199,33 @@ SPA 的 HTTP 客户端在同时满足以下条件时必须处理响应：HTTP �
 
 ### Requirement: 与启动时静默 refresh 一致
 
-由 401 触发的 refresh 必须使用与启动 refresh、登录成功相同的 Pinia 鉴权 store 方法与存储键持久化 token，使「首次加载」与「会话中途过期」的 access/refresh 处理路径一致。
+由 401 触发的 refresh MUST 使用与启动 refresh、登录成功相同的 Pinia 鉴权 store 方法与存储键持久化 token，使「首次加载」与「会话中途过期」的 access/refresh 处理路径一致。
 
 #### Scenario: 会话中途 refresh 成功后的会话形态
 
 - **当** 由 401 驱动的 refresh 成功
 - **则** 持久化凭据与 store 状态必须符合与 `main.ts` 启动 refresh 成功相同的规则
+
+### Requirement: Shell SHALL expose personal center entry when authenticated
+
+The application shell SHALL expose a visible navigation entry to the personal center hub route (for example `/me`) when the user is authenticated, in addition to any existing profile or customer entries.
+
+#### Scenario: Logged-in user sees personal center entry
+
+- **WHEN** the shell renders for a user with a valid session token
+- **THEN** the user menu or equivalent header region SHALL include a control labeled or clearly identifiable as personal center that navigates to the hub route
+
+#### Scenario: Guest does not see personal center entry
+
+- **WHEN** the shell renders without an authenticated session
+- **THEN** the shell SHALL NOT present the authenticated-only personal center entry described above
+
+### Requirement: Router SHALL register protected personal center routes
+
+The SPA router SHALL register the personal center hub and its child or sibling routes used for my posts, my replies, my favorites, and settings (or equivalent structure), each protected with the same `requiresAuth` meta or equivalent guard as other authenticated views.
+
+#### Scenario: Deep link to my favorites requires auth
+
+- **WHEN** a guest navigates directly to a protected personal center child route
+- **THEN** the router SHALL redirect or block access consistent with existing `requiresAuth` behavior
 

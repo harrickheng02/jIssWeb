@@ -10,6 +10,8 @@ meta:
         - 完整账号安全中心
         - 第三方账号绑定
         - 消息全渠道设置
+        - 多级收藏夹与标签化收藏管理
+        - 独立「赞过的帖子」列表（本期点赞为表态与计数；若交付则单开 Issue）
     - issue_number: 3
       related_title: 公告位与热门数据接口
       out_of_scope:
@@ -70,7 +72,7 @@ modules:
   - name: 帖子与回复
     description: 发帖、正文与附件策略、楼层回复、编辑删除、草稿
   - name: 互动与声望
-    description: 点赞、收藏；关注与积分/等级等可与用户服务扩展（点踩未在本期范围）
+    description: 点赞、收藏；收藏须具备可访达路径（见个人中心「我的收藏」列表，按收藏时间倒序，不要求多级收藏夹）；关注与积分/等级等可与用户服务扩展（点踩未在本期范围）
   - name: 版区与标签
     description: 分区、置顶、精华、标签体系与筛选
   - name: 搜索与发现
@@ -78,7 +80,7 @@ modules:
   - name: 消息与通知
     description: 回复提醒、@、系统通知；可选站内信
   - name: 个人中心
-    description: 资料、我的帖子/回复、设置；与现有 Profile 能力合并演进
+    description: 资料、我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；与现有 Profile 能力合并演进
   - name: 治理与审核
     description: 举报、屏蔽词、版主操作、审计日志
   - name: 运营与公告
@@ -117,27 +119,9 @@ milestones:
     description: 审核举报、反垃圾占位；推荐排序；运营与报表
     due_on: 2026-12-31
   - title: W — 工作流程与工程效能
-    description: 与 M1–M3 产品交付解耦：策划案入库、审阅与 PR 自检、CI/hooks、复盘与远端规划同步；排期与业务里程碑独立叙述。
+    description: 与 M1–M3 产品交付解耦：策划案入库、审阅门禁、路由与路径校验、CI/hooks、复盘与图谱刷新；排期与业务里程碑独立叙述。
     due_on: 2026-12-31
 issues:
-  - title: 个人中心与内容管理最小集
-    body: >
-      验收标准：
-
-      - 个人中心页（或等价路由）可维护资料（与现有 Profile 能力衔接）、入口到「我的帖子/回复」列表且查询键与 token `sub` 一致。
-
-      - 基础设置或占位（如主题、退出）与空态、失败提示可演示；与 customer-profile 或既有 Profile API 不冲突。
-
-      依赖：openspec/specs/customer-profile-service（若适用）；openspec/specs/token-identity-consistency；论坛「我的」查询与 JWT `sub`
-      一致（已实现）。
-
-      非目标：完整账号安全中心、第三方绑定、消息全渠道设置。
-    milestone: M2 — 互动与发现
-    issue_number: 2
-    priority: 主要
-    state: open
-    module: 个人中心
-    classification: feature
   - title: 公告位与热门数据接口
     body: |
       验收标准：
@@ -171,11 +155,15 @@ issues:
       - 通知列表仅返回当前 JWT `sub` 对应收件人数据；分页、已读/未读与深链字段可演示。
       - 他人回复帖子时向楼主生成通知（不自通知）；与帖子/回复创建链路可联调。
       依赖：`openspec/specs/in-app-notifications/spec.md`；`openspec/specs/token-identity-consistency`。
+      实现对照：
+      - 归档变更：`openspec/changes/archive/2026-04-19-m2-in-app-notifications-minimal/`
+      - 规范：`openspec/specs/in-app-notifications/spec.md`、`openspec/specs/m2-in-app-notifications-minimal/spec.md`
+      - API：`GET/POST /api/forum/notifications`、`POST /api/forum/notifications/{id}/read`、`POST /api/forum/notifications/read-all`、`GET /api/forum/notifications/unread-count`
       非目标：邮件/短信/WebPush 等站外推送；多端实时送达 SLA 与消息中台。
     milestone: M2 — 互动与发现
     issue_number: 16
     priority: 主要
-    state: open
+    state: closed
     module: 消息与通知
     classification: feature
   - title: 论坛举报与处理最小闭环

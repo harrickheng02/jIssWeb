@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { computed, ref, watch, type Ref } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
-import { listForumPosts, type ForumPostListItem } from '@/api/clients'
+import { listForumPosts, type ForumPostListItem, type ForumPostListPatch } from '@/api/clients'
+import { applyForumPostListPatch } from '@/utils/applyForumPostListPatch'
 import { firstQueryString } from '@/utils/routeQuery'
 
 export type ForumHomeFeedOptions = {
@@ -87,6 +88,10 @@ export function useForumHomeFeed(activeSidebar: Ref<string>, options?: ForumHome
     page.value += 1
   }
 
+  function applyPostListPatch(patch: ForumPostListPatch) {
+    applyForumPostListPatch(postList.value, patch)
+  }
+
   watch(activeSidebar, () => {
     page.value = 1
     options?.onActiveSidebarChange?.()
@@ -123,5 +128,6 @@ export function useForumHomeFeed(activeSidebar: Ref<string>, options?: ForumHome
     clearFeedTag,
     prevPage,
     nextPage,
+    applyPostListPatch,
   }
 }

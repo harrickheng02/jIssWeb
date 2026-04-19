@@ -11,6 +11,8 @@ public static class ForumMongoSetup
     public const string PostsCollectionName = "forum_posts";
     public const string RepliesCollectionName = "forum_replies";
     public const string NotificationsCollectionName = "forum_in_app_notifications";
+    public const string LikesCollectionName = "forum_post_likes";
+    public const string FavoritesCollectionName = "forum_post_favorites";
 
     private static readonly Lazy<(string Title, string AuthorSubId)> PostSearchBsonFields = new(() =>
     {
@@ -51,5 +53,13 @@ public static class ForumMongoSetup
         var byReplyId = Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.ReplyId);
         notifications.Indexes.CreateOne(
             new CreateIndexModel<InAppNotificationRecord>(byReplyId, new CreateIndexOptions { Unique = true, Sparse = true }));
+
+        var likes = db.GetCollection<ForumPostLikeRecord>(LikesCollectionName);
+        var likeUnique = Builders<ForumPostLikeRecord>.IndexKeys.Ascending(x => x.PostId).Ascending(x => x.UserSubId);
+        likes.Indexes.CreateOne(new CreateIndexModel<ForumPostLikeRecord>(likeUnique, new CreateIndexOptions { Unique = true }));
+
+        var favorites = db.GetCollection<ForumPostFavoriteRecord>(FavoritesCollectionName);
+        var favUnique = Builders<ForumPostFavoriteRecord>.IndexKeys.Ascending(x => x.PostId).Ascending(x => x.UserSubId);
+        favorites.Indexes.CreateOne(new CreateIndexModel<ForumPostFavoriteRecord>(favUnique, new CreateIndexOptions { Unique = true }));
     }
 }

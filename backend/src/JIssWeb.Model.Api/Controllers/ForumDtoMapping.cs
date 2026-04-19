@@ -16,6 +16,7 @@ internal static class ForumDtoMapping
         Board = p.Board,
         Tags = p.Tags,
         Likes = p.LikeCount,
+        FavoriteCount = p.FavoriteCount,
         Comments = p.CommentCount,
         Views = p.ViewCount,
     };
@@ -32,6 +33,7 @@ internal static class ForumDtoMapping
         Board = p.Board,
         Tags = p.Tags,
         Likes = p.LikeCount,
+        FavoriteCount = p.FavoriteCount,
         Comments = p.CommentCount,
         Views = p.ViewCount,
     };

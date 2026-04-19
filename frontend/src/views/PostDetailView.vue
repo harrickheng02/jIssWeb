@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -20,9 +20,14 @@ const replies = ref<ForumReply[]>([])
 const loading = ref(true)
 const replyBody = ref('')
 const submitting = ref(false)
+const highlightedReplyId = ref<string | null>(null)
 
 const postId = computed(() => String(route.params.id ?? ''))
 const isAuthed = computed(() => Boolean(auth.token))
+const targetReplyId = computed(() => {
+  const q = route.query.reply
+  return typeof q === 'string' && q.trim() ? q.trim() : null
+})
 
 function formatPublishedUtc(iso: string) {
   const d = new Date(iso)
@@ -64,6 +69,20 @@ async function load() {
     } catch {
       replies.value = []
       ElMessage.warning('回复列表加载失败')
+    }
+
+    await nextTick()
+    if (targetReplyId.value) {
+      const el = document.getElementById(`reply-${targetReplyId.value}`)
+      if (el) {
+        highlightedReplyId.value = targetReplyId.value
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        window.setTimeout(() => {
+          if (highlightedReplyId.value === targetReplyId.value) highlightedReplyId.value = null
+        }, 2200)
+      } else {
+        ElMessage.info('未找到目标回复，已为你定位到帖子内容')
+      }
     }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
@@ -146,7 +165,13 @@ watch(
 
         <el-card shadow="never" class="reply-card">
           <template #header>回复</template>
-          <div v-for="r in replies" :key="r.id" class="reply-row">
+          <div
+            v-for="r in replies"
+            :id="`reply-${r.id}`"
+            :key="r.id"
+            class="reply-row"
+            :class="{ 'reply-row--highlight': highlightedReplyId === r.id }"
+          >
             <div class="reply-meta">
               <span>{{ forumAuthorLabel(r.authorDisplayName, r.authorId) }}</span>
               <span class="reply-time">{{ formatPublishedUtc(r.createdAtUtc) }}</span>
@@ -250,6 +275,13 @@ watch(
 .reply-row {
   padding: var(--space-md) 0;
   border-bottom: 1px solid var(--border-color);
+}
+
+.reply-row--highlight {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--bg-card));
+  border-radius: var(--radius-md);
+  padding-left: var(--space-md);
+  padding-right: var(--space-md);
 }
 
 .reply-row:last-of-type {

@@ -7,10 +7,12 @@ import { getForumUnreadNotificationCount } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 import TopbarSearch from '@/components/layout/TopbarSearch.vue'
 import HeaderUserMenu from '@/components/layout/HeaderUserMenu.vue'
+import { formatBadgeCount } from '@/utils/formatBadgeCount'
 
 const router = useRouter()
 const auth = useAuthStore()
 const unreadCount = ref(0)
+const unreadBadgeValue = computed(() => formatBadgeCount(unreadCount.value, 99))
 
 function refreshUnread() {
   if (!auth.token) {
@@ -83,7 +85,7 @@ function handleOpenPlaceholder(name: string) {
       <div class="topbar-actions">
         <TopbarSearch />
         <router-link v-if="isAuthed" to="/notifications" class="notify-link">
-          <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="notify-badge">
+          <el-badge :value="unreadBadgeValue" :hidden="unreadCount === 0" class="notify-badge">
             <el-button :icon="Bell" circle aria-label="通知" />
           </el-badge>
         </router-link>

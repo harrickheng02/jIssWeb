@@ -10,6 +10,7 @@ public class ForumPostRecord
     public string Board { get; set; } = "综合";
     public List<string> Tags { get; set; } = new();
     public int LikeCount { get; set; }
+    public int FavoriteCount { get; set; }
     public int CommentCount { get; set; }
     public int ViewCount { get; set; }
     public DateTime CreatedAtUtc { get; set; }

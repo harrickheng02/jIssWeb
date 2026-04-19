@@ -7,7 +7,7 @@ import { useForumComposeForm } from '@/composables/useForumComposeForm'
 import { useForumHomeFeed } from '@/composables/useForumHomeFeed'
 import { useForumPopularTags } from '@/composables/useForumPopularTags'
 import { useAuthStore } from '@/stores/auth'
-import { forumAuthorLabel, formatPublishedUtc } from '@/utils/forumPostDisplay'
+import ForumPostListCard from '@/components/forum/ForumPostListCard.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -42,6 +42,7 @@ const {
   clearFeedTag,
   prevPage,
   nextPage,
+  applyPostListPatch,
 } = useForumHomeFeed(activeSidebar, { onActiveSidebarChange: () => void loadPopularTags() })
 
 function getDefaultComposeBoardId() {
@@ -84,14 +85,6 @@ function handleCreatePost() {
 
 function goPost(id: string) {
   void router.push({ name: 'post-detail', params: { id } })
-}
-
-function handleProtectedAction(name: string) {
-  if (!isAuthed.value) {
-    void router.push('/auth')
-    return
-  }
-  ElMessage.info(`${name}功能开发中`)
 }
 
 function handleOpenPlaceholder(name: string) {
@@ -168,42 +161,18 @@ onMounted(() => {
         <div v-else-if="!postList.length" class="list-empty">暂无帖子</div>
 
         <div v-else class="post-list">
-          <el-card v-for="post in postList" :key="post.id" class="post-card" shadow="hover">
-            <div class="post-topline">
-              <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
-              <span class="post-time">{{ formatPublishedUtc(post.publishedAtUtc) }}</span>
-            </div>
-
-            <el-link class="post-title" :underline="false" @click="goPost(post.id)">
-              {{ post.title }}
-            </el-link>
-
-            <p class="post-excerpt">{{ post.excerpt }}</p>
-
-            <div class="post-meta">
-              <el-link :underline="false" @click="handleOpenPlaceholder('用户主页')">{{
-                forumAuthorLabel(post.authorDisplayName, post.authorId)
-              }}</el-link>
-              <div class="tag-list">
-                <el-tag
-                  v-for="tag in post.tags"
-                  :key="tag"
-                  size="small"
-                  class="clickable-tag"
-                  :type="tagFilterValue === tag ? 'primary' : 'info'"
-                  @click.stop="setFeedTag(tag)"
-                >
-                  {{ tag }}
-                </el-tag>
-              </div>
-            </div>
-
-            <div class="post-stats">
-              <button class="stat-btn" type="button" @click="handleProtectedAction('点赞')">赞 {{ post.likes }}</button>
-              <button class="stat-btn" type="button" @click="goPost(post.id)">评 {{ post.comments }}</button>
-              <span class="stat-text">看 {{ post.views }}</span>
-            </div>
-          </el-card>
+          <ForumPostListCard
+            v-for="post in postList"
+            :key="post.id"
+            :post="post"
+            :tag-filter-value="tagFilterValue"
+            tag-clickable
+            @title-click="goPost"
+            @tag-click="setFeedTag"
+            @patch-post="applyPostListPatch"
+            @comment-stat-click="goPost"
+            @author-click="() => handleOpenPlaceholder('用户主页')"
+          />
         </div>
 
         <div v-if="!listLoading && !listError && postList.length" class="pager">
@@ -381,8 +350,7 @@ onMounted(() => {
   gap: var(--space-12);
 }
 
-.composer-card,
-.post-card {
+.composer-card {
   border-radius: var(--radius-lg);
 }
 
@@ -417,81 +385,10 @@ onMounted(() => {
   gap: var(--space-md);
 }
 
-.post-topline,
-.post-meta,
-.post-stats {
-  display: flex;
-  align-items: center;
-}
-
-.post-topline {
-  justify-content: space-between;
-  gap: var(--space-12);
-}
-
-.post-time,
 .notice-text {
   color: var(--text-secondary);
   font-size: var(--font-xs);
   line-height: var(--line-height);
-}
-
-.post-title {
-  margin-top: var(--space-12);
-  font-size: var(--font-lg);
-  font-weight: 700;
-  width: fit-content;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-
-.post-excerpt {
-  margin: var(--space-12) 0 var(--space-md);
-  color: var(--text-secondary);
-  font-size: var(--font-sm);
-  line-height: var(--line-height);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-
-.post-meta {
-  justify-content: space-between;
-  gap: var(--space-12);
-  flex-wrap: wrap;
-}
-
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.clickable-tag {
-  cursor: pointer;
-}
-
-.post-stats {
-  margin-top: var(--space-md);
-  gap: var(--space-12);
-  flex-wrap: wrap;
-}
-
-.stat-btn {
-  border: 0;
-  background: var(--el-color-primary-light-9);
-  color: var(--color-primary);
-  border-radius: var(--radius-pill);
-  padding: var(--space-sm) var(--space-12);
-  cursor: pointer;
-}
-
-.stat-text {
-  color: var(--text-secondary);
 }
 
 .pager {

@@ -103,18 +103,14 @@ docker compose up -d --build
 | 查看进行中 Issue | 在 **`scripts/github-sync/pm-plan.yaml`** 中筛选 `state` 为 `open` / `progressing` 的条目 |
 | 讨论方案 | **`/opsx-explore`**（探索不写业务代码） |
 | 立项与实现 | **`/opsx-propose`** 建 change → **`/opsx-apply`** 实现；**一条 Issue 可拆多个 change/多 PR**，与条目、里程碑对齐即可 |
-| 自测与审查 | 自测后 **`change-review`**（只读；**不等同于 CI 通过**） |
-| 提交与合并 | **`git commit`**，按约定走 **PR**；**建议 CI 通过后再 `/opsx-archive`** |
+| 自测与审查 | 自测后可用 **`change-review`**（只读，对照 OpenSpec / 约定） |
+| 提交与合并 | **`git commit`** 后开 **Pull Request**；描述中按 **`.github/pull_request_template.md`** 填写关联与自检项；合并与分支保护按团队约定 |
 | 归档 | **`/opsx-archive`** |
 | 回写规划并推送 | 编辑 **`pm-plan.yaml`** 后 **`npm run pm:push`**。**默认在实现已合并进主分支后再执行**，避免远端规划与主分支代码不一致 |
 
 **复盘与归档（建议节奏）**
 
 - 迭代复盘或 **`/opsx-archive`** 后若更新了 **`.cursor/rules`** 或 **`openspec/specs/**`**：按需提交；若需把规划同步到 GitHub Issue，使用 **`npm run pm:push`**。
-
-**PR 与合并**
-
-- 开 PR 时按 **`.github/pull_request_template.md`** 中的关联项与自检勾选完成说明。
 
 **异常与排查**
 

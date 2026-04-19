@@ -1,9 +1,7 @@
 ## Purpose
 
 站内通知：收件人与 JWT `sub` 一致、已读未读、列表分页、与论坛回复事件的最小联动；不包含站外通道与站内信会话。
-
 ## Requirements
-
 ### Requirement: Notification recipient identity
 
 The system SHALL persist each in-app notification with a recipient key `RecipientSubId` that MUST equal the intended recipient's user identifier, and that identifier MUST match JWT `sub` and user-service primary key semantics per `openspec/specs/token-identity-consistency`.
@@ -37,6 +35,7 @@ The system SHALL expose an authenticated HTTP endpoint that returns the current 
 - **WHEN** a client with a valid Bearer token requests the notification list with valid pagination parameters
 - **THEN** the response SHALL include only notifications whose `RecipientSubId` equals the caller's `sub`
 - **AND** each item SHALL expose read state and fields needed to render a summary and deep link to the related post or reply
+- **AND** the list ordering SHALL be stable for incremental client refresh by sorting by `(CreatedAtUtc desc, Id desc)` or an equivalent stable key
 
 #### Scenario: Unauthenticated list rejected
 
@@ -51,12 +50,14 @@ The system SHALL expose authenticated operations to mark one notification as rea
 
 - **WHEN** the caller marks a notification id that belongs to the current user as read
 - **THEN** subsequent reads of that row SHALL indicate read state
+- **AND** the read timestamp SHALL remain the first-read timestamp for that row when the operation is applied repeatedly
 - **AND** attempting to mark another user's notification SHALL not leak existence (403 or 404 per uniform policy)
 
 #### Scenario: Mark all read
 
 - **WHEN** the caller requests mark-all-read for the current user
 - **THEN** all that user's notifications SHALL be read state
+- **AND** each row's read timestamp SHALL remain the first-read timestamp when the operation is applied repeatedly
 
 ### Requirement: Notification list empty and failure handling for UI contract
 
@@ -66,3 +67,4 @@ The notification list capability SHALL be defined such that clients can distingu
 
 - **WHEN** the user has zero notifications and requests the first page
 - **THEN** the response SHALL be success with an empty items array or equivalent pagination shape
+

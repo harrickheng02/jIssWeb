@@ -45,6 +45,38 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/me',
+      component: () => import('../views/me/PersonalCenterLayout.vue'),
+      meta: { requiresAuth: true },
+      redirect: '/me/posts',
+      children: [
+        {
+          path: 'posts',
+          name: 'me-posts',
+          meta: { requiresAuth: true },
+          component: () => import('../views/me/MePostsView.vue'),
+        },
+        {
+          path: 'replies',
+          name: 'me-replies',
+          meta: { requiresAuth: true },
+          component: () => import('../views/me/MeRepliesView.vue'),
+        },
+        {
+          path: 'favorites',
+          name: 'me-favorites',
+          meta: { requiresAuth: true },
+          component: () => import('../views/me/MeFavoritesView.vue'),
+        },
+        {
+          path: 'settings',
+          name: 'me-settings',
+          meta: { requiresAuth: true },
+          component: () => import('../views/me/MeSettingsView.vue'),
+        },
+      ],
+    },
+    {
       path: '/notifications',
       name: 'notifications',
       component: () => import('../views/NotificationsView.vue'),

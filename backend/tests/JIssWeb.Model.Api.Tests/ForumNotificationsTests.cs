@@ -2,6 +2,10 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using JIssWeb.Model.Api.Models;
+using JIssWeb.Model.Api.Mongo;
+using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 
 namespace JIssWeb.Model.Api.Tests;
 
@@ -80,6 +84,30 @@ public class ForumNotificationsTests
         mark.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
         Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(mark)).StatusCode);
 
+        DateTime? readAt1;
+        using (var scope = _fx.Factory.Services.CreateScope())
+        {
+            var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+            var db = mongo.GetDatabase(_fx.DatabaseName);
+            var col = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+            readAt1 = (await col.Find(x => x.Id == notifId).FirstOrDefaultAsync())?.ReadAtUtc;
+        }
+        Assert.True(readAt1.HasValue);
+
+        var markAgain = new HttpRequestMessage(HttpMethod.Post, $"/api/forum/notifications/{notifId}/read");
+        markAgain.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(markAgain)).StatusCode);
+
+        DateTime? readAt2;
+        using (var scope = _fx.Factory.Services.CreateScope())
+        {
+            var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+            var db = mongo.GetDatabase(_fx.DatabaseName);
+            var col = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+            readAt2 = (await col.Find(x => x.Id == notifId).FirstOrDefaultAsync())?.ReadAtUtc;
+        }
+        Assert.Equal(readAt1, readAt2);
+
         var unread2 = new HttpRequestMessage(HttpMethod.Get, "/api/forum/notifications/unread-count");
         unread2.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
         using (var doc = JsonDocument.Parse(await (await _fx.Client.SendAsync(unread2)).Content.ReadAsStringAsync()))
@@ -90,5 +118,29 @@ public class ForumNotificationsTests
         var markAll = new HttpRequestMessage(HttpMethod.Post, "/api/forum/notifications/read-all");
         markAll.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
         Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(markAll)).StatusCode);
+
+        DateTime? readAtAfterAll1;
+        using (var scope = _fx.Factory.Services.CreateScope())
+        {
+            var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+            var db = mongo.GetDatabase(_fx.DatabaseName);
+            var col = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+            readAtAfterAll1 = (await col.Find(x => x.Id == notifId).FirstOrDefaultAsync())?.ReadAtUtc;
+        }
+        Assert.Equal(readAt1, readAtAfterAll1);
+
+        var markAllAgain = new HttpRequestMessage(HttpMethod.Post, "/api/forum/notifications/read-all");
+        markAllAgain.Headers.Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-a"));
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(markAllAgain)).StatusCode);
+
+        DateTime? readAtAfterAll2;
+        using (var scope = _fx.Factory.Services.CreateScope())
+        {
+            var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+            var db = mongo.GetDatabase(_fx.DatabaseName);
+            var col = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+            readAtAfterAll2 = (await col.Find(x => x.Id == notifId).FirstOrDefaultAsync())?.ReadAtUtc;
+        }
+        Assert.Equal(readAtAfterAll1, readAtAfterAll2);
     }
 }

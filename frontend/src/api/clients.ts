@@ -231,6 +231,22 @@ export interface ForumPostListItem {
   likes: number
   comments: number
   views: number
+  /** Present when API returns engagement snapshot for current user. */
+  likedByMe?: boolean
+  favoritedByMe?: boolean
+  favoriteCount?: number
+}
+
+/** Partial update after like/favorite mutation (merge into list row). */
+export type ForumPostListPatch = Pick<ForumPostListItem, 'id'> &
+  Partial<Pick<ForumPostListItem, 'likes' | 'likedByMe' | 'favoritedByMe' | 'favoriteCount'>>
+
+export interface ForumPostEngagementSnapshot {
+  postId: string
+  likeCount: number
+  favoriteCount: number
+  likedByMe: boolean
+  favoritedByMe: boolean
 }
 
 export interface PagedForumPosts {
@@ -251,6 +267,13 @@ export interface ForumReply {
   authorDisplayName?: string
   body: string
   createdAtUtc: string
+}
+
+export interface PagedForumReplies {
+  items: ForumReply[]
+  totalCount: number
+  page: number
+  pageSize: number
 }
 
 export interface ForumBoardItem {
@@ -281,6 +304,21 @@ export async function listForumPosts(
   return data
 }
 
+export async function listMyForumPosts(page = 1, pageSize = 20) {
+  const { data } = await modelApi.get<ApiResult<PagedForumPosts>>('/forum/me/posts', { params: { page, pageSize } })
+  return data
+}
+
+export async function listMyForumReplies(page = 1, pageSize = 20) {
+  const { data } = await modelApi.get<ApiResult<PagedForumReplies>>('/forum/me/replies', { params: { page, pageSize } })
+  return data
+}
+
+export async function listMyForumFavorites(page = 1, pageSize = 20) {
+  const { data } = await modelApi.get<ApiResult<PagedForumPosts>>('/forum/me/favorites', { params: { page, pageSize } })
+  return data
+}
+
 export async function getForumPopularTags(boardId?: string, limit?: number) {
   const params: Record<string, string | number> = {}
   if (boardId) params.boardId = boardId
@@ -291,6 +329,26 @@ export async function getForumPopularTags(boardId?: string, limit?: number) {
 
 export async function getForumPost(id: string) {
   const { data } = await modelApi.get<ApiResult<ForumPostDetail>>(`/forum/posts/${id}`)
+  return data
+}
+
+export async function likeForumPost(postId: string) {
+  const { data } = await modelApi.post<ApiResult<ForumPostEngagementSnapshot>>(`/forum/posts/${postId}/like`)
+  return data
+}
+
+export async function unlikeForumPost(postId: string) {
+  const { data } = await modelApi.delete<ApiResult<ForumPostEngagementSnapshot>>(`/forum/posts/${postId}/like`)
+  return data
+}
+
+export async function favoriteForumPost(postId: string) {
+  const { data } = await modelApi.post<ApiResult<ForumPostEngagementSnapshot>>(`/forum/posts/${postId}/favorite`)
+  return data
+}
+
+export async function unfavoriteForumPost(postId: string) {
+  const { data } = await modelApi.delete<ApiResult<ForumPostEngagementSnapshot>>(`/forum/posts/${postId}/favorite`)
   return data
 }
 

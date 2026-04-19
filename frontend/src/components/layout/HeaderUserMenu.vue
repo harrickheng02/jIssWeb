@@ -67,7 +67,7 @@ function onThemeDarkSwitch(value: string | number | boolean) {
 function logout() {
   auth.clearAuth()
   ElMessage.success('已退出')
-  if (route.path.startsWith('/profile')) void router.push('/')
+  if (route.path.startsWith('/profile') || route.path.startsWith('/me')) void router.push('/')
 }
 </script>
 
@@ -108,10 +108,14 @@ function logout() {
           <el-avatar :size="48">{{ avatarText }}</el-avatar>
           <div class="user-pop-meta">
             <div class="user-pop-name">{{ displayName }}</div>
-            <div class="user-pop-desc">发帖 12 · 积分 268</div>
+            <div class="user-pop-desc">社区统计与积分即将推出</div>
           </div>
         </div>
         <el-divider class="user-pop-divider" />
+        <router-link class="user-pop-row" to="/me">
+          <span>个人中心</span>
+          <el-icon class="user-pop-row-icon"><ArrowRight /></el-icon>
+        </router-link>
         <router-link class="user-pop-row" to="/profile">
           <span>个人资料</span>
           <el-icon class="user-pop-row-icon"><ArrowRight /></el-icon>

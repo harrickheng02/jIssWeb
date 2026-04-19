@@ -51,6 +51,7 @@ public class ForumNotificationsController : ControllerBase
         var total = await _notifications.CountDocumentsAsync(filter);
         var items = await _notifications.Find(filter)
             .SortByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
             .Skip((page - 1) * pageSize)
             .Limit(pageSize)
             .ToListAsync();
@@ -90,13 +91,23 @@ public class ForumNotificationsController : ControllerBase
             return Unauthorized(ApiResult<object>.Fail("未授权", "UNAUTHORIZED"));
 
         var now = DateTime.UtcNow;
-        var filter = Builders<InAppNotificationRecord>.Filter.And(
+        var ownedByCaller = Builders<InAppNotificationRecord>.Filter.And(
             Builders<InAppNotificationRecord>.Filter.Eq(x => x.Id, id),
             Builders<InAppNotificationRecord>.Filter.Eq(x => x.RecipientSubId, sub));
+
+        var unreadOwnedByCaller = Builders<InAppNotificationRecord>.Filter.And(
+            ownedByCaller,
+            Builders<InAppNotificationRecord>.Filter.Eq(x => x.ReadAtUtc, null));
+
         var update = Builders<InAppNotificationRecord>.Update.Set(x => x.ReadAtUtc, now);
-        var result = await _notifications.UpdateOneAsync(filter, update);
+        var result = await _notifications.UpdateOneAsync(unreadOwnedByCaller, update);
         if (result.MatchedCount == 0)
-            return NotFound(ApiResult<object>.Fail("未找到", "NOT_FOUND"));
+        {
+            var exists = await _notifications.Find(ownedByCaller).Project(x => x.Id).FirstOrDefaultAsync();
+            if (exists is null)
+                return NotFound(ApiResult<object>.Fail("未找到", "NOT_FOUND"));
+        }
+
         return Ok(ApiResult<object>.Ok(new { }));
     }
 

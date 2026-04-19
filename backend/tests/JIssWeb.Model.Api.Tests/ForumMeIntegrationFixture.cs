@@ -100,6 +100,15 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
                 CreatedAtUtc = t.AddMinutes(-5),
             },
         });
+
+        var favorites = db.GetCollection<ForumPostFavoriteRecord>(ForumMongoSetup.FavoritesCollectionName);
+        await favorites.InsertOneAsync(new ForumPostFavoriteRecord
+        {
+            Id = "fav-seed-user-a-post-a",
+            PostId = "me-post-a",
+            UserSubId = "user-a",
+            CreatedAtUtc = t.AddMinutes(-2),
+        });
     }
 
     public async Task DisposeAsync()
