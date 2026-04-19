@@ -62,6 +62,12 @@ meta:
       out_of_scope:
         - 邮件/短信/WebPush 等站外推送
         - 多端实时送达 SLA 与消息中台
+    - issue_number: 17
+      related_title: 论坛角色与 JWT 声明最小集（管理员 / 版主）
+      out_of_scope:
+        - 完整 RBAC / 动态权限引擎
+        - 与论坛无关的全局组织级 IAM
+        - 多租户隔离策略（专有云单独立项）
 modules:
   - name: 账号与访问
     description: 邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时与 401 拦截后的 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange
@@ -82,7 +88,7 @@ modules:
   - name: 个人中心
     description: 资料、我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；与现有 Profile 能力合并演进
   - name: 治理与审核
-    description: 举报、屏蔽词、版主操作、审计日志
+    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT（或等价）可机读声明为前提（见 pm-plan Issue「论坛角色与 JWT 声明最小集」与 openspec/token-identity-consistency）
   - name: 运营与公告
     description: 公告位、活动 Banner（与首页右侧公告模块衔接）
   - name: 平台与基础设施
@@ -116,7 +122,7 @@ milestones:
     description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口
     due_on: 2026-09-30
   - title: M3 — 治理与增长
-    description: 审核举报、反垃圾占位；推荐排序；运营与报表
+    description: 论坛角色与 JWT 声明最小集（管理员/版主）为先；审核举报、反垃圾占位；版主操作；推荐排序；运营与报表
     due_on: 2026-12-31
   - title: W — 工作流程与工程效能
     description: 与 M1–M3 产品交付解耦：策划案入库、审阅门禁、路由与路径校验、CI/hooks、复盘与图谱刷新；排期与业务里程碑独立叙述。
@@ -154,12 +160,31 @@ issues:
     state: closed
     module: 搜索与发现
     classification: feature
+  - title: 论坛角色与 JWT 声明最小集（管理员 / 版主）
+    body: |
+      验收标准：
+      - access token（或文档约定的等价载体）中包含与 `sub` 一并可校验的**论坛角色**信息：至少能区分普通用户、版主、管理员中的一种组合策略（claim 名称、取值与解析规则写在 OpenSpec 增量或 `openspec/specs/token-identity-consistency` 中）。
+      - Model.Api 对「仅版主/仅管理员」可调用的路由（或占位路由）能一致拒绝未授权请求，错误码与统一错误合同一致；只读公开接口行为不变。
+      - 提供**手工验收说明**：测试账号或换票路径如何得到各角色 token；便于治理类 Issue 对照验收。
+      设计拆解（建议交付顺序）：
+      - ① OpenSpec：角色枚举与 claim 约定、与现有 `sub` 关系。
+      - ② user-service：签发含角色的 JWT（或配置/种子用户映射）。
+      - ③ Model.Api：鉴权策略或过滤器读取 claim。
+      - ④ 与 Issue #4、#7 联调（举报队列、版主操作）。
+      依赖：`openspec/specs/token-identity-consistency`；user-service JWT 签发与本地配置约定。
+      非目标：完整 RBAC 中台、动态权限引擎、按资源的细粒度 ACL；跨服务统一权限平台。
+    milestone: M3 — 治理与增长
+    issue_number: 17
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
   - title: 论坛举报与处理最小闭环
     body: |
       验收标准：
       - 用户可对帖子或回复发起举报并产生可查询记录；处理侧至少具备列表查看或状态流转占位，行为可演示。
       - 与鉴权、审计字段约定一致（操作者、目标资源标识）。
-      依赖：里程碑 M3；openspec 治理相关条款（若有）。
+      依赖：里程碑 M3；Issue #17（论坛角色与 JWT 声明最小集，处理侧须能识别管理员/版主身份）；openspec 治理相关条款（若有）。
       非目标：完整工单 SLA、法务级证据链、多租户隔离策略。
     milestone: M3 — 治理与增长
     issue_number: 4
@@ -198,7 +223,7 @@ issues:
       验收标准：
       - 具备版主或管理员角色边界（与 JWT/角色声明一致）；可对帖子执行至少一种版区操作（如置顶、精华、锁帖或等价）并持久化，列表与详情可反映状态。
       - 操作审计字段可核验（操作者 sub、目标帖子、时间）；非法或未授权请求有明确错误码。
-      依赖：论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。
+      依赖：Issue #17（论坛角色与 JWT 声明最小集，本 Issue 依赖可机读角色）；论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。
       非目标：完整 RBAC 中台、跨版区批量脚本、工单流。
     milestone: M3 — 治理与增长
     issue_number: 7
