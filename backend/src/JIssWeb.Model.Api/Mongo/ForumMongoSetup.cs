@@ -8,16 +8,22 @@ namespace JIssWeb.Model.Api.Mongo;
 
 public static class ForumMongoSetup
 {
+    private static readonly object BsonRegistrationLock = new();
+
     public const string PostsCollectionName = "forum_posts";
     public const string RepliesCollectionName = "forum_replies";
     public const string NotificationsCollectionName = "forum_in_app_notifications";
     public const string LikesCollectionName = "forum_post_likes";
     public const string FavoritesCollectionName = "forum_post_favorites";
+    public const string AnnouncementsCollectionName = "forum_announcements";
 
     private static readonly Lazy<(string Title, string AuthorSubId)> PostSearchBsonFields = new(() =>
     {
-        if (!BsonClassMap.IsClassMapRegistered(typeof(ForumPostRecord)))
-            BsonClassMap.RegisterClassMap<ForumPostRecord>(cm => cm.AutoMap());
+        lock (BsonRegistrationLock)
+        {
+            if (!BsonClassMap.IsClassMapRegistered(typeof(ForumPostRecord)))
+                BsonClassMap.RegisterClassMap<ForumPostRecord>(cm => cm.AutoMap());
+        }
         var map = BsonClassMap.LookupClassMap(typeof(ForumPostRecord));
         return (
             map.GetMemberMap(nameof(ForumPostRecord.Title)).ElementName,
@@ -28,6 +34,12 @@ public static class ForumMongoSetup
 
     public static void EnsureIndexes(IServiceProvider services)
     {
+        lock (BsonRegistrationLock)
+        {
+            if (!BsonClassMap.IsClassMapRegistered(typeof(ForumAnnouncementRecord)))
+                BsonClassMap.RegisterClassMap<ForumAnnouncementRecord>(cm => cm.AutoMap());
+        }
+
         using var scope = services.CreateScope();
         var client = scope.ServiceProvider.GetRequiredService<IMongoClient>();
         var mongo = scope.ServiceProvider.GetRequiredService<IOptions<MongoSettings>>().Value;
@@ -61,5 +73,9 @@ public static class ForumMongoSetup
         var favorites = db.GetCollection<ForumPostFavoriteRecord>(FavoritesCollectionName);
         var favUnique = Builders<ForumPostFavoriteRecord>.IndexKeys.Ascending(x => x.PostId).Ascending(x => x.UserSubId);
         favorites.Indexes.CreateOne(new CreateIndexModel<ForumPostFavoriteRecord>(favUnique, new CreateIndexOptions { Unique = true }));
+
+        var announcements = db.GetCollection<ForumAnnouncementRecord>(AnnouncementsCollectionName);
+        var annList = Builders<ForumAnnouncementRecord>.IndexKeys.Descending(x => x.Pinned).Descending(x => x.PublishedAtUtc);
+        announcements.Indexes.CreateOne(new CreateIndexModel<ForumAnnouncementRecord>(annList));
     }
 }

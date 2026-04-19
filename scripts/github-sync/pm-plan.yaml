@@ -130,10 +130,12 @@ issues:
       - 鉴权边界（公开只读 vs 管理端）在文档或代码中可核验。
       依赖：openspec/specs/forum-homepage-shell/spec.md（若含侧栏）；里程碑 M2 描述。
       非目标：推荐算法、A/B、运营后台完整 CMS。
+      落地：`GET /api/forum/announcements`（Mongo `forum_announcements`）；`GET /api/forum/posts?sort=hot`；首页右栏与 `forum-content-api` / `forum-homepage-shell` 规范对齐；侧栏热门请求 `page=1`、`pageSize=8`（见 `forum-homepage-shell`）。
+      交付确认：Model.Api 与前端首页右栏已接入；规范已合并 `openspec/specs/**`；变更已归档 `openspec/changes/archive/2026-04-20-m2-forum-announcements-hot-read-api/`。
     milestone: M2 — 互动与发现
     issue_number: 3
     priority: 次要
-    state: open
+    state: closed
     module: 运营与公告
     classification: feature
   - title: 论坛帖子关键词搜索与请求限流契约
@@ -143,28 +145,14 @@ issues:
       - 带非空 `q` 的请求限流可配置，超限返回 429。
       依赖：`openspec/specs/forum-post-search/spec.md`；`openspec/specs/token-identity-consistency`。
       非目标：全网语义搜索与向量检索；独立搜索集群专有云运维与 SLA。
+      实现边界（后续治理项）：
+      - 反代/多跳代理场景下 `X-Forwarded-For` 的可信采信策略（建议引入可信代理配置/统一中间件处理）。
+      - 多实例部署的分布式限流（当前为进程内桶，重启/扩容会重置窗口）。
     milestone: M2 — 互动与发现
     issue_number: 15
     priority: 主要
-    state: open
-    module: 搜索与发现
-    classification: feature
-  - title: 站内通知列表与已读状态最小集
-    body: |
-      验收标准：
-      - 通知列表仅返回当前 JWT `sub` 对应收件人数据；分页、已读/未读与深链字段可演示。
-      - 他人回复帖子时向楼主生成通知（不自通知）；与帖子/回复创建链路可联调。
-      依赖：`openspec/specs/in-app-notifications/spec.md`；`openspec/specs/token-identity-consistency`。
-      实现对照：
-      - 归档变更：`openspec/changes/archive/2026-04-19-m2-in-app-notifications-minimal/`
-      - 规范：`openspec/specs/in-app-notifications/spec.md`、`openspec/specs/m2-in-app-notifications-minimal/spec.md`
-      - API：`GET/POST /api/forum/notifications`、`POST /api/forum/notifications/{id}/read`、`POST /api/forum/notifications/read-all`、`GET /api/forum/notifications/unread-count`
-      非目标：邮件/短信/WebPush 等站外推送；多端实时送达 SLA 与消息中台。
-    milestone: M2 — 互动与发现
-    issue_number: 16
-    priority: 主要
     state: closed
-    module: 消息与通知
+    module: 搜索与发现
     classification: feature
   - title: 论坛举报与处理最小闭环
     body: |

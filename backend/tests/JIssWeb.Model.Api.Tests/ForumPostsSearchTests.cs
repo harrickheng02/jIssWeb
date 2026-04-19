@@ -161,4 +161,49 @@ public class ForumPostsSearchTests
         var res = await _fx.Client.GetAsync("/api/forum/tags/popular?boardId=unknown");
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
+
+    [Fact]
+    public async Task List_SortHot_OrderedByEngagement()
+    {
+        var res = await _fx.Client.GetAsync("/api/forum/posts?sort=hot&page=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        var items = doc.RootElement.GetProperty("data").GetProperty("items");
+        Assert.Equal(3, items.GetArrayLength());
+        Assert.Equal("me-post-tech", items[0].GetProperty("id").GetString());
+        Assert.Equal("me-post-b", items[1].GetProperty("id").GetString());
+        Assert.Equal("me-post-a", items[2].GetProperty("id").GetString());
+    }
+
+    [Fact]
+    public async Task List_SortHot_WithBoard_General_OrdersBThenA()
+    {
+        var res = await _fx.Client.GetAsync("/api/forum/posts?sort=hot&boardId=general&page=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        var items = doc.RootElement.GetProperty("data").GetProperty("items");
+        Assert.Equal(2, items.GetArrayLength());
+        Assert.Equal("me-post-b", items[0].GetProperty("id").GetString());
+        Assert.Equal("me-post-a", items[1].GetProperty("id").GetString());
+    }
+
+    [Fact]
+    public async Task List_SortInvalid_Returns400()
+    {
+        var res = await _fx.Client.GetAsync("/api/forum/posts?sort=featured&page=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        Assert.Equal("INVALID_SORT", doc.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task List_SearchWithSortHot_IgnoresHotSort()
+    {
+        var res = await _fx.Client.GetAsync("/api/forum/posts?q=ta&sort=hot&page=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        var items = doc.RootElement.GetProperty("data").GetProperty("items");
+        Assert.Equal(1, items.GetArrayLength());
+        Assert.Equal("me-post-a", items[0].GetProperty("id").GetString());
+    }
 }

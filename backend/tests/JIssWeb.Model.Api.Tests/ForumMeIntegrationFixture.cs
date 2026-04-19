@@ -57,6 +57,9 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
                 Board = "综合",
                 Tags = new List<string> { "alpha", "shared" },
                 CreatedAtUtc = t.AddMinutes(-10),
+                LikeCount = 5,
+                CommentCount = 1,
+                ViewCount = 0,
             },
             new ForumPostRecord
             {
@@ -68,6 +71,9 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
                 Board = "综合",
                 Tags = new List<string> { "beta", "shared" },
                 CreatedAtUtc = t.AddMinutes(-10),
+                LikeCount = 5,
+                CommentCount = 2,
+                ViewCount = 0,
             },
             new ForumPostRecord
             {
@@ -79,6 +85,9 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
                 Board = "技术",
                 Tags = new List<string> { "Alpha", "techtag" },
                 CreatedAtUtc = t.AddMinutes(-9),
+                LikeCount = 10,
+                CommentCount = 0,
+                ViewCount = 0,
             },
         });
         await replies.InsertManyAsync(new[]
@@ -108,6 +117,26 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
             PostId = "me-post-a",
             UserSubId = "user-a",
             CreatedAtUtc = t.AddMinutes(-2),
+        });
+
+        var announcements = db.GetCollection<ForumAnnouncementRecord>(ForumMongoSetup.AnnouncementsCollectionName);
+        await announcements.InsertManyAsync(new[]
+        {
+            new ForumAnnouncementRecord
+            {
+                Id = "ann-normal",
+                Title = "Second line",
+                Summary = "summary",
+                PublishedAtUtc = t.AddDays(-1),
+                Pinned = false,
+            },
+            new ForumAnnouncementRecord
+            {
+                Id = "ann-pinned",
+                Title = "Pinned first",
+                PublishedAtUtc = t.AddDays(-2),
+                Pinned = true,
+            },
         });
     }
 

@@ -160,3 +160,40 @@ The forum homepage shell SHALL update the central post feed when the user select
 
 - **WHEN** the user selects a tag rendered on a post summary card in the central feed
 - **THEN** the client SHALL apply the same `tag` query parameter update and list refresh behavior as when selecting a hot tag in the right column
+
+### Requirement: Homepage announcements module uses forum announcements API
+
+The forum homepage shell SHALL load right-column announcement content only from the read-only announcements HTTP contract defined in `forum-content-api` (`GET /api/forum/announcements`), including loading, empty, and failure states consistent with other right-column modules.
+
+#### Scenario: Announcements success and empty states
+
+- **WHEN** the announcements request succeeds with one or more items
+- **THEN** the announcement module SHALL render each item using fields returned by that API
+- **WHEN** the announcements request succeeds with an empty list
+- **THEN** the announcement module SHALL show an empty state distinct from loading and distinct from request failure
+
+#### Scenario: Announcements request failure
+
+- **WHEN** the announcements request fails
+- **THEN** the announcement module SHALL show a failure state distinguishable from loading and from an empty successful list
+
+### Requirement: Homepage hot content module uses hot post list contract
+
+The forum homepage shell SHALL load right-column hot post summaries from `GET /api/forum/posts` using `sort=hot` and the same board scope as the central feed list uses for `boardId`. The client SHALL request the sidebar hot list with `page=1` and `pageSize=8` (not exceeding the server list maximum of 50). Each rendered hot item SHALL use the same post summary field contract as feed cards where applicable.
+
+#### Scenario: Hot content aligns with board scope
+
+- **WHEN** the user views the homepage or changes the selected entry in the left classification area
+- **THEN** the client SHALL request hot posts using the same `boardId` query parameter semantics as the central feed list
+- **AND** the client SHALL include `sort=hot` on that request
+- **AND** the client SHALL use `page=1` and `pageSize=8` for that sidebar request
+
+#### Scenario: Hot content empty data
+
+- **WHEN** the hot posts request succeeds with an empty list of items
+- **THEN** the hot content module SHALL show an empty state distinct from loading and distinct from request failure
+
+#### Scenario: Hot content request failure
+
+- **WHEN** the hot posts request fails
+- **THEN** the hot content module SHALL show a failure state distinguishable from loading and from an empty successful list

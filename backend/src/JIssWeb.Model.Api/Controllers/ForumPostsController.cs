@@ -91,11 +91,28 @@ public class ForumPostsController : ControllerBase
             ? FilterDefinition<ForumPostRecord>.Empty
             : Builders<ForumPostRecord>.Filter.And(parts);
 
+        string? sortMode = null;
+        if (Request.Query.TryGetValue("sort", out var sortVals))
+        {
+            var st = sortVals.ToString().Trim();
+            if (st.Length > 0)
+            {
+                if (!string.Equals(st, "latest", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(st, "hot", StringComparison.OrdinalIgnoreCase))
+                    return BadRequest(ApiResult<PagedPostsDto>.Fail("排序参数无效", "INVALID_SORT"));
+                sortMode = string.Equals(st, "hot", StringComparison.OrdinalIgnoreCase) ? "hot" : "latest";
+            }
+        }
+
+        var useHotSort = searchFilter is null && sortMode == "hot";
+
         Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
 
         var total = await _posts.CountDocumentsAsync(filter);
-        var items = await _posts.Find(filter)
-            .SortByDescending(x => x.CreatedAtUtc)
+        var find = _posts.Find(filter);
+        var sortDef = BuildPostListSortDefinition(useHotSort);
+        var items = await find
+            .Sort(sortDef)
             .Skip((page - 1) * pageSize)
             .Limit(pageSize)
             .ToListAsync();
@@ -319,6 +336,16 @@ public class ForumPostsController : ControllerBase
             Builders<ForumPostRecord>.Filter.Regex(titleField, rx),
             Builders<ForumPostRecord>.Filter.Regex(authorField, rx));
     }
+
+    private static SortDefinition<ForumPostRecord> BuildPostListSortDefinition(bool useHotSort) =>
+        useHotSort
+            ? Builders<ForumPostRecord>.Sort
+                .Descending(x => x.LikeCount)
+                .Descending(x => x.CommentCount)
+                .Descending(x => x.ViewCount)
+                .Descending(x => x.CreatedAtUtc)
+                .Ascending(x => x.Id)
+            : Builders<ForumPostRecord>.Sort.Descending(x => x.CreatedAtUtc);
 
     private const int MaxTagCount = 10;
     private const int MaxTagLength = 32;

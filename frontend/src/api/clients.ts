@@ -286,17 +286,35 @@ export async function getForumBoards() {
   return data
 }
 
+export interface ForumAnnouncementItem {
+  id: string
+  title: string
+  summary?: string
+  linkUrl?: string
+  publishedAtUtc: string
+  pinned?: boolean
+}
+
+export async function getForumAnnouncements(limit = 5) {
+  const { data } = await modelApi.get<ApiResult<ForumAnnouncementItem[]>>('/forum/announcements', {
+    params: { limit },
+  })
+  return data
+}
+
 export async function listForumPosts(
   page = 1,
   pageSize = 20,
   boardId?: string,
   q?: string,
   tag?: string,
+  sort?: 'latest' | 'hot',
 ) {
   const params: Record<string, string | number> = { page, pageSize }
   if (boardId) params.boardId = boardId
   if (q !== undefined && q !== '') params.q = q
   if (tag !== undefined && tag !== '') params.tag = tag
+  if (sort === 'hot') params.sort = 'hot'
   const { data } = await modelApi.get<ApiResult<PagedForumPosts>>('/forum/posts', {
     params,
     headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },

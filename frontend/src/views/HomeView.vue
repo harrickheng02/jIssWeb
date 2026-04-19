@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useForumBoards } from '@/composables/useForumBoards'
@@ -8,6 +8,15 @@ import { useForumHomeFeed } from '@/composables/useForumHomeFeed'
 import { useForumPopularTags } from '@/composables/useForumPopularTags'
 import { useAuthStore } from '@/stores/auth'
 import ForumPostListCard from '@/components/forum/ForumPostListCard.vue'
+import {
+  getForumAnnouncements,
+  listForumPosts,
+  type ForumAnnouncementItem,
+  type ForumPostListItem,
+} from '@/api/clients'
+
+/** Right-column hot list: `forum-homepage-shell` requires page=1 and pageSize=8. */
+const hotSidebarPageSize = 8
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -43,7 +52,7 @@ const {
   prevPage,
   nextPage,
   applyPostListPatch,
-} = useForumHomeFeed(activeSidebar, { onActiveSidebarChange: () => void loadPopularTags() })
+} = useForumHomeFeed(activeSidebar, activeFilter, { onActiveSidebarChange: () => void loadPopularTags() })
 
 function getDefaultComposeBoardId() {
   if (forumBoards.value.some((b) => b.id === 'general')) return 'general'
@@ -67,13 +76,63 @@ const {
 
 const isAuthed = computed(() => Boolean(auth.token))
 
-const hotPosts = [
-  '新人报道区要不要单独放在顶部？',
-  '论坛帖子摘要长度控制在多少最合适',
-  '匿名发帖对社区氛围到底是利还是弊',
-  '热榜按点赞还是互动总量排序',
-  '移动端单列后右侧信息怎么安置',
-]
+const hotSidebarPosts = ref<ForumPostListItem[]>([])
+const hotSidebarLoading = ref(false)
+const hotSidebarError = ref<string | null>(null)
+
+const announcements = ref<ForumAnnouncementItem[]>([])
+const annLoading = ref(false)
+const annError = ref<string | null>(null)
+
+async function loadHotSidebar() {
+  hotSidebarLoading.value = true
+  hotSidebarError.value = null
+  try {
+    const res = await listForumPosts(1, hotSidebarPageSize, boardIdQueryParam(), undefined, undefined, 'hot')
+    if (!res.success || !res.data) {
+      hotSidebarError.value = res.message ?? '加载失败'
+      hotSidebarPosts.value = []
+      return
+    }
+    hotSidebarPosts.value = res.data.items
+  } catch (e) {
+    hotSidebarError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
+    hotSidebarPosts.value = []
+  } finally {
+    hotSidebarLoading.value = false
+  }
+}
+
+async function loadAnnouncements() {
+  annLoading.value = true
+  annError.value = null
+  try {
+    const res = await getForumAnnouncements(5)
+    if (!res.success || !res.data) {
+      annError.value = res.message ?? '加载失败'
+      announcements.value = []
+      return
+    }
+    announcements.value = res.data
+  } catch (e) {
+    annError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
+    announcements.value = []
+  } finally {
+    annLoading.value = false
+  }
+}
+
+function openAnnouncement(a: ForumAnnouncementItem) {
+  const u = a.linkUrl?.trim()
+  if (!u) return
+  if (/^https?:\/\//i.test(u)) {
+    window.open(u, '_blank', 'noopener,noreferrer')
+    return
+  }
+  if (u.startsWith('/')) {
+    void router.push(u)
+  }
+}
 
 function handleCreatePost() {
   if (!isAuthed.value) {
@@ -91,9 +150,15 @@ function handleOpenPlaceholder(name: string) {
   ElMessage.info(`${name}页面开发中`)
 }
 
+watch(activeSidebar, () => {
+  void loadHotSidebar()
+})
+
 onMounted(() => {
   void loadForumBoards().finally(() => {
     void loadPopularTags()
+    void loadHotSidebar()
+    void loadAnnouncements()
   })
 })
 </script>
@@ -220,15 +285,18 @@ onMounted(() => {
       <aside class="right-panel">
         <el-card shadow="never">
           <template #header>热门内容</template>
-          <div class="hot-list">
+          <el-skeleton v-if="hotSidebarLoading" :rows="4" animated />
+          <div v-else-if="hotSidebarError" class="list-error">{{ hotSidebarError }}</div>
+          <div v-else-if="!hotSidebarPosts.length" class="list-empty">暂无热门帖子</div>
+          <div v-else class="hot-list">
             <el-link
-              v-for="item in hotPosts"
-              :key="item"
+              v-for="post in hotSidebarPosts"
+              :key="post.id"
               :underline="false"
               class="hot-item"
-              @click="handleOpenPlaceholder('热门帖子')"
+              @click="goPost(post.id)"
             >
-              {{ item }}
+              {{ post.title }}
             </el-link>
           </div>
         </el-card>
@@ -253,7 +321,23 @@ onMounted(() => {
 
         <el-card shadow="never">
           <template #header>公告</template>
-          <div class="notice-text">帖子列表与详情已接入论坛 API；互动与搜索等功能将陆续上线。</div>
+          <el-skeleton v-if="annLoading" :rows="2" animated />
+          <div v-else-if="annError" class="list-error">{{ annError }}</div>
+          <div v-else-if="!announcements.length" class="list-empty">暂无公告</div>
+          <div v-else class="notice-list">
+            <div v-for="a in announcements" :key="a.id" class="notice-item">
+              <el-link
+                v-if="a.linkUrl?.trim()"
+                type="primary"
+                :underline="false"
+                @click.stop="openAnnouncement(a)"
+              >
+                {{ a.title }}
+              </el-link>
+              <span v-else class="notice-title-static">{{ a.title }}</span>
+              <div v-if="a.summary" class="notice-summary">{{ a.summary }}</div>
+            </div>
+          </div>
         </el-card>
       </aside>
     </main>
@@ -385,7 +469,26 @@ onMounted(() => {
   gap: var(--space-md);
 }
 
-.notice-text {
+.notice-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.notice-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.notice-title-static {
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  line-height: var(--line-height);
+}
+
+.notice-summary {
   color: var(--text-secondary);
   font-size: var(--font-xs);
   line-height: var(--line-height);

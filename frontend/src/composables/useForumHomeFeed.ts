@@ -9,7 +9,11 @@ export type ForumHomeFeedOptions = {
   onActiveSidebarChange?: () => void
 }
 
-export function useForumHomeFeed(activeSidebar: Ref<string>, options?: ForumHomeFeedOptions) {
+export function useForumHomeFeed(
+  activeSidebar: Ref<string>,
+  feedSort: Ref<'latest' | 'hot' | 'featured'>,
+  options?: ForumHomeFeedOptions,
+) {
   const router = useRouter()
   const route = useRoute()
   const postList = ref<ForumPostListItem[]>([])
@@ -37,12 +41,14 @@ export function useForumHomeFeed(activeSidebar: Ref<string>, options?: ForumHome
     try {
       const qResolved = firstQueryString(route.query.q)
       const q = qResolved || undefined
+      const sortParam: 'hot' | undefined = feedSort.value === 'hot' ? 'hot' : undefined
       const res = await listForumPosts(
         page.value,
         pageSize.value,
         listBoardIdParam(),
         q,
         tagFilterValue.value,
+        sortParam,
       )
       if (!res.success || !res.data) {
         listError.value = res.message ?? '加载失败'
@@ -106,7 +112,7 @@ export function useForumHomeFeed(activeSidebar: Ref<string>, options?: ForumHome
   })
 
   watch(
-    [page, activeSidebar, searchQuery, tagFilterValue],
+    [page, activeSidebar, searchQuery, tagFilterValue, feedSort],
     () => {
       void fetchPosts()
     },
