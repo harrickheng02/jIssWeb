@@ -1,5 +1,6 @@
 # 复制 .env.example 为 .env 并填写全部变量；docker compose 从 .env 加载
 # 仅起数据库与缓存：docker compose up -d mongo redis
+# 论坛版主：user-api / model-api 镜像内 appsettings.json 须含同一套 Forum:Moderation（与登录用户 JWT sub 一致），且 Jwt__Key 与签发 token 时一致；勿向容器注入空的 Forum__ 环境变量以免覆盖镜像配置。
 services:
   mongo:
     image: mongo:${MONGO_TAG:-7.0}

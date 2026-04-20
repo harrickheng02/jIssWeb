@@ -49,7 +49,7 @@ Any endpoint that returns resources filtered to the authenticated caller's owner
 
 ### Requirement: Global forum role claim
 
-Forum-related authorization SHALL use a single string claim named `forumRole` on the access token. Allowed values are exactly `member`, `moderator`, or `admin`. The claim represents a **global** forum role for the installation (no per-board scope in this requirement). User identity remains the `sub` claim; `forumRole` SHALL NOT replace `sub` as the user primary key.
+Forum-related authorization SHALL use a single string claim named `forumRole` on the access token. Allowed values are exactly `member`, `moderator`, or `admin`. User identity remains the `sub` claim; `forumRole` SHALL NOT replace `sub` as the user primary key. Per-board scope for moderators is carried in `forumBoardIds` (see below).
 
 #### Scenario: Valid forumRole values are accepted for parsing
 
@@ -65,3 +65,17 @@ Forum-related authorization SHALL use a single string claim named `forumRole` on
 
 - **WHEN** a validated access token includes `forumRole` with a value other than `member`, `moderator`, or `admin`
 - **THEN** the resource service SHALL reject the request with HTTP 401
+
+### Requirement: Moderator board scope claim
+
+When `forumRole` is `moderator`, the user-service SHALL issue a claim `forumBoardIds` with value a JSON array of board id strings (same ids as `Forum:Boards[].Id` on model-service, e.g. `["general","tech"]`). Configuration source on user-service is `Forum:Moderation:Moderators`. Model-service prefers a non-empty `forumBoardIds` list from the token; it MAY use model-service `Forum:Moderation:Moderators` when the claim is absent (legacy tokens) or when the claim is an empty array (transition / duplicate configuration).
+
+#### Scenario: Invalid forumBoardIds rejects the request
+
+- **WHEN** a validated access token has `forumRole` `moderator` and includes `forumBoardIds` that is not a JSON array of strings
+- **THEN** the resource service SHALL reject the request with HTTP 401
+
+#### Scenario: Admin omits board list
+
+- **WHEN** `forumRole` is `admin`
+- **THEN** `forumBoardIds` MAY be omitted

@@ -73,7 +73,7 @@ public class ModAuditController : ControllerBase
             var post = await _posts.Find(x => x.Id == tid).FirstOrDefaultAsync(ct);
             if (post is not null)
             {
-                if (!_access.CanModeratePostAsModerator(sub, post))
+                if (!_access.CanModeratePostAsModerator(User, sub, post))
                     return StatusCode(StatusCodes.Status403Forbidden, ApiResult<PagedAuditDto>.Fail("无权操作该帖子", "FORBIDDEN"));
             }
             else
@@ -86,12 +86,12 @@ public class ModAuditController : ControllerBase
 
                 if (TryGetBoardIdFromAuditMetadata(sample, out var boardIdFromAudit) && !string.IsNullOrEmpty(boardIdFromAudit))
                 {
-                    if (!_access.CanModerateBoardIdAsModerator(sub, boardIdFromAudit!))
+                    if (!_access.CanModerateBoardIdAsModerator(User, sub, boardIdFromAudit!))
                         return StatusCode(StatusCodes.Status403Forbidden, ApiResult<PagedAuditDto>.Fail("无权操作该帖子", "FORBIDDEN"));
                 }
                 else if (TryGetBoardTitleFromAuditMetadata(sample, out var boardFromAudit) && !string.IsNullOrEmpty(boardFromAudit))
                 {
-                    if (!_access.CanModerateBoardTitleAsModerator(sub, boardFromAudit!))
+                    if (!_access.CanModerateBoardTitleAsModerator(User, sub, boardFromAudit!))
                         return StatusCode(StatusCodes.Status403Forbidden, ApiResult<PagedAuditDto>.Fail("无权操作该帖子", "FORBIDDEN"));
                 }
                 else

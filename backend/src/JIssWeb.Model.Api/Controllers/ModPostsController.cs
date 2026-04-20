@@ -55,7 +55,7 @@ public class ModPostsController : ControllerBase
         var role = User.GetForumPrincipalRole();
         if (role == ForumPrincipalRole.Moderator)
         {
-            if (!_access.CanModeratePostAsModerator(sub, post))
+            if (!_access.CanModeratePostAsModerator(User, sub, post))
                 return StatusCode(StatusCodes.Status403Forbidden, ApiResult<SetStickyResultDto>.Fail("无权操作该帖子", "FORBIDDEN"));
         }
 

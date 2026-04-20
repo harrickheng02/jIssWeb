@@ -509,14 +509,21 @@ public class AuthController : ControllerBase
         var now = DateTime.UtcNow;
         var expiresAt = now.Add(AccessTokenTtl);
         var forumRole = ResolveEffectiveForumRole(user);
-        var claims = new[]
+        var claims = new List<System.Security.Claims.Claim>
         {
-            new System.Security.Claims.Claim("sub", user.Id),
-            new System.Security.Claims.Claim("userId", user.Id),
-            new System.Security.Claims.Claim("email", user.Email),
-            new System.Security.Claims.Claim("emailVerified", "true"),
-            new System.Security.Claims.Claim(ForumRoleClaim.Name, forumRole)
+            new("sub", user.Id),
+            new("userId", user.Id),
+            new("email", user.Email),
+            new("emailVerified", "true"),
+            new(ForumRoleClaim.Name, forumRole),
         };
+        // Only embed board scope when non-empty so model-service can fall back to Forum:Moderation (e.g. Docker env) when absent.
+        if (string.Equals(forumRole, ForumRoleClaim.Moderator, StringComparison.Ordinal))
+        {
+            var boardIds = ResolveModeratorBoardIdsForToken(user);
+            if (boardIds.Count > 0)
+                claims.Add(new System.Security.Claims.Claim(ForumBoardIdsClaim.Name, ForumBoardIdsClaimJson.Serialize(boardIds)));
+        }
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var token = new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(
@@ -533,12 +540,34 @@ public class AuthController : ControllerBase
     {
         if (_forum.RoleOverrides.TryGetValue(user.Id, out var mapped))
         {
+            var adminOrNull = NormalizeForumRoleOrNull(mapped);
+            if (adminOrNull == ForumRoleClaim.Admin)
+                return ForumRoleClaim.Admin;
+        }
+
+        var asModeratorEntry = _forum.Moderation.Moderators
+            .FirstOrDefault(x => string.Equals((x.Sub ?? "").Trim(), user.Id.Trim(), StringComparison.Ordinal));
+        if (asModeratorEntry is not null)
+            return ForumRoleClaim.Moderator;
+
+        if (_forum.RoleOverrides.TryGetValue(user.Id, out mapped))
+        {
             var fromMap = NormalizeForumRoleOrNull(mapped);
             if (fromMap is not null)
                 return fromMap;
         }
 
         return NormalizeForumRoleOrNull(user.ForumRole) ?? ForumRoleClaim.Member;
+    }
+
+    /// <summary>Board ids stored in JWT <see cref="ForumBoardIdsClaim"/>; same scope model-service uses when the claim is non-empty.</summary>
+    private IReadOnlyList<string> ResolveModeratorBoardIdsForToken(UserAccount user)
+    {
+        var entry = _forum.Moderation.Moderators
+            .FirstOrDefault(x => string.Equals((x.Sub ?? "").Trim(), user.Id.Trim(), StringComparison.Ordinal));
+        if (entry?.BoardIds is { Count: > 0 })
+            return entry.BoardIds;
+        return Array.Empty<string>();
     }
 
     private static string? NormalizeForumRoleOrNull(string? value)

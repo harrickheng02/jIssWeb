@@ -51,7 +51,7 @@
 - **响应体为 `无权访问`、code `FORBIDDEN`**：JWT 已签发，但 **`forumRole` 不是 moderator/admin**（治理路由被 `RequireForumModerator` 拒绝）。
 - **响应体为 `无权操作该帖子`、code `FORBIDDEN`**：角色已是版主，但 **该帖所在版块不在** `Forum:Moderation:Moderators` 里为你的 `sub` 配置的 **`boardIds`** 范围内。
 
-管理员账号不受版区列表限制；版主需同时配置 **User.Api** 的 `Forum:RoleOverrides` 与 **Model.Api** 的 `Forum:Moderation:Moderators`。
+管理员账号不受版区列表限制。版主版区范围以 **User.Api** `Forum:Moderation:Moderators` 为准签发 **JWT `forumBoardIds`**（非空时写入 token）；**Model.Api** 同路径配置用于 token 无该 claim、或 **Docker / 仅用 RoleOverrides.moderator** 时的兜底。仓库默认两份 `appsettings.json` 已与示例 **sub** 对齐；若仍 403：**核对当前账号 JWT 里 `sub` 与配置是否一致**、帖子的 **`Forum:Boards` 板块 id** 是否在 `boardIds` 内、**各服务 `Jwt:Key` 是否与签发 token 时一致**、改配置后 **重新登录** 换发 access token。
 
 ### 7) 审计与删帖（版主读「操作记录」）
 

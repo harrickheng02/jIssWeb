@@ -99,6 +99,17 @@ public static class WebApiHostExtensions
                                 context.Fail("invalid_token_forum_role");
                                 return Task.CompletedTask;
                             }
+
+                            if (fr == ForumRoleClaim.Moderator)
+                            {
+                                var rawBoards = context.Principal?.FindFirst(ForumBoardIdsClaim.Name)?.Value;
+                                if (rawBoards is not null && !ForumBoardIdsClaimJson.TryDeserialize(rawBoards, out _))
+                                {
+                                    logger.LogWarning("JWT invalid forumBoardIds claim");
+                                    context.Fail("invalid_token_forum_board_ids");
+                                    return Task.CompletedTask;
+                                }
+                            }
                         }
 
                         return Task.CompletedTask;
