@@ -88,7 +88,7 @@ modules:
   - name: 个人中心
     description: 我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；个人资料能力并入个人中心，与现有 Profile 能力合并演进
   - name: 治理与审核
-    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT（或等价）可机读声明为前提（见 pm-plan Issue「论坛角色与 JWT 声明最小集」与 openspec/token-identity-consistency）
+    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、`openspec/specs/token-identity-consistency`）。版主对帖子的置顶与操作记录最小集已交付（Issue #7 closed），本模块按子 Issue 持续扩展锁帖/精华/批量与审计深化等能力。
   - name: 运营与公告
     description: 公告位、活动 Banner（与首页右侧公告模块衔接）
   - name: 平台与基础设施
@@ -225,8 +225,29 @@ issues:
       - 操作审计字段可核验（操作者 sub、目标帖子、时间）；非法或未授权请求有明确错误码。
       依赖：Issue #17（论坛角色与 JWT 声明最小集，本 Issue 依赖可机读角色）；论坛领域首组 API 与版区数据模型；openspec/specs/token-identity-consistency。
       非目标：完整 RBAC 中台、跨版区批量脚本、工单流。
+      交付确认（最小集范围）：
+      - 后端：Model.Api `POST /api/mod/posts/{postId}/sticky`；`GET /api/mod/audit`（版主按帖/版区授权，删帖后依审计元数据 `boardId`/`board` 判权）；审计元数据含 `board`、`boardId`（由 `Forum:Boards` 解析）；网关转发 `/api/mod/**` 至 model-service；User.Api JWT 含 `forumRole`，版主范围 `Forum:Moderation:Moderators`（按 `sub` + `boardIds`）。搜索带 `q` 时列表排序不按置顶插队（与 `forum-post-search` 一致）。
+      - 前端：帖子详情置顶操作、操作记录（人读 `actionLabel` + 昵称）、版主导航与治理说明入口；规范见 `openspec/specs/forum-moderation-post-ops`、`openspec/specs/forum-moderation-sticky-ui`。
+      - 测试：`JIssWeb.Model.Api.Tests` 集成测试覆盖版主范围、删帖后审计、旧审计仅 `board` 等路径。
+      - OpenSpec 归档参考：`openspec/changes/archive/2026-04-20-m3-moderation-post-sticky-minset/`、`2026-04-20-frontend-moderation-sticky-ui-minset/`、`2026-04-20-forum-jwt-role-claims/`。
+      后续大块能力见新开 Issue「版主治理与帖子操作后台持续建设」（本仓库 pm-plan `issue_number: 18`）。
     milestone: M3 — 治理与增长
     issue_number: 7
+    priority: 主要
+    state: closed
+    module: 治理与审核
+    classification: feature
+  - title: 版主治理与帖子操作后台持续建设
+    body: |
+      定位：在 Issue #7 已交付的置顶、审计列表与前端最小集之上，**长期迭代**的版主治理轨道；具体交付以拆分子 Issue / OpenSpec change 为准。
+      验收标准（方向性，逐项子 Issue 收紧）：
+      - 扩展帖子治理动作（如锁帖、加精/取消精华、沉帖等）中与现有 JWT、`Forum:Moderation:Moderators` 版区范围一致；状态在列表与详情可反映；审计与列表查询可联调。
+      - 审计与操作台能力深化：筛选分页、导出或运营视图（择一或多）、与举报/工单（Issue #4）链路的衔接说明或占位。
+      - 前端：版主操作台信息架构与可用性随动作增加持续迭代（路由、`forum-moderation-sticky-ui` / `forum-moderation-post-ops` 规范增补）。
+      依赖：`openspec/specs/forum-moderation-post-ops`、`openspec/specs/forum-moderation-sticky-ui`、Issue #17 closed、Issue #7 closed；与 Issue #4（举报闭环）可并行规划接口边界。
+      非目标：完整 RBAC/权限中台、跨租户隔离、工单流引擎（与同里程碑 `meta.deferred_scope` 中 Issue #7 条一致，若交付则单独立项）。
+    milestone: M3 — 治理与增长
+    issue_number: 18
     priority: 主要
     state: open
     module: 治理与审核
