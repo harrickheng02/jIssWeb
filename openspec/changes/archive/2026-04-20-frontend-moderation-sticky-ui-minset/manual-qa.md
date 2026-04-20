@@ -51,5 +51,11 @@
 - **响应体为 `无权访问`、code `FORBIDDEN`**：JWT 已签发，但 **`forumRole` 不是 moderator/admin**（治理路由被 `RequireForumModerator` 拒绝）。
 - **响应体为 `无权操作该帖子`、code `FORBIDDEN`**：角色已是版主，但 **该帖所在版块不在** `Forum:Moderation:Moderators` 里为你的 `sub` 配置的 **`boardIds`** 范围内。
 
-管理员账号不受版区列表限制；版主需同时配置 **User.Api** 的 `Forum:RoleOverrides` 与 **Model.Api** 的 `Forum:Moderation:Moderators`。
+管理员账号不受版区列表限制。版主版区范围以 **User.Api** `Forum:Moderation:Moderators` 为准签发 **JWT `forumBoardIds`**（非空时写入 token）；**Model.Api** 同路径配置用于 token 无该 claim、或 **Docker / 仅用 RoleOverrides.moderator** 时的兜底。仓库默认两份 `appsettings.json` 已与示例 **sub** 对齐；若仍 403：**核对当前账号 JWT 里 `sub` 与配置是否一致**、帖子的 **`Forum:Boards` 板块 id** 是否在 `boardIds` 内、**各服务 `Jwt:Key` 是否与签发 token 时一致**、改配置后 **重新登录** 换发 access token。
 
+### 7) 审计与删帖（版主读「操作记录」）
+
+- 新产生的置顶审计会在元数据里写入 **`boardId`**（稳定 id，与 `Moderators[].boardIds` 一致）以及展示用 **`board`**（板块标题）。
+- **帖子已物理删除**、仅余审计时：版主是否允许拉取列表，以审计里的 **`boardId` 优先**判定；仅旧数据没有 `boardId` 时，才回退用 **`board` 标题** 与配置做匹配。
+- 若旧审计**既无 `boardId` 也无法匹配标题**（或缺少元数据），版主可能收到 **404**，属预期；必要时补数据或重新触发一条带完整元数据的治理操作。
+- **`Forum:Boards` 里若出现重复 `Title`（忽略大小写）**：Model.Api 启动校验会打 **Warning** 日志，提示 `ResolveBoardIdFromTitle` 只会命中列表中的第一条；生产配置应保持各板块标题唯一。

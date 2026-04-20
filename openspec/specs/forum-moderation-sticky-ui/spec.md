@@ -1,7 +1,8 @@
 # forum-moderation-sticky-ui Specification
 
 ## Purpose
-TBD - created by archiving change frontend-moderation-sticky-ui-minset. Update Purpose after archive.
+
+版主帖子详情置顶/操作记录等前端行为与后端 `POST /api/mod/posts/{postId}/sticky` 等对齐。手工验收步骤见归档：`openspec/changes/archive/2026-04-20-frontend-moderation-sticky-ui-minset/manual-qa.md`。
 ## Requirements
 ### Requirement: Frontend derives effective forum role from JWT
 The frontend SHALL derive an effective forum role from the access token claim `forumRole` for use in UI gating of moderation controls.
