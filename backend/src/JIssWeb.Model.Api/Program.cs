@@ -7,6 +7,8 @@ using JIssWeb.Model.Api.Middleware;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
 using JIssWeb.Model.Api.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -14,12 +16,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 builder.UseJIssWebHttpPort(5099);
 
-builder.Services.Configure<ForumBoardsOptions>(builder.Configuration.GetSection(ForumBoardsOptions.SectionName));
-builder.Services.PostConfigure<ForumBoardsOptions>(o => o.Boards ??= new());
+builder.Services.AddOptions<ForumBoardsOptions>()
+    .Bind(builder.Configuration.GetSection(ForumBoardsOptions.SectionName))
+    .PostConfigure(o => o.Boards ??= new())
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<ForumBoardsOptions>, ForumBoardsDuplicateTitleValidator>();
+builder.Services.Configure<ForumModerationOptions>(builder.Configuration.GetSection(ForumModerationOptions.SectionName));
+builder.Services.PostConfigure<ForumModerationOptions>(o => o.Moderators ??= new());
 builder.Services.Configure<ForumSearchRateLimitOptions>(builder.Configuration.GetSection(ForumSearchRateLimitOptions.SectionName));
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection(RedisSettings.SectionName));
 builder.Services.AddSingleton<ForumSearchIpRateLimiter>();
 builder.Services.AddScoped<ForumAuthorDisplayResolver>();
+builder.Services.AddSingleton<ForumModerationAccessService>();
 builder.Services.AddSingleton<ForumEngagementLikeCountCache>(sp =>
 {
     var redisOpts = sp.GetRequiredService<IOptions<RedisSettings>>();
@@ -60,6 +68,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandling();
 app.UseCors();
+if (!app.Environment.IsDevelopment())
+{
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api/forum/__debug"))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        await next();
+    });
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ForumSearchRateLimitMiddleware>();

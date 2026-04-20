@@ -74,7 +74,7 @@ modules:
       换票）；登录/注册页合规入口与路由守卫；找回密码（邮箱重置）已交付；第三方登录仅前端占位；登录错误码与限流以 user-service 为准；身份 claims（sub）与 Profile/论坛内容作者 ID 的对齐见
       openspec/specs/token-identity-consistency，与帖子与回复、个人中心协同定义。
   - name: 论坛壳与导航
-    description: 全局顶栏、版区/分类入口、主题切换、统一发帖入口（与首页壳衔接）
+    description: 全局顶栏、版区/分类入口、主题切换、统一发帖入口（与首页壳衔接）；个人资料入口收纳入个人中心导航，头像悬浮窗不展示个人资料入口
   - name: 帖子与回复
     description: 发帖、正文与附件策略、楼层回复、编辑删除、草稿
   - name: 互动与声望
@@ -86,7 +86,7 @@ modules:
   - name: 消息与通知
     description: 回复提醒、@、系统通知；可选站内信
   - name: 个人中心
-    description: 资料、我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；与现有 Profile 能力合并演进
+    description: 我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；个人资料能力并入个人中心，与现有 Profile 能力合并演进
   - name: 治理与审核
     description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT（或等价）可机读声明为前提（见 pm-plan Issue「论坛角色与 JWT 声明最小集」与 openspec/token-identity-consistency）
   - name: 运营与公告
@@ -176,7 +176,7 @@ issues:
     milestone: M3 — 治理与增长
     issue_number: 17
     priority: 主要
-    state: open
+    state: closed
     module: 治理与审核
     classification: feature
   - title: 论坛举报与处理最小闭环

@@ -91,7 +91,7 @@ async function remove(row: CustomerRecord) {
     <template v-else>
       <div class="toolbar">
         <el-button type="primary" @click="openCreate">新建客档</el-button>
-        <router-link class="link" to="/profile">个人资料</router-link>
+        <router-link class="link" to="/me/profile">个人资料</router-link>
         <router-link class="link" to="/">返回首页</router-link>
       </div>
       <el-table v-loading="loading" :data="list" stripe>

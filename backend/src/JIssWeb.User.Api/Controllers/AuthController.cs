@@ -4,8 +4,10 @@ using System.Text.RegularExpressions;
 using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
+using JIssWeb.Common.Security;
 using JIssWeb.User.Api;
 using JIssWeb.User.Api.Models;
+using JIssWeb.User.Api.Options;
 using JIssWeb.User.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -39,6 +41,7 @@ public class AuthController : ControllerBase
     private readonly IVerificationEmailSender _emailSender;
     private readonly ILogger<AuthController> _logger;
     private readonly IMongoCollection<ProfileRecordDoc>? _customerProfiles;
+    private readonly ForumOptions _forum;
 
     public AuthController(
         IOptions<JwtSettings> jwtOptions,
@@ -47,6 +50,7 @@ public class AuthController : ControllerBase
         IOptions<EmailVerificationSettings> emailVerificationOptions,
         IOptions<PasswordResetSettings> passwordResetOptions,
         IOptions<LoginSecuritySettings> loginSecurityOptions,
+        IOptions<ForumOptions> forumOptions,
         IMongoClient mongoClient,
         IConnectionMultiplexer redis,
         IVerificationEmailSender emailSender,
@@ -57,6 +61,7 @@ public class AuthController : ControllerBase
         _emailVerification = emailVerificationOptions.Value;
         _passwordReset = passwordResetOptions.Value;
         _loginSecurity = loginSecurityOptions.Value;
+        _forum = forumOptions.Value;
         var database = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _users = database.GetCollection<UserAccount>("users");
         _refreshSessions = database.GetCollection<RefreshSession>("refresh_sessions");
@@ -503,12 +508,14 @@ public class AuthController : ControllerBase
     {
         var now = DateTime.UtcNow;
         var expiresAt = now.Add(AccessTokenTtl);
+        var forumRole = ResolveEffectiveForumRole(user);
         var claims = new[]
         {
             new System.Security.Claims.Claim("sub", user.Id),
             new System.Security.Claims.Claim("userId", user.Id),
             new System.Security.Claims.Claim("email", user.Email),
-            new System.Security.Claims.Claim("emailVerified", "true")
+            new System.Security.Claims.Claim("emailVerified", "true"),
+            new System.Security.Claims.Claim(ForumRoleClaim.Name, forumRole)
         };
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -520,6 +527,30 @@ public class AuthController : ControllerBase
             expires: expiresAt,
             signingCredentials: creds);
         return (new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(token), expiresAt);
+    }
+
+    private string ResolveEffectiveForumRole(UserAccount user)
+    {
+        if (_forum.RoleOverrides.TryGetValue(user.Id, out var mapped))
+        {
+            var fromMap = NormalizeForumRoleOrNull(mapped);
+            if (fromMap is not null)
+                return fromMap;
+        }
+
+        return NormalizeForumRoleOrNull(user.ForumRole) ?? ForumRoleClaim.Member;
+    }
+
+    private static string? NormalizeForumRoleOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        var v = value.Trim().ToLowerInvariant();
+        return v switch
+        {
+            ForumRoleClaim.Member or ForumRoleClaim.Moderator or ForumRoleClaim.Admin => v,
+            _ => null
+        };
     }
 
     private static string? NormalizeEmail(string? email)
@@ -1038,6 +1069,9 @@ public class UserAccount
     public string PasswordHash { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? EmailVerifiedAtUtc { get; set; }
+
+    /// <summary>Global forum role persisted for the account: member, moderator, or admin.</summary>
+    public string? ForumRole { get; set; }
 }
 
 public class RefreshSession

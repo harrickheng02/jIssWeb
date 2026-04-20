@@ -62,6 +62,14 @@ function handleCreatePost() {
 function handleOpenPlaceholder(name: string) {
   ElMessage.info(`${name}页面开发中`)
 }
+
+function handleNavClick(id: string, label: string) {
+  if (id === 'home') {
+    void router.push('/')
+    return
+  }
+  handleOpenPlaceholder(label)
+}
 </script>
 
 <template>
@@ -75,7 +83,7 @@ function handleOpenPlaceholder(name: string) {
             :key="item.id"
             link
             class="nav-btn"
-            @click="handleOpenPlaceholder(item.label)"
+            @click="handleNavClick(item.id, item.label)"
           >
             {{ item.label }}
           </el-button>

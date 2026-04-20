@@ -1,9 +1,7 @@
 ## Purpose
 
 定义论坛 MVP 最小 HTTP 契约：帖子列表与详情（公开）、发帖与回复（需登录），字段满足首页 Feed 卡片与详情页；身份以 JWT `sub` 为准。
-
 ## Requirements
-
 ### Requirement: Forum posts list endpoint
 
 The system SHALL expose `GET /api/forum/posts` for anonymous clients returning a paginated list of post summaries suitable for homepage feed cards.
@@ -295,3 +293,33 @@ The system SHALL support an optional `sort` query parameter on `GET /api/forum/p
 - **WHEN** a client requests `GET /api/forum/posts` with a valid non-empty keyword query `q` per `forum-post-search` and also sends `sort=hot`
 - **THEN** the response SHALL follow keyword search list behavior and ordering from `forum-post-search`
 - **AND** the `sort` parameter SHALL not alter search result ordering
+
+### Requirement: Posts list and detail include sticky status
+The forum content API SHALL return a sticky status field for posts so that clients can render a sticky marker consistently on list and detail views.
+
+#### Scenario: List item includes sticky status
+- **WHEN** a client requests `GET /api/forum/posts` with valid pagination and without keyword search `q`
+- **THEN** each returned post summary item SHALL include a boolean field representing whether the post is sticky
+
+#### Scenario: Detail includes sticky status
+- **WHEN** a client requests `GET /api/forum/posts/{postId}` for an existing post
+- **THEN** the returned post detail SHALL include a boolean field representing whether the post is sticky
+
+### Requirement: Sticky posts are ordered first on non-search lists
+For non-search post lists, the system SHALL order sticky posts before non-sticky posts, while preserving the existing secondary ordering rule within each group.
+
+#### Scenario: Latest list groups sticky posts first
+- **WHEN** a client requests `GET /api/forum/posts` without `q` and with `sort` omitted or `sort=latest`
+- **THEN** the response SHALL order results by `isSticky` descending first
+- **AND** within the sticky group and within the non-sticky group, the response SHALL follow the existing latest ordering semantics from the base forum content API contract
+
+#### Scenario: Hot list groups sticky posts first
+- **WHEN** a client requests `GET /api/forum/posts` without `q` and with `sort=hot`
+- **THEN** the response SHALL order results by `isSticky` descending first
+- **AND** within the sticky group and within the non-sticky group, the response SHALL follow the hot ordering semantics defined by the base forum content API contract
+
+#### Scenario: Keyword search ordering is unchanged
+- **WHEN** a client requests `GET /api/forum/posts` with a valid non-empty keyword query `q` per `openspec/specs/forum-post-search/spec.md`
+- **THEN** the response SHALL follow the **Search result ordering** requirement in that spec (recency-first; `isSticky` for display only)
+- **AND** the sticky status field SHALL be returned for display without changing search ordering
+

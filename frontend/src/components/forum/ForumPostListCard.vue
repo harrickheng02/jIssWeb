@@ -70,7 +70,10 @@ const favoriteIcon = (): Component => (favorited() ? StarFilled : Star)
 <template>
   <el-card class="post-card" shadow="hover">
     <div class="post-topline">
-      <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
+      <div class="post-topline-left">
+        <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
+        <el-tag v-if="post.isSticky" size="small" type="warning" effect="plain">置顶</el-tag>
+      </div>
       <span class="post-time">{{ formatPublishedUtc(post.publishedAtUtc) }}</span>
     </div>
 
@@ -156,6 +159,13 @@ const favoriteIcon = (): Component => (favorited() ? StarFilled : Star)
 .post-topline {
   justify-content: space-between;
   gap: var(--space-12);
+}
+
+.post-topline-left {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
 }
 
 .post-time {

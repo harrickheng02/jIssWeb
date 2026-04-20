@@ -5,7 +5,9 @@ import { ElMessage } from 'element-plus'
 import {
   createForumReply,
   getForumPost,
+  listModerationAuditByPost,
   listForumReplies,
+  setForumPostSticky,
   type ForumPostDetail,
   type ForumReply,
 } from '@/api/clients'
@@ -21,9 +23,18 @@ const loading = ref(true)
 const replyBody = ref('')
 const submitting = ref(false)
 const highlightedReplyId = ref<string | null>(null)
+const stickyBusy = ref(false)
+
+const auditOpen = ref(false)
+const auditLoading = ref(false)
+const auditError = ref<string | null>(null)
+const auditItems = ref<
+  Array<{ id: string; actionLabel: string; operatorDisplayName: string; occurredAtUtc: string }>
+>([])
 
 const postId = computed(() => String(route.params.id ?? ''))
 const isAuthed = computed(() => Boolean(auth.token))
+const canModerate = computed(() => auth.canModerate)
 const targetReplyId = computed(() => {
   const q = route.query.reply
   return typeof q === 'string' && q.trim() ? q.trim() : null
@@ -124,6 +135,51 @@ async function submitReply() {
   }
 }
 
+async function toggleSticky(nextValue: boolean) {
+  if (!canModerate.value || !post.value) return
+  stickyBusy.value = true
+  try {
+    const res = await setForumPostSticky(postId.value, nextValue)
+    if (!res.success) {
+      ElMessage.error(res.message ?? '操作失败')
+      return
+    }
+    post.value = { ...post.value, isSticky: nextValue }
+    ElMessage.success(nextValue ? '已置顶' : '已取消置顶')
+  } finally {
+    stickyBusy.value = false
+  }
+}
+
+function formatUtc(iso: string) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString('zh-CN')
+}
+
+async function loadAudit() {
+  auditLoading.value = true
+  auditError.value = null
+  auditItems.value = []
+  try {
+    const res = await listModerationAuditByPost(postId.value, 1, 20)
+    if (!res.success || !res.data) {
+      auditError.value = res.message ?? '加载失败'
+      return
+    }
+    auditItems.value = res.data.items.map((x) => ({
+      id: x.id,
+      actionLabel: x.actionLabel?.trim() || '操作',
+      operatorDisplayName: x.operatorDisplayName?.trim() || '用户',
+      occurredAtUtc: x.occurredAtUtc,
+    }))
+  } catch (e) {
+    auditError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
+  } finally {
+    auditLoading.value = false
+  }
+}
+
 onMounted(() => {
   void load()
 })
@@ -145,7 +201,10 @@ watch(
       <template v-else-if="post">
         <el-card shadow="never" class="post-card">
           <div class="post-topline">
-            <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
+            <div class="post-topline-left">
+              <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
+              <el-tag v-if="post.isSticky" size="small" type="warning" effect="plain">置顶</el-tag>
+            </div>
             <span class="post-time">{{ formatPublishedUtc(post.publishedAtUtc) }}</span>
           </div>
           <h1 class="post-title">{{ post.title }}</h1>
@@ -160,6 +219,27 @@ watch(
             <span class="stat-text">赞 {{ post.likes }}</span>
             <span class="stat-text">评 {{ post.comments }}</span>
             <span class="stat-text">看 {{ post.views }}</span>
+          </div>
+
+          <div v-if="canModerate" class="mod-panel">
+            <div class="mod-panel__left">
+              <div class="mod-title">治理</div>
+              <div class="mod-desc">置顶与审计仅对版主/管理员可见。</div>
+            </div>
+            <div class="mod-panel__actions">
+              <el-button
+                v-if="!post.isSticky"
+                type="primary"
+                :loading="stickyBusy"
+                @click="toggleSticky(true)"
+              >
+                置顶
+              </el-button>
+              <el-button v-else type="primary" plain :loading="stickyBusy" @click="toggleSticky(false)">
+                取消置顶
+              </el-button>
+              <el-button type="info" plain @click="(auditOpen = true), loadAudit()">操作记录</el-button>
+            </div>
           </div>
         </el-card>
 
@@ -188,6 +268,21 @@ watch(
         </el-card>
       </template>
     </div>
+
+    <el-drawer v-model="auditOpen" title="操作记录" size="420px" destroy-on-close>
+      <el-skeleton v-if="auditLoading" :rows="6" animated />
+      <div v-else-if="auditError" class="audit-state audit-state--error">{{ auditError }}</div>
+      <div v-else-if="!auditItems.length" class="audit-state">暂无记录</div>
+      <div v-else class="audit-list">
+        <div v-for="item in auditItems" :key="item.id" class="audit-row">
+          <div class="audit-row__top">
+            <el-tag size="small" effect="plain">{{ item.actionLabel }}</el-tag>
+            <span class="audit-time">{{ formatUtc(item.occurredAtUtc) }}</span>
+          </div>
+          <div class="audit-operator">操作者：{{ item.operatorDisplayName }}</div>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -221,6 +316,13 @@ watch(
   justify-content: space-between;
   align-items: center;
   gap: var(--space-12);
+}
+
+.post-topline-left {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
 }
 
 .post-time {
@@ -270,6 +372,86 @@ watch(
 .stat-text {
   color: var(--text-secondary);
   font-size: var(--font-sm);
+}
+
+.mod-panel {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.mod-panel__left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.mod-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.mod-desc {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  line-height: var(--line-height);
+}
+
+.mod-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+
+.audit-state {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: var(--line-height);
+  padding: var(--space-md) 0;
+}
+
+.audit-state--error {
+  color: var(--text-secondary);
+}
+
+.audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.audit-row {
+  padding: var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+
+.audit-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.audit-time {
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+}
+
+.audit-operator {
+  margin-top: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  line-height: var(--line-height);
 }
 
 .reply-row {

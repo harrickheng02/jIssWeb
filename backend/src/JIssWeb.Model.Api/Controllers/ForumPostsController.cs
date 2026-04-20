@@ -105,12 +105,13 @@ public class ForumPostsController : ControllerBase
         }
 
         var useHotSort = searchFilter is null && sortMode == "hot";
+        var keywordSearchActive = searchFilter is not null;
 
         Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
 
         var total = await _posts.CountDocumentsAsync(filter);
         var find = _posts.Find(filter);
-        var sortDef = BuildPostListSortDefinition(useHotSort);
+        var sortDef = BuildPostListSortDefinition(useHotSort, keywordSearchActive);
         var items = await find
             .Sort(sortDef)
             .Skip((page - 1) * pageSize)
@@ -337,15 +338,30 @@ public class ForumPostsController : ControllerBase
             Builders<ForumPostRecord>.Filter.Regex(authorField, rx));
     }
 
-    private static SortDefinition<ForumPostRecord> BuildPostListSortDefinition(bool useHotSort) =>
-        useHotSort
+    /// <summary>
+    /// Non-search lists: sticky first, then latest/hot rules. Keyword search (<c>q</c>): recency only; <see cref="ForumPostRecord.IsSticky"/> is returned for display only.
+    /// </summary>
+    private static SortDefinition<ForumPostRecord> BuildPostListSortDefinition(bool useHotSort, bool keywordSearchActive)
+    {
+        if (keywordSearchActive)
+        {
+            return Builders<ForumPostRecord>.Sort
+                .Descending(x => x.CreatedAtUtc)
+                .Ascending(x => x.Id);
+        }
+
+        return useHotSort
             ? Builders<ForumPostRecord>.Sort
+                .Descending(x => x.IsSticky)
                 .Descending(x => x.LikeCount)
                 .Descending(x => x.CommentCount)
                 .Descending(x => x.ViewCount)
                 .Descending(x => x.CreatedAtUtc)
                 .Ascending(x => x.Id)
-            : Builders<ForumPostRecord>.Sort.Descending(x => x.CreatedAtUtc);
+            : Builders<ForumPostRecord>.Sort
+                .Descending(x => x.IsSticky)
+                .Descending(x => x.CreatedAtUtc);
+    }
 
     private const int MaxTagCount = 10;
     private const int MaxTagLength = 32;
@@ -478,6 +494,7 @@ public class PostListItemDto
     public DateTime PublishedAtUtc { get; set; }
     public string Board { get; set; } = "";
     public List<string> Tags { get; set; } = new();
+    public bool IsSticky { get; set; }
     public int Likes { get; set; }
     public int FavoriteCount { get; set; }
     public int Comments { get; set; }

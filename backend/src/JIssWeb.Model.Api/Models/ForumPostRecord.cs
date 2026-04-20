@@ -9,6 +9,9 @@ public class ForumPostRecord
     public string AuthorSubId { get; set; } = "";
     public string Board { get; set; } = "综合";
     public List<string> Tags { get; set; } = new();
+    public bool IsSticky { get; set; }
+    public DateTime? StickyAtUtc { get; set; }
+    public string? StickyBySub { get; set; }
     public int LikeCount { get; set; }
     public int FavoriteCount { get; set; }
     public int CommentCount { get; set; }

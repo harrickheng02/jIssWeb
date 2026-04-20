@@ -228,6 +228,7 @@ export interface ForumPostListItem {
   publishedAtUtc: string
   board: string
   tags: string[]
+  isSticky?: boolean
   likes: number
   comments: number
   views: number
@@ -258,6 +259,63 @@ export interface PagedForumPosts {
 
 export interface ForumPostDetail extends ForumPostListItem {
   body: string
+}
+
+export interface ModerationSetStickyResult {
+  postId: string
+  isSticky: boolean
+}
+
+export interface ModerationAuditItem {
+  id: string
+  targetType: string
+  targetId: string
+  /** 面向展示的操作说明（如「置顶帖子」） */
+  actionLabel: string
+  /** 操作者展示名（昵称，来自客档 profiles） */
+  operatorDisplayName: string
+  occurredAtUtc: string
+}
+
+export interface PagedModerationAudit {
+  items: ModerationAuditItem[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+function mapModerationError(error: unknown): ApiResult<never> {
+  const e = error as AxiosError<ApiResult<unknown>> | undefined
+  const status = e?.response?.status
+  const data = e?.response?.data
+  if (data && typeof data === 'object' && data.success === false) {
+    return { success: false, message: data.message, code: data.code }
+  }
+  if (status === 403) return { success: false, message: '无权操作该帖子', code: 'FORBIDDEN' }
+  if (status === 404) return { success: false, message: '帖子不存在或已删除', code: 'NOT_FOUND' }
+  return { success: false, message: e instanceof Error ? e.message : '网络异常，请稍后重试', code: 'REQUEST_FAILED' }
+}
+
+export async function setForumPostSticky(postId: string, isSticky: boolean) {
+  try {
+    const { data } = await modelApi.post<ApiResult<ModerationSetStickyResult>>(`/mod/posts/${postId}/sticky`, {
+      isSticky,
+    })
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export async function listModerationAuditByPost(postId: string, page = 1, pageSize = 20) {
+  try {
+    const { data } = await modelApi.get<ApiResult<PagedModerationAudit>>('/mod/audit', {
+      params: { targetType: 'post', targetId: postId, page, pageSize },
+    })
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
 }
 
 export interface ForumReply {

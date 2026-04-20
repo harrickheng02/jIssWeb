@@ -15,6 +15,12 @@ const router = createRouter({
       component: () => import('../views/PostDetailView.vue'),
     },
     {
+      path: '/moderation',
+      name: 'moderation',
+      meta: { requiresAuth: true },
+      component: () => import('../views/ModerationGuideView.vue'),
+    },
+    {
       path: '/auth',
       name: 'auth',
       meta: { hideAppShell: true },
@@ -41,7 +47,7 @@ const router = createRouter({
     {
       path: '/profile',
       name: 'profile',
-      component: () => import('../views/ProfileView.vue'),
+      redirect: '/me/profile',
       meta: { requiresAuth: true },
     },
     {
@@ -50,6 +56,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
       redirect: '/me/posts',
       children: [
+        {
+          path: 'profile',
+          name: 'me-profile',
+          meta: { requiresAuth: true },
+          component: () => import('../views/ProfileView.vue'),
+        },
         {
           path: 'posts',
           name: 'me-posts',

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using JIssWeb.Common;
 using JIssWeb.Common.Options;
+using JIssWeb.Common.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -86,6 +87,18 @@ public static class WebApiHostExtensions
                             logger.LogWarning("JWT sub/userId mismatch sub={Sub} userId={UserId}", sub, userId);
                             context.Fail("invalid_token_identity_mismatch");
                             return Task.CompletedTask;
+                        }
+
+                        var forumRole = context.Principal?.FindFirst(ForumRoleClaim.Name)?.Value;
+                        if (!string.IsNullOrWhiteSpace(forumRole))
+                        {
+                            var fr = forumRole.Trim().ToLowerInvariant();
+                            if (fr != ForumRoleClaim.Member && fr != ForumRoleClaim.Moderator && fr != ForumRoleClaim.Admin)
+                            {
+                                logger.LogWarning("JWT invalid forumRole claim value={Value}", forumRole);
+                                context.Fail("invalid_token_forum_role");
+                                return Task.CompletedTask;
+                            }
                         }
 
                         return Task.CompletedTask;

@@ -16,6 +16,7 @@ public static class ForumMongoSetup
     public const string LikesCollectionName = "forum_post_likes";
     public const string FavoritesCollectionName = "forum_post_favorites";
     public const string AnnouncementsCollectionName = "forum_announcements";
+    public const string ModerationAuditCollectionName = "forum_moderation_audit";
 
     private static readonly Lazy<(string Title, string AuthorSubId)> PostSearchBsonFields = new(() =>
     {
@@ -77,5 +78,12 @@ public static class ForumMongoSetup
         var announcements = db.GetCollection<ForumAnnouncementRecord>(AnnouncementsCollectionName);
         var annList = Builders<ForumAnnouncementRecord>.IndexKeys.Descending(x => x.Pinned).Descending(x => x.PublishedAtUtc);
         announcements.Indexes.CreateOne(new CreateIndexModel<ForumAnnouncementRecord>(annList));
+
+        var moderationAudit = db.GetCollection<ForumModerationAuditRecord>(ModerationAuditCollectionName);
+        var auditKeys = Builders<ForumModerationAuditRecord>.IndexKeys
+            .Ascending(x => x.TargetType)
+            .Ascending(x => x.TargetId)
+            .Descending(x => x.OccurredAtUtc);
+        moderationAudit.Indexes.CreateOne(new CreateIndexModel<ForumModerationAuditRecord>(auditKeys));
     }
 }

@@ -5,6 +5,7 @@ using JIssWeb.Infrastructure;
 using JIssWeb.User.Api;
 using JIssWeb.User.Api.Controllers;
 using JIssWeb.User.Api.Mongo;
+using JIssWeb.User.Api.Options;
 using JIssWeb.User.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +19,7 @@ builder.Services.Configure<EmailVerificationSettings>(builder.Configuration.GetS
 builder.Services.Configure<PasswordResetSettings>(builder.Configuration.GetSection("PasswordReset"));
 builder.Services.Configure<SmtpEmailSettings>(builder.Configuration.GetSection("SmtpEmail"));
 builder.Services.Configure<LoginSecuritySettings>(builder.Configuration.GetSection("LoginSecurity"));
+builder.Services.Configure<ForumOptions>(builder.Configuration.GetSection(ForumOptions.SectionName));
 builder.Services.AddSingleton<ConsoleVerificationEmailSender>();
 builder.Services.AddSingleton<SmtpVerificationEmailSender>();
 builder.Services.AddSingleton<IVerificationEmailSender>(sp =>

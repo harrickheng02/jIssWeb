@@ -1,5 +1,6 @@
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,8 +26,15 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
         DatabaseName = "model_me_" + Guid.NewGuid().ToString("N");
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
+            b.UseEnvironment("Development");
             b.UseSetting("Mongo:ConnectionString", _mongoRunner.ConnectionString);
             b.UseSetting("Mongo:DatabaseName", DatabaseName);
+            b.UseSetting("Forum:Boards:0:Id", "general");
+            b.UseSetting("Forum:Boards:0:Title", "综合");
+            b.UseSetting("Forum:Boards:1:Id", "tech");
+            b.UseSetting("Forum:Boards:1:Title", "技术");
+            b.UseSetting("Forum:Moderation:Moderators:0:Sub", "user-mod");
+            b.UseSetting("Forum:Moderation:Moderators:0:BoardIds:0", "general");
             b.ConfigureTestServices(services =>
             {
                 services.RemoveAll(typeof(IConnectionMultiplexer));

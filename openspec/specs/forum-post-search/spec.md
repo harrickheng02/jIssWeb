@@ -29,6 +29,16 @@ The system SHALL support an optional case-insensitive keyword search on `GET /ap
 - **WHEN** a client omits `q` entirely
 - **THEN** the endpoint SHALL behave as the existing forum posts list without keyword filtering
 
+### Requirement: Search result ordering
+
+When `q` is present and non-empty after trim, the server SHALL sort matching posts by **creation time descending** (`CreatedAtUtc` newest first), with a stable secondary key on post id ascending. The boolean sticky field (`isSticky`) SHALL be included in each summary for display and SHALL NOT change the sort order relative to non-sticky posts in this search mode.
+
+#### Scenario: Search sorts by recency without sticky promotion
+
+- **WHEN** a client requests `GET /api/forum/posts` with valid pagination and a non-empty trimmed `q`
+- **THEN** the ordered result set SHALL follow creation time descending (and stable id tie-break) as defined above
+- **AND** each item MAY include `isSticky` for UI only without re-ordering to prioritize sticky posts ahead of newer non-sticky posts
+
 ### Requirement: Search endpoint rate limiting
 
 The system SHALL enforce a configurable rate limit on requests to `GET /api/forum/posts` that include a non-empty `q`, keyed primarily by client IP as observed by the server (or first `X-Forwarded-For` hop when trusted), and SHALL return 429 with the unified error contract when exceeded.

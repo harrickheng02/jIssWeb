@@ -14,6 +14,7 @@ const theme = useThemeStore()
 const nickname = ref('')
 
 const isAuthed = computed(() => Boolean(auth.token))
+const canModerate = computed(() => auth.canModerate)
 
 const displayName = computed(() => nickname.value.trim() || '用户')
 
@@ -69,6 +70,10 @@ function logout() {
   ElMessage.success('已退出')
   if (route.path.startsWith('/profile') || route.path.startsWith('/me')) void router.push('/')
 }
+
+function goModeration() {
+  void router.push('/moderation')
+}
 </script>
 
 <template>
@@ -116,10 +121,10 @@ function logout() {
           <span>个人中心</span>
           <el-icon class="user-pop-row-icon"><ArrowRight /></el-icon>
         </router-link>
-        <router-link class="user-pop-row" to="/profile">
-          <span>个人资料</span>
+        <button v-if="canModerate" type="button" class="user-pop-row" @click="goModeration">
+          <span>治理</span>
           <el-icon class="user-pop-row-icon"><ArrowRight /></el-icon>
-        </router-link>
+        </button>
         <div class="user-pop-theme">
           <span class="user-pop-theme-label">深色模式</span>
           <el-switch :model-value="theme.mode === 'dark'" size="small" @change="onThemeDarkSwitch" />
