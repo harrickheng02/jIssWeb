@@ -163,6 +163,9 @@ public class ForumPostsController : ControllerBase
         if (post is null)
             return NotFound(ApiResult<ReplyDto>.Fail("未找到", "NOT_FOUND"));
 
+        if (post.RepliesLocked)
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<ReplyDto>.Fail("本帖已禁止回复", "REPLIES_LOCKED"));
+
         var now = DateTime.UtcNow;
         var reply = new ForumReplyRecord
         {
@@ -495,6 +498,7 @@ public class PostListItemDto
     public string Board { get; set; } = "";
     public List<string> Tags { get; set; } = new();
     public bool IsSticky { get; set; }
+    public bool RepliesLocked { get; set; }
     public int Likes { get; set; }
     public int FavoriteCount { get; set; }
     public int Comments { get; set; }

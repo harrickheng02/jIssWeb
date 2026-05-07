@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled, View } from '@element-plus/icons-vue'
+import ForumRepliesLockedMark from '@/components/forum/ForumRepliesLockedMark.vue'
 import type { Component } from 'vue'
 import type { ForumPostListItem, ForumPostListPatch } from '@/api/clients'
 import IconThumbUp from '@/components/icons/IconThumbUp.vue'
@@ -73,6 +74,7 @@ const favoriteIcon = (): Component => (favorited() ? StarFilled : Star)
       <div class="post-topline-left">
         <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
         <el-tag v-if="post.isSticky" size="small" type="warning" effect="plain">置顶</el-tag>
+        <ForumRepliesLockedMark v-if="post.repliesLocked" :size="16" />
       </div>
       <span class="post-time">{{ formatPublishedUtc(post.publishedAtUtc) }}</span>
     </div>

@@ -229,6 +229,7 @@ export interface ForumPostListItem {
   board: string
   tags: string[]
   isSticky?: boolean
+  repliesLocked?: boolean
   likes: number
   comments: number
   views: number
@@ -266,6 +267,11 @@ export interface ModerationSetStickyResult {
   isSticky: boolean
 }
 
+export interface ModerationSetRepliesLockedResult {
+  postId: string
+  repliesLocked: boolean
+}
+
 export interface ModerationAuditItem {
   id: string
   targetType: string
@@ -301,6 +307,36 @@ export async function setForumPostSticky(postId: string, isSticky: boolean) {
     const { data } = await modelApi.post<ApiResult<ModerationSetStickyResult>>(`/mod/posts/${postId}/sticky`, {
       isSticky,
     })
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export async function setForumPostRepliesLocked(postId: string, repliesLocked: boolean) {
+  try {
+    const { data } = await modelApi.post<ApiResult<ModerationSetRepliesLockedResult>>(
+      `/mod/posts/${postId}/replies-locked`,
+      { repliesLocked },
+    )
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export async function deleteModerationForumPost(postId: string) {
+  try {
+    const { data } = await modelApi.delete<ApiResult<string>>(`/mod/posts/${postId}`)
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export async function deleteModerationForumReply(replyId: string) {
+  try {
+    const { data } = await modelApi.delete<ApiResult<string>>(`/mod/replies/${replyId}`)
     return data
   } catch (e) {
     return mapModerationError(e)
@@ -445,8 +481,120 @@ export async function listForumReplies(postId: string) {
 }
 
 export async function createForumReply(postId: string, body: string) {
-  const { data } = await modelApi.post<ApiResult<ForumReply>>(`/forum/posts/${postId}/replies`, { body })
-  return data
+  try {
+    const { data } = await modelApi.post<ApiResult<ForumReply>>(`/forum/posts/${postId}/replies`, { body })
+    return data
+  } catch (error: unknown) {
+    const e = error as AxiosError<ApiResult<unknown>> | undefined
+    const status = e?.response?.status
+    const parsed = e?.response?.data
+    if (parsed && typeof parsed === 'object' && parsed.success === false)
+      return { success: false, message: parsed.message, code: parsed.code } as ApiResult<ForumReply>
+    if (status === 401)
+      return { success: false, message: '请先登录', code: 'UNAUTHORIZED' } as ApiResult<ForumReply>
+    if (status === 403 && parsed?.code === 'REPLIES_LOCKED')
+      return { success: false, message: parsed.message ?? '本帖已禁止回复', code: 'REPLIES_LOCKED' } as ApiResult<ForumReply>
+    if (status === 403)
+      return { success: false, message: '暂无回复权限', code: 'FORBIDDEN' } as ApiResult<ForumReply>
+    if (status === 404)
+      return { success: false, message: '帖子不存在或已删除', code: 'NOT_FOUND' } as ApiResult<ForumReply>
+    return {
+      success: false,
+      message: e instanceof Error ? e.message : '网络异常',
+      code: 'REQUEST_FAILED',
+    } as ApiResult<ForumReply>
+  }
+}
+
+export interface ForumReportCreated {
+  id: string
+}
+
+export async function submitForumReport(payload: { targetType: 'post' | 'reply'; targetId: string; reason?: string }) {
+  try {
+    const body: Record<string, string> = {
+      targetType: payload.targetType,
+      targetId: payload.targetId,
+    }
+    const r = payload.reason?.trim()
+    if (r) body.reason = r
+    const { data } = await modelApi.post<ApiResult<ForumReportCreated>>('/forum/reports', body)
+    return data
+  } catch (e) {
+    return mapForumReportSubmitError(e)
+  }
+}
+
+function mapForumReportSubmitError(error: unknown): ApiResult<never> {
+  const ex = error as AxiosError<ApiResult<unknown>> | undefined
+  const status = ex?.response?.status
+  const parsed = ex?.response?.data
+  if (parsed && typeof parsed === 'object' && parsed.success === false)
+    return { success: false, message: parsed.message, code: parsed.code }
+  if (status === 401) return { success: false, message: '请先登录', code: 'UNAUTHORIZED' }
+  if (status === 404) return { success: false, message: '内容不存在或已删除', code: 'NOT_FOUND' }
+  if (status === 409)
+    return { success: false, message: parsed?.message ?? '已有待处理的举报', code: 'DUPLICATE_PENDING_REPORT' }
+  return { success: false, message: ex instanceof Error ? ex.message : '网络异常', code: 'REQUEST_FAILED' }
+}
+
+export type ForumReportModStatus = 'pending' | 'rejected' | 'resolved'
+
+export interface ForumReportQueueItem {
+  id: string
+  reporterSub: string
+  reporterDisplayName: string
+  targetType: string
+  targetId: string
+  postId: string
+  boardId: string
+  boardTitle: string
+  reason?: string
+  status: string
+  createdAtUtc: string
+  updatedAtUtc: string
+  handledBySub?: string | null
+  handledAtUtc?: string | null
+}
+
+export interface PagedForumReports {
+  items: ForumReportQueueItem[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+function mapModerationReportsError(error: unknown): ApiResult<never> {
+  const e = error as AxiosError<ApiResult<unknown>> | undefined
+  const status = e?.response?.status
+  const data = e?.response?.data
+  if (data && typeof data === 'object' && data.success === false) {
+    return { success: false, message: data.message, code: data.code }
+  }
+  if (status === 403) return { success: false, message: '无权查看或处理举报', code: 'FORBIDDEN' }
+  if (status === 401) return { success: false, message: '请先登录', code: 'UNAUTHORIZED' }
+  return { success: false, message: e instanceof Error ? e.message : '网络异常', code: 'REQUEST_FAILED' }
+}
+
+export async function listModerationForumReports(page = 1, pageSize = 20, status?: string) {
+  try {
+    const params: Record<string, string | number> = { page, pageSize }
+    const s = status?.trim()
+    if (s) params.status = s
+    const { data } = await modelApi.get<ApiResult<PagedForumReports>>('/mod/reports', { params })
+    return data
+  } catch (e) {
+    return mapModerationReportsError(e)
+  }
+}
+
+export async function patchModerationForumReportStatus(reportId: string, status: ForumReportModStatus) {
+  try {
+    const { data } = await modelApi.patch<ApiResult<ForumReportQueueItem>>(`/mod/reports/${reportId}`, { status })
+    return data
+  } catch (e) {
+    return mapModerationReportsError(e)
+  }
 }
 
 export interface ForumNotificationItem {

@@ -8,6 +8,7 @@ import { useForumHomeFeed } from '@/composables/useForumHomeFeed'
 import { useForumPopularTags } from '@/composables/useForumPopularTags'
 import { useAuthStore } from '@/stores/auth'
 import ForumPostListCard from '@/components/forum/ForumPostListCard.vue'
+import ForumRepliesLockedMark from '@/components/forum/ForumRepliesLockedMark.vue'
 import {
   getForumAnnouncements,
   listForumPosts,
@@ -289,15 +290,16 @@ onMounted(() => {
           <div v-else-if="hotSidebarError" class="list-error">{{ hotSidebarError }}</div>
           <div v-else-if="!hotSidebarPosts.length" class="list-empty">暂无热门帖子</div>
           <div v-else class="hot-list">
-            <el-link
-              v-for="post in hotSidebarPosts"
-              :key="post.id"
-              :underline="false"
-              class="hot-item"
-              @click="goPost(post.id)"
-            >
-              {{ post.title }}
-            </el-link>
+            <div v-for="post in hotSidebarPosts" :key="post.id" class="hot-row">
+              <ForumRepliesLockedMark v-if="post.repliesLocked" :size="14" class="hot-row__lock" />
+              <el-link
+                :underline="false"
+                class="hot-item hot-row__link"
+                @click="goPost(post.id)"
+              >
+                {{ post.title }}
+              </el-link>
+            </div>
           </div>
         </el-card>
 
@@ -503,6 +505,24 @@ onMounted(() => {
 .hot-list {
   flex-direction: column;
   align-items: flex-start;
+}
+
+.hot-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  width: 100%;
+  min-width: 0;
+}
+
+.hot-row__lock {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.hot-row__link {
+  flex: 1;
+  min-width: 0;
 }
 
 .hot-item {

@@ -21,6 +21,12 @@ const router = createRouter({
       component: () => import('../views/ModerationGuideView.vue'),
     },
     {
+      path: '/moderation/reports',
+      name: 'moderation-reports',
+      meta: { requiresAuth: true, requiresModerate: true },
+      component: () => import('../views/ModerationReportsQueueView.vue'),
+    },
+    {
       path: '/auth',
       name: 'auth',
       meta: { hideAppShell: true },
@@ -108,8 +114,9 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  if (!to.meta.requiresAuth) return true
   const auth = useAuthStore()
+  if (to.meta.requiresModerate && !auth.canModerate) return { name: 'moderation' }
+  if (!to.meta.requiresAuth) return true
   if (auth.token) return true
   return { name: 'auth' }
 })

@@ -12,6 +12,10 @@ public class ForumPostRecord
     public bool IsSticky { get; set; }
     public DateTime? StickyAtUtc { get; set; }
     public string? StickyBySub { get; set; }
+    /// <summary>When true, new replies are rejected (moderation lock).</summary>
+    public bool RepliesLocked { get; set; }
+    public DateTime? RepliesLockedAtUtc { get; set; }
+    public string? RepliesLockedBySub { get; set; }
     public int LikeCount { get; set; }
     public int FavoriteCount { get; set; }
     public int CommentCount { get; set; }

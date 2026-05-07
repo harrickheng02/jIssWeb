@@ -24,6 +24,8 @@ builder.Services.AddSingleton<IValidateOptions<ForumBoardsOptions>, ForumBoardsD
 builder.Services.Configure<ForumModerationOptions>(builder.Configuration.GetSection(ForumModerationOptions.SectionName));
 builder.Services.PostConfigure<ForumModerationOptions>(o => o.Moderators ??= new());
 builder.Services.Configure<ForumSearchRateLimitOptions>(builder.Configuration.GetSection(ForumSearchRateLimitOptions.SectionName));
+builder.Services.Configure<ForumReportRetentionOptions>(builder.Configuration.GetSection(ForumReportRetentionOptions.SectionName));
+builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection(RedisSettings.SectionName));
 builder.Services.AddSingleton<ForumSearchIpRateLimiter>();
 builder.Services.AddScoped<ForumAuthorDisplayResolver>();
@@ -52,6 +54,7 @@ builder.Services.AddSingleton<ForumEngagementLikeCountCache>(sp =>
     return new ForumEngagementLikeCountCache(mux, redisOpts, logger);
 });
 builder.Services.AddScoped<ForumEngagementService>();
+builder.Services.AddScoped<ForumModerationDeleteService>();
 builder.Services.AddApplication();
 builder.Services.AddMongoInfrastructure(builder.Configuration);
 builder.Services.AddJIssWebCoreApi(builder.Configuration);

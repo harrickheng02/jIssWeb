@@ -61,6 +61,16 @@ public sealed class ForumModerationAccessService
     }
 
     /// <summary>
+    /// Returns a non-null, non-empty board id list when the moderator has a usable scope; otherwise null (caller should respond with forbidden).
+    /// </summary>
+    public IReadOnlyList<string>? GetModeratorBoardIdScope(ClaimsPrincipal? user, string moderatorSub)
+    {
+        var boardIds = ResolveModeratorBoardIds(user, moderatorSub);
+        if (boardIds is null || boardIds.Count == 0) return null;
+        return boardIds;
+    }
+
+    /// <summary>
     /// Board ids: non-empty <c>forumBoardIds</c> JWT claim wins; empty array in JWT falls back to <c>Forum:Moderation:Moderators</c> on model-service; missing claim uses server roster only (legacy tokens).
     /// </summary>
     private IReadOnlyList<string>? ResolveModeratorBoardIds(ClaimsPrincipal? user, string moderatorSub)

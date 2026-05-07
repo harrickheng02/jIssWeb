@@ -78,9 +78,8 @@ public class ModAuditController : ControllerBase
             }
             else
             {
-                var scopeProbe = Builders<ForumModerationAuditRecord>.Filter.Eq(x => x.TargetType, "post")
-                                 & Builders<ForumModerationAuditRecord>.Filter.Eq(x => x.TargetId, tid);
-                var sample = await _audit.Find(scopeProbe).SortByDescending(x => x.OccurredAtUtc).Limit(1).FirstOrDefaultAsync(ct);
+                var threadProbe = BuildPostThreadAuditFilter(tid);
+                var sample = await _audit.Find(threadProbe).SortByDescending(x => x.OccurredAtUtc).Limit(1).FirstOrDefaultAsync(ct);
                 if (sample is null)
                     return NotFound(ApiResult<PagedAuditDto>.Fail("帖子不存在或已删除", "NOT_FOUND"));
 
@@ -99,8 +98,7 @@ public class ModAuditController : ControllerBase
             }
         }
 
-        var filter = Builders<ForumModerationAuditRecord>.Filter.Eq(x => x.TargetType, "post")
-                     & Builders<ForumModerationAuditRecord>.Filter.Eq(x => x.TargetId, tid);
+        var filter = BuildPostThreadAuditFilter(tid);
 
         var total = await _audit.CountDocumentsAsync(filter);
         var items = await _audit.Find(filter)
@@ -132,6 +130,30 @@ public class ModAuditController : ControllerBase
             Page = page,
             PageSize = pageSize,
         }));
+    }
+
+/// <summary>
+    /// Entries whose <c>Metadata.postId</c> matches the thread root, plus post-scoped rows for that id
+    /// (置顶/锁回复/删帖等). Legacy <c>report.statusChange</c> rows may still appear until data ages out.
+    /// </summary>
+    private static FilterDefinition<ForumModerationAuditRecord> BuildPostThreadAuditFilter(string postId)
+    {
+        var fb = Builders<ForumModerationAuditRecord>.Filter;
+        var onPost = fb.And(fb.Eq(x => x.TargetType, "post"), fb.Eq(x => x.TargetId, postId));
+        var replyOnThread = fb.And(
+            fb.Eq(x => x.TargetType, "reply"),
+            fb.Eq(x => x.Action, "reply.modDelete"),
+            fb.Eq("Metadata.postId", postId));
+        var reportOnThread = fb.Or(
+            fb.And(
+                fb.Eq(x => x.TargetType, "report"),
+                fb.Eq(x => x.Action, "report.resolve"),
+                fb.Eq("Metadata.postId", postId)),
+            fb.And(
+                fb.Eq(x => x.TargetType, "report"),
+                fb.Eq(x => x.Action, "report.statusChange"),
+                fb.Eq("Metadata.postId", postId)));
+        return fb.Or(onPost, replyOnThread, reportOnThread);
     }
 
     private static bool TryGetBoardIdFromAuditMetadata(ForumModerationAuditRecord audit, out string? boardId)

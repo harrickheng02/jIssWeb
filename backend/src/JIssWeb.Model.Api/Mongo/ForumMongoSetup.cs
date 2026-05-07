@@ -17,6 +17,7 @@ public static class ForumMongoSetup
     public const string FavoritesCollectionName = "forum_post_favorites";
     public const string AnnouncementsCollectionName = "forum_announcements";
     public const string ModerationAuditCollectionName = "forum_moderation_audit";
+    public const string ReportsCollectionName = "forum_reports";
 
     private static readonly Lazy<(string Title, string AuthorSubId)> PostSearchBsonFields = new(() =>
     {
@@ -39,6 +40,8 @@ public static class ForumMongoSetup
         {
             if (!BsonClassMap.IsClassMapRegistered(typeof(ForumAnnouncementRecord)))
                 BsonClassMap.RegisterClassMap<ForumAnnouncementRecord>(cm => cm.AutoMap());
+            if (!BsonClassMap.IsClassMapRegistered(typeof(ForumReportRecord)))
+                BsonClassMap.RegisterClassMap<ForumReportRecord>(cm => cm.AutoMap());
         }
 
         using var scope = services.CreateScope();
@@ -85,5 +88,24 @@ public static class ForumMongoSetup
             .Ascending(x => x.TargetId)
             .Descending(x => x.OccurredAtUtc);
         moderationAudit.Indexes.CreateOne(new CreateIndexModel<ForumModerationAuditRecord>(auditKeys));
+
+        var reports = db.GetCollection<ForumReportRecord>(ReportsCollectionName);
+        var reportListKeys = Builders<ForumReportRecord>.IndexKeys.Ascending(x => x.Status).Descending(x => x.CreatedAtUtc);
+        reports.Indexes.CreateOne(new CreateIndexModel<ForumReportRecord>(reportListKeys));
+        var reportBoardKeys = Builders<ForumReportRecord>.IndexKeys.Ascending(x => x.BoardId).Descending(x => x.CreatedAtUtc);
+        reports.Indexes.CreateOne(new CreateIndexModel<ForumReportRecord>(reportBoardKeys));
+        var reportDupKeys = Builders<ForumReportRecord>.IndexKeys
+            .Ascending(x => x.ReporterSub)
+            .Ascending(x => x.TargetType)
+            .Ascending(x => x.TargetId);
+        var reportDupOpts = new CreateIndexOptions<ForumReportRecord>
+        {
+            Unique = true,
+            Name = "uniq_pending_reporter_target",
+            PartialFilterExpression = Builders<ForumReportRecord>.Filter.Eq(r => r.Status, ForumReportStatuses.Pending),
+        };
+        reports.Indexes.CreateOne(new CreateIndexModel<ForumReportRecord>(reportDupKeys, reportDupOpts));
+        var reportsClosedHandled = Builders<ForumReportRecord>.IndexKeys.Ascending(x => x.Status).Ascending(x => x.HandledAtUtc);
+        reports.Indexes.CreateOne(new CreateIndexModel<ForumReportRecord>(reportsClosedHandled));
     }
 }

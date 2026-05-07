@@ -88,7 +88,7 @@ modules:
   - name: 个人中心
     description: 我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；个人资料能力并入个人中心，与现有 Profile 能力合并演进
   - name: 治理与审核
-    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、`openspec/specs/token-identity-consistency`）。版主版区范围由 access token 内 `forumBoardIds`（User.Api 按 `Forum:Moderation` 签发，非空时写入）与 Model.Api 校验/兜底配置一致。版主置顶与操作记录最小集已交付（Issue #7 closed），长期演进见 Issue #18。
+    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、`openspec/specs/token-identity-consistency`）。版主版区范围由 access token 内 `forumBoardIds`（User.Api 按 `Forum:Moderation` 签发，非空时写入）与 Model.Api 校验/兜底配置一致。版主置顶与操作记录最小集已交付（Issue #7 closed）；举报最小闭环（Issue #4 closed）；操作台持续建设见 Issue #18；**举报后续（处罚、SLA、举报人通知、证据导出）见 Issue #19**。
   - name: 运营与公告
     description: 公告位、活动 Banner（与首页右侧公告模块衔接）
   - name: 平台与基础设施
@@ -186,10 +186,11 @@ issues:
       - 与鉴权、审计字段约定一致（操作者、目标资源标识）。
       依赖：里程碑 M3；Issue #17（论坛角色与 JWT 声明最小集，处理侧须能识别管理员/版主身份）；openspec 治理相关条款（若有）。
       非目标：完整工单 SLA、法务级证据链、多租户隔离策略。
+      交付与归档：`openspec/specs/forum-report-api`、`forum-report-moderation-ui`、`forum-moderation-delete-content`；OpenSpec 归档 `openspec/changes/archive/2026-05-07-forum-report-minimal-closed-loop/`、`openspec/changes/archive/2026-05-07-forum-report-governance-full/`；手工验收见各归档目录 **`manual-qa.md`**。**账号处罚与 user-service、工单 SLA/指派、举报人通知、证据导出** 不在本条验收内，见 **新开 Issue #19**。
     milestone: M3 — 治理与增长
     issue_number: 4
     priority: 主要
-    state: open
+    state: closed
     module: 治理与审核
     classification: feature
   - title: 反垃圾与自动处置占位
@@ -243,12 +244,28 @@ issues:
       定位：在 Issue #7 已交付的置顶、审计列表与前端最小集之上，**长期迭代**的版主治理轨道；具体交付以拆分子 Issue / OpenSpec change 为准。
       验收标准（方向性，逐项子 Issue 收紧）：
       - 扩展帖子治理动作（如锁帖、加精/取消精华、沉帖等）中与现有 JWT、`Forum:Moderation:Moderators` 版区范围一致；状态在列表与详情可反映；审计与列表查询可联调。
-      - 审计与操作台能力深化：筛选分页、导出或运营视图（择一或多）、与举报/工单（Issue #4）链路的衔接说明或占位。
+      - 审计与操作台能力深化：筛选分页、导出或运营视图（择一或多）、与举报进阶（**Issue #19**：处罚、SLA、通知、证据导出）链路的衔接说明或占位。
       - 前端：版主操作台信息架构与可用性随动作增加持续迭代（路由、`forum-moderation-sticky-ui` / `forum-moderation-post-ops` 规范增补）。
-      依赖：`openspec/specs/forum-moderation-post-ops`、`openspec/specs/forum-moderation-sticky-ui`、`openspec/specs/token-identity-consistency`（`forumRole`/`forumBoardIds`）、Issue #17 closed、Issue #7 closed；与 Issue #4（举报闭环）可并行规划接口边界。
+      依赖：`openspec/specs/forum-moderation-post-ops`、`openspec/specs/forum-moderation-sticky-ui`、`openspec/specs/token-identity-consistency`（`forumRole`/`forumBoardIds`）、Issue #17 closed、Issue #7 closed；Issue #4 closed；与 **Issue #19** 可并行规划接口边界。
       非目标：完整 RBAC/权限中台、跨租户隔离、工单流引擎（与同里程碑 `meta.deferred_scope` 中 Issue #7 条一致，若交付则单独立项）。
     milestone: M3 — 治理与增长
     issue_number: 18
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: 举报后续：账号处罚、工单 SLA、举报人通知与证据导出
+    body: |
+      **新开需求**，承接 Issue #4 已交付最小闭环之外的治理能力；交付以子 Issue / OpenSpec change 拆分为准。
+      验收标准（方向性，逐项收紧）：
+      - **账号处罚与 user-service**：与论坛治理联动的账号侧处置（警告、禁言、封禁等择一或多）及与 user-service 的 API/事件契约。
+      - **SLA / 指派**：工单级 SLA、指派或升级队列等与 Issue #4「非目标：完整工单 SLA」对齐的独立交付。
+      - **举报人通知**：结案或关键节点对举报人的站内通知（或约定渠道），与现有通知模块边界写清。
+      - **证据导出**：合规或运营可取证的导出包或等价能力（格式、留存与权限）。
+      依赖：Issue #4 closed；`openspec/specs/forum-report-api`；可与 Issue #18 并行规划边界。
+      非目标：单条 Issue 一次性打包以上全部能力而不拆规格。
+    milestone: M3 — 治理与增长
+    issue_number: 19
     priority: 主要
     state: open
     module: 治理与审核

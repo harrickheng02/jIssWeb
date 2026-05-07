@@ -14,6 +14,12 @@ internal static class JwtTestTokens
 
     internal static string CreateAccessToken(string sub, string forumRole = ForumRoleClaim.Member)
     {
+        return CreateAccessToken(sub, forumRole, forumBoardIdsJson: null);
+    }
+
+    /// <param name="forumBoardIdsJson">Raw JSON array string for <see cref="ForumBoardIdsClaim"/>; ignored when null.</param>
+    internal static string CreateAccessToken(string sub, string forumRole, string? forumBoardIdsJson)
+    {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SymmetricKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var claims = new List<Claim>
@@ -21,6 +27,9 @@ internal static class JwtTestTokens
             new("sub", sub),
             new(ForumRoleClaim.Name, forumRole)
         };
+        if (!string.IsNullOrWhiteSpace(forumBoardIdsJson))
+            claims.Add(new Claim(ForumBoardIdsClaim.Name, forumBoardIdsJson.Trim()));
+
         var token = new JwtSecurityToken(
             issuer: Issuer,
             audience: Audience,
@@ -28,5 +37,11 @@ internal static class JwtTestTokens
             expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    internal static string CreateAccessToken(string sub, string forumRole, IReadOnlyList<string> forumBoardIds)
+    {
+        var json = ForumBoardIdsClaimJson.Serialize(forumBoardIds);
+        return CreateAccessToken(sub, forumRole, json);
     }
 }
