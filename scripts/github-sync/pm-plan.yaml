@@ -68,6 +68,19 @@ meta:
         - 完整 RBAC / 动态权限引擎
         - 与论坛无关的全局组织级 IAM
         - 多租户隔离策略（专有云单独立项）
+    - issue_number: 20
+      related_title: 版主锁帖与加精操作
+      out_of_scope:
+        - 沉帖（降权/隐藏帖）
+        - 批量操作与跨版区脚本
+        - 加精多级评级
+    - issue_number: 21
+      related_title: 举报人结案站内通知
+      out_of_scope:
+        - 邮件/短信通知
+        - 举报人查询处理进度的 API
+        - SLA 承诺
+        - 处理详情对举报人公开
 modules:
   - name: 账号与访问
     description: 邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时与 401 拦截后的 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange
@@ -226,10 +239,11 @@ issues:
   - title: 反垃圾与自动处置占位
     body: |
       验收标准：
-      - 在文档或配置层定义反垃圾策略占位（关键词、频率、人机挑战接入点等择一），与发帖/回复链路的挂钩方式可说明。
-      - 与现有 user-service / Model 限流能力可复用处有对照说明。
-      依赖：里程碑 M3。
-      非目标：自建大模型审核、全站实时风控中台。
+      - **屏蔽词过滤**：`appsettings`（或等价配置）提供屏蔽词配置结构（词表来源：静态列表、文件路径或 Mongo 集合择一），与 `POST /api/forum/posts`、`POST /api/forum/posts/{id}/replies` 发帖/回复链路有明确挂钩点（中间件或 service 层钩子）；词表可为空（零配置时行为与无过滤一致）；命中时返回 400 并附错误说明字段。
+      - **发帖频率限流**：复用 Issue #15 已交付的限流基础设施（`InProcessRateLimiter` 或等价），为发帖接口设置可配置的独立限流策略（与搜索限流配置隔离）；超限返回 429。
+      - 以上两项配置键、默认值与单行示例写入 `appsettings.Local.example.json` 注释，便于本地调试与 CR 验证。
+      依赖：Issue #15 closed（限流基础设施）；`JIssWeb.Model.Api` 帖子与回复控制器。
+      非目标：自建大模型审核、全站实时风控中台；CAPTCHA/人机挑战集成；分布式限流（见 Issue #15 后续治理项）；屏蔽词管理 UI（可在 Issue #8 标签后台后续扩展）。
     milestone: M3 — 治理与增长
     issue_number: 5
     priority: 次要
@@ -239,10 +253,10 @@ issues:
   - title: 推荐排序与运营报表出口占位
     body: |
       验收标准：
-      - 列表或 Feed 可切换「时间序 / 简易热度」等占位策略之一，查询参数、默认值与回退行为文档化或可联调。
-      - 报表或 BFF 提供至少一种只读运营指标出口（与现有 report-service 或占位路由对齐）；失败与空数据可处理。
-      依赖：openspec/specs/report-service（若适用）；里程碑 M3。
-      非目标：A/B 实验平台、计费级报表；个性化与算法化热榜见同里程碑 Issue「个性化推荐与算法化热榜」。
+      - **排序策略**：`GET /api/forum/posts` 支持 `sort` 查询参数（至少 `latest`/`hot` 两种），`hot` 以回复数或点赞数的简单权重排序（权重公式与默认值写在代码注释或规范增量中）；默认值与空参数回退行为写清；与搜索 `q` 参数共存时排序行为可联调。
+      - **运营指标出口**：`JIssWeb.Report.Api`（或 BFF 占位路由）提供至少一个只读端点，返回指定时间段内帖子数/活跃用户数/回复数之一（字段与时间粒度在规范中定义）；无数据时返回空集合而非 500；鉴权边界（公开只读 vs 管理端）写清。
+      依赖：`GET /api/forum/posts` 现有分页合同（`openspec/specs/forum-content-api`）；`openspec/specs/report-service`（若适用）。
+      非目标：A/B 实验平台、计费级报表；个性化与算法化热榜（见 Issue #9，本条只做规则热度）；实时大屏。
     milestone: M3 — 治理与增长
     issue_number: 6
     priority: 次要
@@ -271,15 +285,37 @@ issues:
     classification: feature
   - title: 版主治理与帖子操作后台持续建设
     body: |
-      定位：在 Issue #7 已交付的置顶、审计列表与前端最小集之上，**长期迭代**的版主治理轨道；具体交付以拆分子 Issue / OpenSpec change 为准。
+      定位：在 Issue #7 已交付的置顶、审计列表与前端最小集之上，**长期迭代**的版主治理轨道；每期以子 Issue 或 OpenSpec change 为粒度交付。
+      已规划子 Issue：
+      - Issue #20 版主锁帖与加精操作（当前阶段，依赖已满足）
+      后续方向（未单开子 Issue，时序待定）：
+      - 审计列表筛选分页深化（按操作类型、版区、时间范围）
+      - 审计导出或运营视图（格式与权限边界待设计）
+      - 与 Issue #19 举报进阶链路的衔接占位（如「由举报触发的处置」在审计中可查）
+      - 前端版主操作台信息架构随动作增加持续迭代
       验收标准（方向性，逐项子 Issue 收紧）：
-      - 扩展帖子治理动作（如锁帖、加精/取消精华、沉帖等）中与现有 JWT、`Forum:Moderation:Moderators` 版区范围一致；状态在列表与详情可反映；审计与列表查询可联调。
-      - 审计与操作台能力深化：筛选分页、导出或运营视图（择一或多）、与举报进阶（**Issue #19**：处罚、SLA、通知、证据导出）链路的衔接说明或占位。
-      - 前端：版主操作台信息架构与可用性随动作增加持续迭代（路由、`forum-moderation-sticky-ui` / `forum-moderation-post-ops` 规范增补）。
+      - 扩展帖子治理动作与现有 JWT、`Forum:Moderation:Moderators` 版区范围一致；状态在列表与详情可反映；审计与列表查询可联调。
+      - 审计与操作台能力深化：筛选分页、导出或运营视图（择一或多）、与举报进阶（**Issue #19**）链路的衔接说明或占位。
+      - 前端：版主操作台随动作增加持续迭代（`forum-moderation-sticky-ui` / `forum-moderation-post-ops` 规范增补）。
       依赖：`openspec/specs/forum-moderation-post-ops`、`openspec/specs/forum-moderation-sticky-ui`、`openspec/specs/token-identity-consistency`（`forumRole`/`forumBoardIds`）、Issue #17 closed、Issue #7 closed；Issue #4 closed；与 **Issue #19** 可并行规划接口边界。
-      非目标：完整 RBAC/权限中台、跨租户隔离、工单流引擎（与同里程碑 `meta.deferred_scope` 中 Issue #7 条一致，若交付则单独立项）。
+      非目标：完整 RBAC/权限中台、跨租户隔离、工单流引擎。
     milestone: M3 — 治理与增长
     issue_number: 18
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: 版主锁帖与加精操作
+    body: |
+      验收标准：
+      - 版主（`forumBoardIds` 覆盖目标版区）可对帖子执行**锁帖**（禁止继续回复）与**加精/取消精华**操作，状态持久化；帖子详情与列表字段（如 `isLocked`、`isFeatured`）可反映最新状态。
+      - 审计记录包含操作类型（`lock`/`feature`/`unfeature`）、操作者 `sub`、目标 `postId` 与 `boardId`；与现有 `GET /api/mod/audit` 列表结构兼容，`actionLabel` 可人读。
+      - 锁帖后普通用户尝试回复收到明确错误码（403 或 409）；加精/取消精华不影响回复权限。
+      - 非法版区范围或未授权角色的请求返回 403；未登录返回 401。
+      依赖：Issue #7 closed（sticky/audit 路由与鉴权模式可复用）；`openspec/specs/forum-moderation-post-ops`；`openspec/specs/token-identity-consistency`。
+      非目标：沉帖（降权/隐藏帖）；批量操作；跨版区脚本；加精多级评级。
+    milestone: M3 — 治理与增长
+    issue_number: 20
     priority: 主要
     state: open
     module: 治理与审核
@@ -287,15 +323,35 @@ issues:
   - title: 举报后续：账号处罚、工单 SLA、举报人通知与证据导出
     body: |
       **新开需求**，承接 Issue #4 已交付最小闭环之外的治理能力；交付以子 Issue / OpenSpec change 拆分为准。
+      已规划子 Issue：
+      - Issue #21 举报人结案站内通知（当前阶段，依赖已满足）
+      后续方向（未单开子 Issue，时序待定）：
+      - 账号处罚与 user-service API/事件契约（警告/禁言/封禁择一或多）
+      - SLA / 指派或升级队列（工单级，与 Issue #18 审计深化可并行规划边界）
+      - 证据导出包（格式、留存与权限待设计）
       验收标准（方向性，逐项收紧）：
-      - **账号处罚与 user-service**：与论坛治理联动的账号侧处置（警告、禁言、封禁等择一或多）及与 user-service 的 API/事件契约。
-      - **SLA / 指派**：工单级 SLA、指派或升级队列等与 Issue #4「非目标：完整工单 SLA」对齐的独立交付。
-      - **举报人通知**：结案或关键节点对举报人的站内通知（或约定渠道），与现有通知模块边界写清。
-      - **证据导出**：合规或运营可取证的导出包或等价能力（格式、留存与权限）。
+      - **账号处罚与 user-service**：与论坛治理联动的账号侧处置及 API/事件契约。
+      - **SLA / 指派**：工单级 SLA、指派或升级队列等独立交付。
+      - **举报人通知**：结案或关键节点对举报人的站内通知（见 Issue #21）。
+      - **证据导出**：合规或运营可取证的导出包或等价能力。
       依赖：Issue #4 closed；`openspec/specs/forum-report-api`；可与 Issue #18 并行规划边界。
       非目标：单条 Issue 一次性打包以上全部能力而不拆规格。
     milestone: M3 — 治理与增长
     issue_number: 19
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: 举报人结案站内通知
+    body: |
+      验收标准：
+      - 举报被版主/管理员关闭（状态流转为已处理或等价）时，举报人收到一条站内通知，通知类型为独立枚举值（如 `ReportResolved`），含举报目标标识（`targetPostId` 或 `targetReplyId`）与处理结论占位文案（如「您的举报已处理」）。
+      - 通知在现有 `GET /api/forum/notifications` 列表可查，遵循已读/未读与幂等规范（以 `reportId` 为幂等键，重复关闭举报不重复写入通知）；深链可跳转至被举报内容（若帖子已删则展示「内容已移除」占位）。
+      - 通知**不暴露**处理者 `sub`、具体处置行为或其他内部字段；隐私边界在规范中写清。
+      依赖：Issue #4 closed（举报数据模型与关闭流程）；Issue #16 closed（通知基础设施）；`openspec/specs/forum-report-api`；`openspec/specs/in-app-notifications`。
+      非目标：邮件/短信通知；举报人查询处理进度的 API；SLA 承诺；处理详情对举报人公开。
+    milestone: M3 — 治理与增长
+    issue_number: 21
     priority: 主要
     state: open
     module: 治理与审核
