@@ -160,6 +160,36 @@ issues:
     state: closed
     module: 搜索与发现
     classification: feature
+  - title: 个人中心与内容管理最小集
+    body: |
+      验收标准：
+      - 已登录用户可访问个人中心（`/me` 路由），子导航含「我的帖子」「我的回复」「我的收藏」「设置」，各列表分页与三态（加载中/空态/失败）可演示。
+      - `GET /api/forum/me/favorites` 已在 Model API 暴露，与 `forum-post-like-favorite` 规范一致；未登录返回 401；删帖后收藏列表不含该帖。
+      - 顶栏用户菜单含「个人中心」入口；与现有 Profile 路由、登录/退出无冲突。
+      依赖：openspec/specs/forum-personal-center/spec.md；openspec/specs/forum-post-like-favorite；openspec/specs/token-identity-consistency。
+      非目标：完整账号安全中心；第三方账号绑定；消息全渠道设置；多级收藏夹与标签化收藏管理；独立「赞过的帖子」列表。
+      交付确认：前端 `/me` 路由、子视图与 HeaderUserMenu 入口；ForumMeController favorites 端点与集成测试已交付；规范见 `openspec/specs/forum-personal-center`；变更归档 `openspec/changes/archive/2026-04-19-m2-forum-personal-center-minimal/`。
+    milestone: M2 — 互动与发现
+    issue_number: 2
+    priority: 严重
+    state: closed
+    module: 个人中心
+    classification: feature
+  - title: 站内通知列表与已读状态最小集
+    body: |
+      验收标准：
+      - 他人回复我的帖子时，通知列表出现 `ReplyToPost` 类型通知，含 `PostId`、`ReplyId`、`ActorId`；自回复不产生通知。
+      - 通知列表支持分页、未读筛选；已读操作幂等（首次已读时间不被覆盖）；未读数可在入口处查看。
+      - 通知项深链可跳转至帖子详情并定位对应回复；找不到时回退顶部并展示占位提示。
+      依赖：openspec/specs/m2-in-app-notifications-minimal/spec.md；openspec/specs/in-app-notifications/spec.md；openspec/specs/token-identity-consistency。
+      非目标：邮件/短信/WebPush 等站外推送；多端实时送达 SLA 与消息中台。
+      交付确认：Model.Api 通知控制器、回复触发通知写入与幂等唯一索引（`ReplyId`）；前端通知列表页、未读数展示与深链跳转；集成测试覆盖（回复触发、自回复不通知、已读幂等）。规范见 `openspec/specs/m2-in-app-notifications-minimal`、`openspec/specs/in-app-notifications`；变更归档 `openspec/changes/archive/2026-04-19-m2-in-app-notifications-minimal/`。
+    milestone: M2 — 互动与发现
+    issue_number: 16
+    priority: 主要
+    state: closed
+    module: 消息与通知
+    classification: feature
   - title: 论坛角色与 JWT 声明最小集（管理员 / 版主）
     body: |
       验收标准：
