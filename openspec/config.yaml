@@ -1,20 +1,93 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  ## 项目概览
+  JIssWeb 是一个 Vue 3 + .NET 8 monorepo，面向论坛产品持续迭代。
+  前端是单一 SPA（frontend/），通过多个 ASP.NET Core API（backend/src/JIssWeb.*.Api）提供服务，
+  可选通过 YARP 网关（JIssWeb.Gateway.Api）和 BFF（JIssWeb.Frontend.Bff）聚合。
+  本地 MongoDB 和 Redis 通过仓库根目录的 Docker Compose 启动。
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  ## 技术栈
+
+  ### 前端
+  - Vue 3（Composition API + <script setup>）
+  - TypeScript
+  - Vite（构建工具，vite.config.ts 从仓库根目录加载 .env）
+  - Element Plus（UI 组件库，主操作用 type="primary"）
+  - Pinia（状态管理，stores/auth、stores/theme、stores/legalUi）
+  - Vue Router 4（三个路由 meta 标志：requiresAuth、requiresModerate、hideAppShell）
+  - Axios（所有 HTTP 请求通过 frontend/src/api/clients.ts 的 createClient 封装，含单飞 token 刷新）
+  - Vitest（单元 / 集成测试）
+
+  ### 后端
+  - .NET 8 / ASP.NET Core
+  - C#（DDD 分层：Domain、Application、Infrastructure、Api）
+  - MongoDB（通过 AddMongoInfrastructure 注册）
+  - Redis（缓存 / pub-sub）
+  - YARP（反向代理 / 网关）
+  - JWT Bearer（User API 是唯一签发方；其他 API 仅做验证）
+  - xUnit + Testcontainers（backend/tests/JIssWeb.Model.Api.Tests/）
+
+  ### 基础设施
+  - Docker Compose（本地 Mongo + Redis）
+  - GitHub Issues + pm-plan.yaml（需求规划同步）
+
+  ## 服务边界
+  - **JIssWeb.User.Api** — JWT 签发、用户注册 / 登录 / 密码重置
+  - **JIssWeb.Model.Api** — 论坛领域主服务（帖子、回复、举报、版主、通知、公告、标签）
+  - **JIssWeb.Customer.Api** — 客户档案 CRUD
+  - **JIssWeb.Accounting.Api** — 计费 / 账务
+  - **JIssWeb.Report.Api** — 报表
+  - **JIssWeb.Gateway.Api** — YARP 网关聚合
+  - **JIssWeb.Frontend.Bff** — 前端 BFF
+
+  ## API 路由约定（Vite 代理）
+  - /api-user → User API（去前缀）
+  - /api-customer → Customer API（去前缀）
+  - /api-model → Model API（去前缀）
+  - /api-accounting → Accounting API（去前缀）
+  - /api-report → Report API（去前缀）
+  - /api/forum → Model API 直连（保留前缀，论坛工作首选）
+  - /api/** → Gateway API（兜底）
+
+  ## 代码约定
+
+  ### 通用
+  - 统一 JSON 响应信封：{ success, data?, message?, code? }
+  - JWT identity 以 sub 为权威用户标识；userId 仅作语义别名，若与 sub 不一致则 401
+  - Conventional Commits（中文适配）；priority 使用 pm-plan.yaml 中的五级中文标签，禁止写 P0/P1 等英文
+
+  ### 前端
+  - 所有颜色和间距必须使用 forum-tokens.css 中的 CSS 变量（--color-primary、--bg-main、--text-primary、--border-color、--space-*、--radius-*、--font-*）
+  - 间距刻度：4/8/12/16/24/32/40 px（8px 网格），禁止使用任意值（如 13px）
+  - 禁止 ::v-deep / :deep() 覆盖 Element Plus 内部样式；优先使用 EP slots/classes 或 forum-tokens EP 桥接变量
+  - 帖子标题与摘要最多 2 行（line-clamp）
+  - Dark mode 通过 html.dark[data-theme='dark'] 覆盖 forum-tokens.css
+  - 新增 API 客户端复用 createClient(prefix)，不允许另起 axios 实例
+  - 类名推荐 BEM：block__element--modifier
+
+  ### 后端
+  - 每个 *.Api 的 Program.cs 遵循固定启动模式：加载 appsettings.Local.json → UseJIssWebHttpPort → 绑定 Options → AddMongoInfrastructure → AddJIssWebCoreApi → UseExceptionHandling → UseCors
+  - 新服务复制 appsettings.Local.example.json 并配置到 .gitignore
+  - 版主鉴权统一走 ForumModerationAccessService；JWT forumBoardIds claim 须与 ForumBoardsOptions 对齐
+  - 新论坛端点须在 backend/tests/JIssWeb.Model.Api.Tests/ 添加集成测试 fixture
+
+  ## 工作流
+  - 规范驱动开发：explore → propose（生成 proposal.md + tasks.md）→ apply → change-review → PR → archive
+  - specs 落地在 openspec/specs/<capability>/spec.md，是行为契约权威来源
+  - 规划通过 pm-plan.yaml ↔ GitHub Issues 同步（npm run pm:pull / pm:push）
+
+rules:
+  proposal:
+    - 必须包含"非目标"（Non-goals）章节
+    - 影响 API 契约的提案须注明受影响的服务边界（User / Model / 其他）
+    - 涉及前端 UI 改动时须注明是否遵循 forum-tokens.css 约束
+    - 提案长度控制在 600 字以内
+  tasks:
+    - 每个 task 粒度不超过半天工作量（约 4 小时）
+    - 后端 task 须包含对应的集成测试 task
+    - 涉及新 API 端点的 task 须先有 spec 确认再开始实现
+  spec:
+    - 行为描述使用 SHALL / MUST / MAY（RFC 2119）
+    - 场景格式：WHEN … THEN …
+    - 不得在 spec 中描述实现细节（如具体方法名、集合名）

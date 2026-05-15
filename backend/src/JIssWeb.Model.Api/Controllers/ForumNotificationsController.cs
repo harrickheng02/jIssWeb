@@ -56,7 +56,11 @@ public class ForumNotificationsController : ControllerBase
             .Limit(pageSize)
             .ToListAsync();
 
-        var actorNames = await _authorNames.ResolveAsync(items.Select(x => x.ActorSubId));
+        // For ReportResolved notifications, ActorSubId is "" (system) — skip resolution to avoid empty-sub lookups.
+        var actorSubsToResolve = items
+            .Where(x => x.Type != InAppNotificationTypes.ReportResolved)
+            .Select(x => x.ActorSubId);
+        var actorNames = await _authorNames.ResolveAsync(actorSubsToResolve);
         var dtos = items.Select(n => MapDto(n, actorNames)).ToList();
         return Ok(ApiResult<PagedNotificationsDto>.Ok(new PagedNotificationsDto
         {
@@ -144,6 +148,15 @@ public class ForumNotificationsController : ControllerBase
     private static NotificationDto MapDto(InAppNotificationRecord n, IReadOnlyDictionary<string, string> names)
     {
         var actorKey = n.ActorSubId ?? "";
+        string actorDisplayName;
+        if (n.Type == InAppNotificationTypes.ReportResolved)
+        {
+            actorDisplayName = "系统";
+        }
+        else
+        {
+            actorDisplayName = names.TryGetValue(actorKey, out var d) ? d : ForumDisplayName.ForSub(actorKey);
+        }
         return new NotificationDto
         {
             Id = n.Id,
@@ -151,7 +164,7 @@ public class ForumNotificationsController : ControllerBase
             PostId = n.PostId,
             ReplyId = n.ReplyId,
             ActorId = actorKey,
-            ActorDisplayName = names.TryGetValue(actorKey, out var d) ? d : ForumDisplayName.ForSub(actorKey),
+            ActorDisplayName = actorDisplayName,
             PostTitle = n.PostTitle,
             Read = n.ReadAtUtc.HasValue,
             CreatedAtUtc = n.CreatedAtUtc,

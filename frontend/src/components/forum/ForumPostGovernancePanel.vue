@@ -7,6 +7,7 @@ import {
   deleteModerationForumReply,
   getForumPost,
   listModerationAuditByPost,
+  setForumPostFeatured,
   setForumPostRepliesLocked,
   setForumPostSticky,
   type ForumPostDetail,
@@ -44,6 +45,7 @@ const resolveError = ref<string | null>(null)
 const localPost = ref<ForumPostDetail | null>(null)
 
 const stickyBusy = ref(false)
+const featuredBusy = ref(false)
 const lockBusy = ref(false)
 const deletePostBusy = ref(false)
 const deleteFocusReplyBusy = ref(false)
@@ -166,6 +168,24 @@ async function toggleSticky(nextValue: boolean) {
   }
 }
 
+async function toggleFeatured(nextValue: boolean) {
+  if (!canModerate.value || !localPost.value) return
+  featuredBusy.value = true
+  try {
+    const res = await setForumPostFeatured(props.postId, nextValue)
+    if (!res.success) {
+      ElMessage.error(res.message ?? '操作失败')
+      return
+    }
+    localPost.value = { ...localPost.value, isFeatured: nextValue }
+    emit('postUpdated', { isFeatured: nextValue })
+    ElMessage.success(nextValue ? '已加精' : '已取消精华')
+    refreshAuditIfOpen()
+  } finally {
+    featuredBusy.value = false
+  }
+}
+
 async function toggleReplyLock(nextLocked: boolean) {
   if (!canModerate.value || !localPost.value) return
   lockBusy.value = true
@@ -272,6 +292,19 @@ defineExpose({ refreshAuditIfOpen })
             </el-button>
             <el-button v-else type="primary" plain size="small" :loading="stickyBusy" @click="toggleSticky(false)">
               取消置顶
+            </el-button>
+            <el-button
+              v-if="!localPost.isFeatured"
+              type="warning"
+              plain
+              size="small"
+              :loading="featuredBusy"
+              @click="toggleFeatured(true)"
+            >
+              加精
+            </el-button>
+            <el-button v-else type="warning" plain size="small" :loading="featuredBusy" @click="toggleFeatured(false)">
+              取消精华
             </el-button>
             <el-button
               v-if="!localPost.repliesLocked"

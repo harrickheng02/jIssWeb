@@ -282,6 +282,7 @@ watch(
             <div class="post-topline-left">
               <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
               <el-tag v-if="post.isSticky" size="small" type="warning" effect="plain">置顶</el-tag>
+              <el-tag v-if="post.isFeatured" size="small" type="success" effect="plain">精华</el-tag>
               <ForumRepliesLockedMark v-if="post.repliesLocked" :size="18" />
             </div>
             <span class="post-time">{{ formatPublishedUtc(post.publishedAtUtc) }}</span>

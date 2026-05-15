@@ -255,6 +255,114 @@ public class ModPostsController : ControllerBase
         }));
     }
 
+    [HttpPost("{postId}/featured")]
+    [Authorize]
+    [RequireForumModerator]
+    public async Task<ActionResult<ApiResult<SetFeaturedResultDto>>> SetFeatured(
+        string postId,
+        [FromBody] SetFeaturedRequest request,
+        CancellationToken ct = default)
+    {
+        var sub = TryGetSub();
+        if (sub is null)
+            return Unauthorized(ApiResult<SetFeaturedResultDto>.Fail("未授权", "UNAUTHORIZED"));
+
+        var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync(ct);
+        if (post is null)
+            return NotFound(ApiResult<SetFeaturedResultDto>.Fail("帖子不存在或已删除", "NOT_FOUND"));
+
+        var role = User.GetForumPrincipalRole();
+        if (role == ForumPrincipalRole.Moderator)
+        {
+            if (!_access.CanModeratePostAsModerator(User, sub, post))
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResult<SetFeaturedResultDto>.Fail("无权操作该帖子", "FORBIDDEN"));
+        }
+
+        if (post.IsFeatured == request.IsFeatured)
+        {
+            return Ok(ApiResult<SetFeaturedResultDto>.Ok(new SetFeaturedResultDto
+            {
+                PostId = postId,
+                IsFeatured = post.IsFeatured,
+            }));
+        }
+
+        var now = DateTime.UtcNow;
+        var oldIsFeatured = post.IsFeatured;
+        var oldFeaturedAt = post.FeaturedAtUtc;
+        var oldFeaturedBy = post.FeaturedBySub;
+
+        var update = request.IsFeatured
+            ? Builders<ForumPostRecord>.Update
+                .Set(x => x.IsFeatured, true)
+                .Set(x => x.FeaturedAtUtc, now)
+                .Set(x => x.FeaturedBySub, sub)
+            : Builders<ForumPostRecord>.Update
+                .Set(x => x.IsFeatured, false)
+                .Set(x => x.FeaturedAtUtc, (DateTime?)null)
+                .Set(x => x.FeaturedBySub, (string?)null);
+
+        var upd = await _posts.UpdateOneAsync(x => x.Id == postId, update, cancellationToken: ct);
+        if (upd.MatchedCount != 1)
+            return NotFound(ApiResult<SetFeaturedResultDto>.Fail("帖子不存在或已删除", "NOT_FOUND"));
+
+        var action = request.IsFeatured ? "post.setFeatured" : "post.unsetFeatured";
+        var meta = new Dictionary<string, object>
+        {
+            ["board"] = post.Board,
+            ["oldIsFeatured"] = oldIsFeatured,
+            ["newIsFeatured"] = request.IsFeatured,
+        };
+        var boardIdResolved = ForumBoardIdLookup.ResolveBoardIdFromTitle(_boards.Value, post.Board);
+        if (!string.IsNullOrEmpty(boardIdResolved))
+            meta["boardId"] = boardIdResolved;
+
+        var audit = new ForumModerationAuditRecord
+        {
+            Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+            TargetType = "post",
+            TargetId = postId,
+            Action = action,
+            OperatorSub = sub,
+            OccurredAtUtc = now,
+            Metadata = meta,
+        };
+
+        try
+        {
+            await _audit.InsertOneAsync(audit, cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to write moderation audit for featured {PostId}", postId);
+
+            var rollback = oldIsFeatured
+                ? Builders<ForumPostRecord>.Update
+                    .Set(x => x.IsFeatured, true)
+                    .Set(x => x.FeaturedAtUtc, oldFeaturedAt)
+                    .Set(x => x.FeaturedBySub, oldFeaturedBy)
+                : Builders<ForumPostRecord>.Update
+                    .Set(x => x.IsFeatured, false)
+                    .Set(x => x.FeaturedAtUtc, (DateTime?)null)
+                    .Set(x => x.FeaturedBySub, (string?)null);
+
+            var rb = await _posts.UpdateOneAsync(x => x.Id == postId, rollback, cancellationToken: ct);
+            if (rb.MatchedCount != 1)
+                _logger.LogError(
+                    "Featured rollback did not match post {PostId}; database state may diverge.",
+                    postId);
+
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResult<SetFeaturedResultDto>.Fail("写入审计失败", "AUDIT_WRITE_FAILED"));
+        }
+
+        return Ok(ApiResult<SetFeaturedResultDto>.Ok(new SetFeaturedResultDto
+        {
+            PostId = postId,
+            IsFeatured = request.IsFeatured,
+        }));
+    }
+
     [HttpDelete("{postId}")]
     [Authorize]
     [RequireForumModerator]
@@ -335,5 +443,16 @@ public class SetRepliesLockedResultDto
 {
     public string PostId { get; set; } = "";
     public bool RepliesLocked { get; set; }
+}
+
+public class SetFeaturedRequest
+{
+    public bool IsFeatured { get; set; }
+}
+
+public class SetFeaturedResultDto
+{
+    public string PostId { get; set; } = "";
+    public bool IsFeatured { get; set; }
 }
 

@@ -230,6 +230,7 @@ export interface ForumPostListItem {
   tags: string[]
   isSticky?: boolean
   repliesLocked?: boolean
+  isFeatured?: boolean
   likes: number
   comments: number
   views: number
@@ -272,6 +273,11 @@ export interface ModerationSetRepliesLockedResult {
   repliesLocked: boolean
 }
 
+export interface ModerationSetFeaturedResult {
+  postId: string
+  isFeatured: boolean
+}
+
 export interface ModerationAuditItem {
   id: string
   targetType: string
@@ -306,6 +312,17 @@ export async function setForumPostSticky(postId: string, isSticky: boolean) {
   try {
     const { data } = await modelApi.post<ApiResult<ModerationSetStickyResult>>(`/mod/posts/${postId}/sticky`, {
       isSticky,
+    })
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export async function setForumPostFeatured(postId: string, isFeatured: boolean) {
+  try {
+    const { data } = await modelApi.post<ApiResult<ModerationSetFeaturedResult>>(`/mod/posts/${postId}/featured`, {
+      isFeatured,
     })
     return data
   } catch (e) {
@@ -403,12 +420,14 @@ export async function listForumPosts(
   q?: string,
   tag?: string,
   sort?: 'latest' | 'hot',
+  featured?: boolean,
 ) {
-  const params: Record<string, string | number> = { page, pageSize }
+  const params: Record<string, string | number | boolean> = { page, pageSize }
   if (boardId) params.boardId = boardId
   if (q !== undefined && q !== '') params.q = q
   if (tag !== undefined && tag !== '') params.tag = tag
   if (sort === 'hot') params.sort = 'hot'
+  if (featured === true) params.featured = true
   const { data } = await modelApi.get<ApiResult<PagedForumPosts>>('/forum/posts', {
     params,
     headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },

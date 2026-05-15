@@ -3,9 +3,7 @@
 ## Purpose
 
 定义论坛举报在 Model.Api 侧的持久化、鉴权边界与 REST 契约；**已结案单据**在 **`forum_reports`** 中按配置 **`Forum:ReportRetention`** 周期清理，**`forum_moderation_audit`** 另计。管理端列表与 `PATCH` 使用规范状态 **`pending` / `rejected` / `resolved`**；存量 `dismissed` / `acknowledged` 在查询过滤、列表展示与 `PATCH` 请求体中分别视为 **`rejected` / `resolved`**。**举报工单状态的 `PATCH` 不写入** **`forum_moderation_audit`**（与内容类治理审计分离）。**硬删除帖子或回复** 由 **`forum-moderation-delete-content`** 的 `DELETE` 端点完成，并写入对应审计动作。
-
 ## Requirements
-
 ### Requirement: Authenticated user can submit a forum report for a post or reply
 
 The system SHALL expose `POST /api/forum/reports` for authenticated clients to create a report targeting either a forum post or a forum reply. The request body SHALL include `targetType` with value exactly `post` or `reply`, `targetId` identifying the persisted target, and MAY include `reason` as a short string. The system SHALL persist the reporter identity from JWT `sub`, the resolved board scope for authorization filtering, timestamps, and an initial report `status` of `pending`. The system SHALL reject unauthenticated callers with HTTP 401 and the uniform error envelope.
@@ -61,6 +59,8 @@ The system SHALL expose `GET /api/mod/reports` for authenticated clients whose e
 
 The system SHALL expose `PATCH /api/mod/reports/{reportId}` for authenticated moderators and administrators. The request body SHALL be JSON with a **`status`** string. Accepted values SHALL be **`pending`**, **`rejected`**, **`resolved`**, **`dismissed`** (stored as **`rejected`**), **`acknowledged`** (stored as **`resolved`**); other values SHALL yield **`400`** with the uniform error envelope. The handler SHALL apply the mapped stored status **regardless of the report's prior status**, allowing repeat transitions between terminal states and reopen flows into **`pending`**. When **`status`** maps to **`pending`**, the system SHALL clear `handledBySub`, `handledAtUtc`, and `resolutionCode` on the report. When **`status`** maps to **`rejected`** or **`resolved`**, the system SHALL set `handledBySub` to the caller's **`sub`**, set `handledAtUtc`, and clear `resolutionCode` on the report for this workflow. **`PATCH`** success SHALL persist only the **`forum_reports`** document update and SHALL NOT append moderation audit rows for report status churn. Administrators MAY update any report. Moderators SHALL succeed only when the report's **`boardId`** satisfies their moderator scope; otherwise **`403`**. Missing report **`404`**.
 
+After a successful status update to a terminal closed state (`resolved` or `rejected`), the system SHALL attempt to write a `ReportResolved` in-app notification to the reporter per the `report-resolved-notification` capability. This notification write SHALL be idempotent (duplicate-key conflict is silently ignored) and SHALL NOT cause the PATCH response to fail.
+
 Post and reply deletion SHALL use **`forum-moderation-delete-content`** **`DELETE`** endpoints from moderation surfaces: **post detail** and **expanded report-queue rows** where the same governance controls are exposed (shared component or equivalent). This **`PATCH`** SHALL update report workflow status only.
 
 #### Scenario: Moderator sets status inside board scope
@@ -69,6 +69,7 @@ Post and reply deletion SHALL use **`forum-moderation-delete-content`** **`DELET
 - **THEN** the response SHALL be successful
 - **AND** the stored status SHALL equal `rejected`
 - **AND** `handledBySub` SHALL equal the moderator's `sub`
+- **AND** a `ReportResolved` notification SHALL be written for the report's `ReporterSub`
 
 #### Scenario: Moderator forbidden out of scope
 
@@ -88,6 +89,20 @@ Post and reply deletion SHALL use **`forum-moderation-delete-content`** **`DELET
 - **WHEN** a caller submits `{ "status": "acknowledged" }`
 - **THEN** the persisted status SHALL equal `resolved`
 
+#### Scenario: Reopening a report does not trigger a notification
+
+- **WHEN** an authorized caller calls `PATCH /api/mod/reports/{reportId}` with `{ "status": "pending" }` to reopen a report
+- **THEN** the response SHALL succeed
+- **AND** NO new `ReportResolved` notification SHALL be written
+
 ### Requirement: Closed forum report documents expire from primary storage
 
 The system SHALL periodically remove **`forum_reports`** documents whose stored **`status`** is a terminal closed bucket (**`rejected`** / **`resolved`**, **including legacy `dismissed` / `acknowledged`**) and whose **`HandledAtUtc`** is **strictly older** than a configured retention horizon in UTC days. **`pending`** rows SHALL remain. Retention **`DeleteMany`** SHALL target **`forum_reports`** only; **`forum_moderation_audit`** rows remain until handled by separate archival or retention policies. Scheduling, enable switch, **`ClosedRetentionDays`**, **`IntervalHours`**, and startup delay SHALL be configurable under **`Forum:ReportRetention`** in application configuration.
+
+#### Scenario: Expired closed reports are removed
+
+- **WHEN** the retention background job runs
+- **AND** there exist `forum_reports` documents with a terminal status whose `HandledAtUtc` is older than the configured `ClosedRetentionDays` horizon
+- **THEN** those documents SHALL be deleted from `forum_reports`
+- **AND** `pending` documents SHALL remain unaffected
+

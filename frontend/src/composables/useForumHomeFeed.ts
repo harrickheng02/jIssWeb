@@ -42,6 +42,7 @@ export function useForumHomeFeed(
       const qResolved = firstQueryString(route.query.q)
       const q = qResolved || undefined
       const sortParam: 'hot' | undefined = feedSort.value === 'hot' ? 'hot' : undefined
+      const featuredParam: boolean | undefined = feedSort.value === 'featured' ? true : undefined
       const res = await listForumPosts(
         page.value,
         pageSize.value,
@@ -49,6 +50,7 @@ export function useForumHomeFeed(
         q,
         tagFilterValue.value,
         sortParam,
+        featuredParam,
       )
       if (!res.success || !res.data) {
         listError.value = res.message ?? '加载失败'

@@ -74,6 +74,7 @@ const favoriteIcon = (): Component => (favorited() ? StarFilled : Star)
       <div class="post-topline-left">
         <el-tag size="small" effect="plain">{{ post.board }}</el-tag>
         <el-tag v-if="post.isSticky" size="small" type="warning" effect="plain">置顶</el-tag>
+        <el-tag v-if="post.isFeatured" size="small" type="success" effect="plain" class="featured-mark">精华</el-tag>
         <ForumRepliesLockedMark v-if="post.repliesLocked" :size="16" />
       </div>
       <span class="post-time">{{ formatPublishedUtc(post.publishedAtUtc) }}</span>
@@ -298,6 +299,10 @@ const favoriteIcon = (): Component => (favorited() ? StarFilled : Star)
 
 .stat-num--muted {
   color: var(--text-secondary);
+}
+
+.featured-mark {
+  flex-shrink: 0;
 }
 
 .stat-views {

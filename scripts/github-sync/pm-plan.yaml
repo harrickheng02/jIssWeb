@@ -308,16 +308,17 @@ issues:
   - title: 版主锁帖与加精操作
     body: |
       验收标准：
-      - 版主（`forumBoardIds` 覆盖目标版区）可对帖子执行**锁帖**（禁止继续回复）与**加精/取消精华**操作，状态持久化；帖子详情与列表字段（如 `isLocked`、`isFeatured`）可反映最新状态。
-      - 审计记录包含操作类型（`lock`/`feature`/`unfeature`）、操作者 `sub`、目标 `postId` 与 `boardId`；与现有 `GET /api/mod/audit` 列表结构兼容，`actionLabel` 可人读。
-      - 锁帖后普通用户尝试回复收到明确错误码（403 或 409）；加精/取消精华不影响回复权限。
+      - 版主（`forumBoardIds` 覆盖目标版区）可对帖子执行**加精/取消精华**操作，状态持久化；帖子详情与列表字段（`isFeatured`）可反映最新状态；首页「精华」Tab 按 `isFeatured: true` 筛选（当前 Tab 已占位但 fallback 到 latest，需接入真实字段）。
+      - 审计记录包含操作类型（`feature`/`unfeature`）、操作者 `sub`、目标 `postId` 与 `boardId`；与现有 `GET /api/mod/audit` 列表结构兼容，`actionLabel` 可人读。
+      - 加精/取消精华不影响回复权限。
       - 非法版区范围或未授权角色的请求返回 403；未登录返回 401。
+      部分已交付（无需重复验收）：锁帖（`RepliesLocked`）后端 API `POST /api/mod/posts/{postId}/replies-locked` 与前端 `ForumPostGovernancePanel`、`ForumRepliesLockedMark` 已完整实现（Issue #7 延伸交付）。
       依赖：Issue #7 closed（sticky/audit 路由与鉴权模式可复用）；`openspec/specs/forum-moderation-post-ops`；`openspec/specs/token-identity-consistency`。
       非目标：沉帖（降权/隐藏帖）；批量操作；跨版区脚本；加精多级评级。
     milestone: M3 — 治理与增长
     issue_number: 20
     priority: 主要
-    state: open
+    state: closed
     module: 治理与审核
     classification: feature
   - title: 举报后续：账号处罚、工单 SLA、举报人通知与证据导出
@@ -353,7 +354,7 @@ issues:
     milestone: M3 — 治理与增长
     issue_number: 21
     priority: 主要
-    state: open
+    state: closed
     module: 治理与审核
     classification: feature
   - title: 标签体系后台管理（CRUD 与绑定规则）
@@ -381,4 +382,40 @@ issues:
     priority: 主要
     state: open
     module: 搜索与发现
+    classification: feature
+  - title: 论坛 MVP 核心基础设施与首页 Feed 接入（M1 归档）
+    body: |
+      验收标准（已全部交付，此条为归档记录）：
+      - 多服务骨架（User/Customer/Model/Accounting/Report/Gateway/Frontend.Bff）已按统一 Program.cs 模式启动，含共享异常处理、JWT 验证与 MongoDB 注册。
+      - Docker Compose 本地启动 Mongo + Redis 可用，端口与 `.env` 对齐。
+      - JWT `sub`/`userId` 一致性约定落地（`openspec/specs/token-identity-consistency`）。
+      - 论坛首页壳（Forum Homepage Shell）与首组 API 接入：`GET /api/forum/posts`（分页、板块筛选、tag 筛选）、`GET /api/forum/posts/{id}`（详情与查看计数）、`POST /api/forum/posts`（发帖）、`POST /api/forum/posts/{id}/replies`（回复）。
+      - YARP 网关转发规则与 Vite 代理约定已对齐；axios 401 单飞 refresh 已上线。
+      - 账号与访问完整闭环：邮箱验证注册、找回密码、auth 页 UX、JWT 双令牌本地存储、路由守卫。
+      - 版区与标签只读（`GET /api/forum/tags/popular`）、点赞/收藏基础设施（`forum-post-like-favorite`）已交付。
+      已归档变更（`openspec/changes/archive/`）：`2026-04-08-multi-service-skeleton`、`2026-04-08-docker-configuration`、`2026-04-08-jwt-sub-userid-consistency`、`2026-04-08-email-verification-*`、`2026-04-08-auth-page-ux-refresh`、`2026-04-08-yarp-gateway-bff-foundation`、`2026-04-10-add-forum-homepage-skeleton`、`2026-04-11-forum-mvp-api-feed`、`2026-04-11-password-reset-email-flow`、`2026-04-12-axios-401-refresh-retry`、`2026-04-12-forum-post-search`、`2026-04-13-forum-boards-tags-readonly-homepage`、`2026-04-18-post-like-favorite-foundation`。
+      依赖：无（起点）。
+      非目标：见各归档变更的 proposal.md。
+    milestone: M1 — 可演示论坛 MVP
+    issue_number: 22
+    priority: 严重
+    state: closed
+    module: 平台与基础设施
+    classification: feature
+  - title: 帖子与回复自编辑及草稿最小集
+    body: |
+      验收标准：
+      - 帖子作者可编辑**自己**已发布帖子的标题、正文与 tags（非版主操作），编辑后内容即时生效；非作者尝试编辑收到 403。
+      - 回复作者可编辑**自己**已发布回复的正文；非作者尝试编辑收到 403。
+      - 草稿：登录用户发帖时可保存草稿（`state: draft`），草稿仅作者可见，可继续编辑后发布；至少支持「我的草稿」列表（可在个人中心子导航追加或单独入口）；浏览器刷新后草稿不丢失（服务端持久化）。
+      - 已锁帖（`RepliesLocked: true`）时，回复编辑仍可操作（锁帖只禁止新回复，不影响存量编辑）；已删除帖子/回复不可编辑。
+      - 后端：`PUT /api/forum/posts/{postId}`、`PUT /api/forum/posts/{postId}/replies/{replyId}`、`POST /api/forum/posts/drafts`、`GET /api/forum/me/drafts`（分页）；发布草稿复用 `POST /api/forum/posts`（增加 `draftId` 参数消费草稿）或等价设计，方案在 OpenSpec change 中写清。
+      - 集成测试覆盖：作者编辑成功、非作者编辑 403、草稿保存与发布、草稿列表分页。
+      依赖：`openspec/specs/forum-content-api`（帖子与回复 API 合同）；Issue #2 closed（个人中心，可追加草稿子视图）。
+      非目标：版本历史与编辑记录；富文本编辑器升级（可独立 Issue）；协作编辑；草稿分享或多设备同步。
+    milestone: M3 — 治理与增长
+    issue_number: 23
+    priority: 次要
+    state: open
+    module: 帖子与回复
     classification: feature

@@ -14,6 +14,8 @@ internal static class ModerationAuditPresentation
             "report.statusChange" => "举报状态变更",
             "post.lockReplies" => "锁定回复",
             "post.unlockReplies" => "解除锁定回复",
+            "post.setFeatured" => "加精",
+            "post.unsetFeatured" => "取消精华",
             "post.modDelete" => "删除帖子",
             "reply.modDelete" => "删除回复",
             _ => "操作",

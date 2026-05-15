@@ -18,6 +18,8 @@ namespace JIssWeb.Model.Api.Controllers;
 public sealed class ModReportsController : ControllerBase
 {
     private readonly IMongoCollection<ForumReportRecord> _reports;
+    private readonly IMongoCollection<InAppNotificationRecord> _notifications;
+    private readonly IMongoCollection<ForumPostRecord> _posts;
     private readonly ForumModerationAccessService _access;
     private readonly ForumAuthorDisplayResolver _displayNames;
 
@@ -29,6 +31,8 @@ public sealed class ModReportsController : ControllerBase
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _reports = db.GetCollection<ForumReportRecord>(ForumMongoSetup.ReportsCollectionName);
+        _notifications = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+        _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _access = access;
         _displayNames = displayNames;
     }
@@ -164,6 +168,35 @@ public sealed class ModReportsController : ControllerBase
         var updated = await _reports.Find(x => x.Id == rid).FirstOrDefaultAsync(ct);
         if (updated is null)
             return NotFound(ApiResult<ForumReportListItemDto>.Fail("举报不存在", "NOT_FOUND"));
+
+        // Write a ReportResolved notification when the report is closed (resolved or rejected).
+        if (storedStatus == ForumReportStatuses.Resolved || storedStatus == ForumReportStatuses.Rejected)
+        {
+            var postTitle = await _posts
+                .Find(x => x.Id == report.PostId)
+                .Project(x => x.Title)
+                .FirstOrDefaultAsync(ct) ?? "";
+
+            var notification = new InAppNotificationRecord
+            {
+                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                RecipientSubId = report.ReporterSub,
+                Type = InAppNotificationTypes.ReportResolved,
+                PostId = report.PostId,
+                ReportId = report.Id,
+                ActorSubId = "",
+                PostTitle = postTitle,
+                CreatedAtUtc = now,
+            };
+            try
+            {
+                await _notifications.InsertOneAsync(notification, cancellationToken: ct);
+            }
+            catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+            {
+                // Idempotent: notification already exists for this report — silently skip.
+            }
+        }
 
         var nm = await _displayNames.ResolveAsync(new[] { updated.ReporterSub }, ct);
         return Ok(ApiResult<ForumReportListItemDto>.Ok(ToListItemDto(updated, nm)));

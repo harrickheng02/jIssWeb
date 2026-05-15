@@ -56,6 +56,8 @@ public static class ForumMongoSetup
         posts.Indexes.CreateOne(new CreateIndexModel<ForumPostRecord>(byAuthorPosts));
         var byTitle = Builders<ForumPostRecord>.IndexKeys.Ascending(x => x.Title);
         posts.Indexes.CreateOne(new CreateIndexModel<ForumPostRecord>(byTitle));
+        var featuredIdx = Builders<ForumPostRecord>.IndexKeys.Ascending(x => x.IsFeatured).Descending(x => x.FeaturedAtUtc);
+        posts.Indexes.CreateOne(new CreateIndexModel<ForumPostRecord>(featuredIdx));
 
         var replies = db.GetCollection<ForumReplyRecord>(RepliesCollectionName);
         var replyKeys = Builders<ForumReplyRecord>.IndexKeys.Ascending(x => x.PostId).Ascending(x => x.CreatedAtUtc);
@@ -69,6 +71,9 @@ public static class ForumMongoSetup
         var byReplyId = Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.ReplyId);
         notifications.Indexes.CreateOne(
             new CreateIndexModel<InAppNotificationRecord>(byReplyId, new CreateIndexOptions { Unique = true, Sparse = true }));
+        var byReportId = Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.ReportId);
+        notifications.Indexes.CreateOne(
+            new CreateIndexModel<InAppNotificationRecord>(byReportId, new CreateIndexOptions { Unique = true, Sparse = true }));
 
         var likes = db.GetCollection<ForumPostLikeRecord>(LikesCollectionName);
         var likeUnique = Builders<ForumPostLikeRecord>.IndexKeys.Ascending(x => x.PostId).Ascending(x => x.UserSubId);

@@ -83,10 +83,21 @@ public class ForumPostsController : ControllerBase
             tagFilter = BuildTagFilter(tagTrimmed);
         }
 
+        bool? featuredFilter = null;
+        if (Request.Query.TryGetValue("featured", out var featuredVals))
+        {
+            var ft = featuredVals.ToString().Trim();
+            if (!bool.TryParse(ft, out var fv))
+                return BadRequest(ApiResult<PagedPostsDto>.Fail("featured 参数无效", "INVALID_FEATURED"));
+            featuredFilter = fv;
+        }
+
         var parts = new List<FilterDefinition<ForumPostRecord>>();
         if (boardFilter is not null) parts.Add(boardFilter);
         if (searchFilter is not null) parts.Add(searchFilter);
         if (tagFilter is not null) parts.Add(tagFilter);
+        if (featuredFilter is not null)
+            parts.Add(Builders<ForumPostRecord>.Filter.Eq(x => x.IsFeatured, featuredFilter.Value));
         var filter = parts.Count == 0
             ? FilterDefinition<ForumPostRecord>.Empty
             : Builders<ForumPostRecord>.Filter.And(parts);
@@ -106,12 +117,13 @@ public class ForumPostsController : ControllerBase
 
         var useHotSort = searchFilter is null && sortMode == "hot";
         var keywordSearchActive = searchFilter is not null;
+        var useFeaturedSort = featuredFilter == true && searchFilter is null;
 
         Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
 
         var total = await _posts.CountDocumentsAsync(filter);
         var find = _posts.Find(filter);
-        var sortDef = BuildPostListSortDefinition(useHotSort, keywordSearchActive);
+        var sortDef = BuildPostListSortDefinition(useHotSort, keywordSearchActive, useFeaturedSort);
         var items = await find
             .Sort(sortDef)
             .Skip((page - 1) * pageSize)
@@ -343,14 +355,23 @@ public class ForumPostsController : ControllerBase
 
     /// <summary>
     /// Non-search lists: sticky first, then latest/hot rules. Keyword search (<c>q</c>): recency only; <see cref="ForumPostRecord.IsSticky"/> is returned for display only.
+    /// Featured feed (<c>useFeaturedSort=true</c>): ordered by <see cref="ForumPostRecord.FeaturedAtUtc"/> descending (null falls back to <see cref="ForumPostRecord.CreatedAtUtc"/>); overrides sort param.
     /// </summary>
-    private static SortDefinition<ForumPostRecord> BuildPostListSortDefinition(bool useHotSort, bool keywordSearchActive)
+    private static SortDefinition<ForumPostRecord> BuildPostListSortDefinition(bool useHotSort, bool keywordSearchActive, bool useFeaturedSort = false)
     {
         if (keywordSearchActive)
         {
             return Builders<ForumPostRecord>.Sort
                 .Descending(x => x.CreatedAtUtc)
                 .Ascending(x => x.Id);
+        }
+
+        if (useFeaturedSort)
+        {
+            // FeaturedAtUtc desc, with null values falling to the end via CreatedAtUtc desc tiebreak
+            return Builders<ForumPostRecord>.Sort
+                .Descending(x => x.FeaturedAtUtc)
+                .Descending(x => x.CreatedAtUtc);
         }
 
         return useHotSort
@@ -499,6 +520,7 @@ public class PostListItemDto
     public List<string> Tags { get; set; } = new();
     public bool IsSticky { get; set; }
     public bool RepliesLocked { get; set; }
+    public bool IsFeatured { get; set; }
     public int Likes { get; set; }
     public int FavoriteCount { get; set; }
     public int Comments { get; set; }

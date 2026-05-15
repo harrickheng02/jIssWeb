@@ -70,6 +70,7 @@ async function load(opts?: { preserveItems?: boolean }) {
 }
 
 function goPost(n: ForumNotificationItem) {
+  if (!n.postId) return
   void router.push({
     name: 'post-detail',
     params: { id: n.postId },
@@ -140,13 +141,16 @@ onMounted(() => {
           :key="n.id"
           shadow="hover"
           class="notification-card"
-          :class="{ 'is-unread': !n.read }"
+          :class="{ 'is-unread': !n.read, 'no-link': !n.postId }"
           @click="goPost(n)"
         >
           <div class="notification-row">
             <div class="notification-main">
               <span v-if="!n.read" class="dot" aria-hidden="true" />
-              <span class="notification-text">
+              <span v-if="n.type === 'ReportResolved'" class="notification-text">
+                {{ n.actorDisplayName?.trim() || '系统' }}：您对《{{ n.postTitle || '内容已移除' }}》的举报已处理
+              </span>
+              <span v-else class="notification-text">
                 <strong>{{ n.actorDisplayName?.trim() || n.actorId }}</strong>
                 回复了你的帖子「{{ n.postTitle }}」
               </span>
@@ -231,6 +235,10 @@ onMounted(() => {
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--bg-card);
+}
+
+.notification-card.no-link {
+  cursor: default;
 }
 
 .notification-card.is-unread {

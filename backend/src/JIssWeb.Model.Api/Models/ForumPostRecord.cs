@@ -16,6 +16,10 @@ public class ForumPostRecord
     public bool RepliesLocked { get; set; }
     public DateTime? RepliesLockedAtUtc { get; set; }
     public string? RepliesLockedBySub { get; set; }
+    /// <summary>When true, the post has been marked as a featured/精华 post by a moderator.</summary>
+    public bool IsFeatured { get; set; }
+    public DateTime? FeaturedAtUtc { get; set; }
+    public string? FeaturedBySub { get; set; }
     public int LikeCount { get; set; }
     public int FavoriteCount { get; set; }
     public int CommentCount { get; set; }
