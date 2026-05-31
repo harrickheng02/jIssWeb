@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   deleteModerationForumPost,
   deleteForumPost,
   deleteForumReply,
+  deleteModerationForumReply,
   getForumPost,
   listModerationAuditByPost,
   setForumPostFeatured,
@@ -14,7 +15,7 @@ import {
   type ForumPostDetail,
 } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
-import { confirmDeleteModerationForumPost, confirmDeleteModerationForumReply } from '@/utils/moderationForumConfirm'
+import { confirmDeleteAuthorForumPost, confirmDeleteModerationForumPost, confirmDeleteModerationForumReply } from '@/utils/moderationForumConfirm'
 
 const props = withDefaults(
   defineProps<{
@@ -26,8 +27,10 @@ const props = withDefaults(
     focusReplyId?: string
     /** 举报对象为回复时在队列中仅展示删除该回复（隐藏置顶、锁帖、删帖、操作记录）。 */
     replyDeleteOnly?: boolean
+    /** 举报队列上下文：删内容时传 reportId 写入审计，不向作者通知或披露原因。 */
+    reportContext?: { reportId: string }
   }>(),
-  { postSnapshot: undefined, variant: 'default', replyDeleteOnly: false },
+  { postSnapshot: undefined, variant: 'default', replyDeleteOnly: false, reportContext: undefined },
 )
 
 const emit = defineEmits<{
@@ -207,24 +210,29 @@ async function toggleReplyLock(nextLocked: boolean) {
 
 async function onDeletePost() {
   if (!canModerate.value || !localPost.value) return
-  const ok = await confirmDeleteModerationForumPost()
+  const isAuthor = Boolean(auth.sub && auth.sub === localPost.value.authorId)
+  const ok = isAuthor
+    ? await confirmDeleteAuthorForumPost()
+    : await confirmDeleteModerationForumPost()
   if (!ok) return
 
-  const isAuthor = Boolean(auth.sub && auth.sub === localPost.value.authorId)
+  let reportPayload: { reportId: string } | undefined
+  if (props.reportContext?.reportId) {
+    reportPayload = { reportId: props.reportContext.reportId }
+  }
+
   deletePostBusy.value = true
   try {
     const res = isAuthor
       ? await deleteForumPost(props.postId)
-      : await deleteModerationForumPost(props.postId)
+      : await deleteModerationForumPost(props.postId, reportPayload)
     if (!res.success) {
       ElMessage.error(res.message ?? '删除失败')
       return
     }
     ElMessage.success('帖子已删除')
     emit('postDeleted')
-    if (props.postSnapshot) {
-      await router.push('/')
-    }
+    await router.push('/')
   } finally {
     deletePostBusy.value = false
   }
@@ -236,9 +244,16 @@ async function onDeleteFocusedReply() {
   const ok = await confirmDeleteModerationForumReply()
   if (!ok) return
 
+  let reportPayload: { reportId: string; reason?: string } | undefined
+  if (props.reportContext?.reportId) {
+    reportPayload = { reportId: props.reportContext.reportId }
+  }
+
   deleteFocusReplyBusy.value = true
   try {
-    const res = await deleteForumReply(props.postId, rid)
+    const res = reportPayload
+      ? await deleteModerationForumReply(rid, reportPayload)
+      : await deleteForumReply(props.postId, rid)
     if (!res.success) {
       ElMessage.error(res.message ?? '删除失败')
       return

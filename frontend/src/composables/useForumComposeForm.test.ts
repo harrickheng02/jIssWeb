@@ -3,6 +3,14 @@ import { createPinia, setActivePinia } from 'pinia'
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
+  useRoute: () => ({ path: '/' }),
+}))
+
+vi.mock('@/stores/draftUi', () => ({
+  useDraftUiStore: () => ({
+    refreshBadgeFromServer: vi.fn(),
+    clearBadge: vi.fn(),
+  }),
 }))
 
 vi.mock('@/api/clients', () => ({
@@ -113,5 +121,16 @@ describe('useForumComposeForm', () => {
     expect(mockCreateDraft).toHaveBeenCalledOnce()
     expect(form.mode.value).toBe('draft-edit')
     expect(form.editTargetId.value).toBe('new-draft')
+  })
+
+  it('saveDraft without title does not call createDraft', async () => {
+    const mockCreateDraft = vi.mocked(clients.createDraft)
+    const form = useForumComposeForm({ getDefaultBoardId: () => 'general' })
+    form.openComposeDialog()
+    form.composeBody.value = 'Body only'
+
+    await form.saveDraft()
+
+    expect(mockCreateDraft).not.toHaveBeenCalled()
   })
 })

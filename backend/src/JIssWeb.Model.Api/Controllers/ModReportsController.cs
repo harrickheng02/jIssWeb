@@ -22,12 +22,14 @@ public sealed class ModReportsController : ControllerBase
     private readonly IMongoCollection<ForumPostRecord> _posts;
     private readonly ForumModerationAccessService _access;
     private readonly ForumAuthorDisplayResolver _displayNames;
+    private readonly ForumReportTargetResolver _targetResolver;
 
     public ModReportsController(
         IMongoClient mongoClient,
         IOptions<MongoSettings> mongoOptions,
         ForumModerationAccessService access,
-        ForumAuthorDisplayResolver displayNames)
+        ForumAuthorDisplayResolver displayNames,
+        ForumReportTargetResolver targetResolver)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _reports = db.GetCollection<ForumReportRecord>(ForumMongoSetup.ReportsCollectionName);
@@ -35,6 +37,7 @@ public sealed class ModReportsController : ControllerBase
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _access = access;
         _displayNames = displayNames;
+        _targetResolver = targetResolver;
     }
 
     [HttpGet]
@@ -87,9 +90,21 @@ public sealed class ModReportsController : ControllerBase
             .Limit(pageSize)
             .ToListAsync(ct);
 
-        var nameMap = await _displayNames.ResolveAsync(rows.Select(r => r.ReporterSub), ct);
+        var targetSubByReportId = new Dictionary<string, string?>(rows.Count);
+        foreach (var r in rows)
+            targetSubByReportId[r.Id] = await _targetResolver.ResolveTargetAuthorSubAsync(r, ct);
 
-        var items = rows.Select(r => ToListItemDto(r, nameMap)).ToList();
+        var subsToResolve = rows.Select(r => r.ReporterSub)
+            .Concat(targetSubByReportId.Values.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!))
+            .Distinct(StringComparer.Ordinal);
+        var allNames = await _displayNames.ResolveAsync(subsToResolve, ct);
+
+        var items = new List<ForumReportListItemDto>(rows.Count);
+        foreach (var r in rows)
+        {
+            var targetAuthorSub = targetSubByReportId[r.Id];
+            items.Add(ToListItemDto(r, allNames, targetAuthorSub));
+        }
 
         return Ok(ApiResult<PagedForumReportsDto>.Ok(new PagedForumReportsDto
         {
@@ -198,8 +213,12 @@ public sealed class ModReportsController : ControllerBase
             }
         }
 
-        var nm = await _displayNames.ResolveAsync(new[] { updated.ReporterSub }, ct);
-        return Ok(ApiResult<ForumReportListItemDto>.Ok(ToListItemDto(updated, nm)));
+        var targetAuthorSub = await _targetResolver.ResolveTargetAuthorSubAsync(updated, ct);
+        var patchNames = await _displayNames.ResolveAsync(
+            new[] { updated.ReporterSub }
+                .Concat(string.IsNullOrWhiteSpace(targetAuthorSub) ? Array.Empty<string>() : new[] { targetAuthorSub! }),
+            ct);
+        return Ok(ApiResult<ForumReportListItemDto>.Ok(ToListItemDto(updated, patchNames, targetAuthorSub)));
     }
 
     /// <summary>Accepted PATCH body synonyms: pending, rejected, resolved, dismissed→rejected, acknowledged→resolved.</summary>
@@ -256,9 +275,20 @@ public sealed class ModReportsController : ControllerBase
         return s;
     }
 
-    private static ForumReportListItemDto ToListItemDto(ForumReportRecord r, IReadOnlyDictionary<string, string> reporterNames)
+    private static ForumReportListItemDto ToListItemDto(
+        ForumReportRecord r,
+        IReadOnlyDictionary<string, string> displayNames,
+        string? targetAuthorSub)
     {
-        var dn = reporterNames.TryGetValue(r.ReporterSub, out var n) ? n : ForumDisplayName.ForSub(r.ReporterSub);
+        var dn = displayNames.TryGetValue(r.ReporterSub, out var n) ? n : ForumDisplayName.ForSub(r.ReporterSub);
+        string? targetAuthorDisplayName = null;
+        if (!string.IsNullOrWhiteSpace(targetAuthorSub))
+        {
+            targetAuthorDisplayName = displayNames.TryGetValue(targetAuthorSub, out var tn)
+                ? tn
+                : ForumDisplayName.ForSub(targetAuthorSub);
+        }
+
         return new ForumReportListItemDto
         {
             Id = r.Id,
@@ -275,6 +305,8 @@ public sealed class ModReportsController : ControllerBase
             UpdatedAtUtc = r.UpdatedAtUtc,
             HandledBySub = r.HandledBySub,
             HandledAtUtc = r.HandledAtUtc,
+            TargetAuthorSub = targetAuthorSub,
+            TargetAuthorDisplayName = targetAuthorDisplayName,
         };
     }
 }
@@ -304,6 +336,8 @@ public class ForumReportListItemDto
     public DateTime UpdatedAtUtc { get; set; }
     public string? HandledBySub { get; set; }
     public DateTime? HandledAtUtc { get; set; }
+    public string? TargetAuthorSub { get; set; }
+    public string? TargetAuthorDisplayName { get; set; }
 }
 
 public class PatchForumReportRequest

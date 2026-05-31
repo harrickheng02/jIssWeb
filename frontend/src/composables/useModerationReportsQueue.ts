@@ -2,12 +2,15 @@ import {
   listModerationForumReports,
   patchModerationForumReportStatus,
   getForumPost,
-  listForumReplies,
+  getModForumReply,
+  postModReportSanction,
   type ForumPostDetail,
   type ForumReportQueueItem,
   type ForumReportModStatus,
+  type ModSanctionDurationPreset,
 } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
+import { forumAuthorLabel } from '@/utils/forumPostDisplay'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
@@ -19,6 +22,8 @@ type ReportPreviewIdle = {
   replySnippet?: string
   unavailable?: string
   postDetail?: ForumPostDetail
+  targetAuthorSub?: string
+  targetAuthorDisplayName?: string
 }
 
 type ReportPreviewEntry = { loading: true } | ReportPreviewIdle
@@ -44,6 +49,19 @@ export function useModerationReportsQueue() {
 
   const expandedReportId = ref<string | null>(null)
   const previewByReportId = ref<Record<string, ReportPreviewEntry>>({})
+
+  const sanctionDialogOpen = ref(false)
+  const sanctionTargetRow = ref<ForumReportQueueItem | null>(null)
+  const sanctionType = ref<'warning' | 'mute'>('mute')
+  const sanctionDuration = ref<ModSanctionDurationPreset>('24h')
+  const sanctionReason = ref('')
+  const sanctionBusy = ref(false)
+
+  const durationOptions: { value: ModSanctionDurationPreset; label: string }[] = [
+    { value: '24h', label: '24 小时（默认）' },
+    { value: '7d', label: '7 天' },
+    { value: '30d', label: '30 天' },
+  ]
 
   const canModerate = computed(() => auth.canModerate)
 
@@ -93,13 +111,20 @@ export function useModerationReportsQueue() {
       }
 
       let replySnippet: string | undefined
+      let targetAuthorSub = row.targetAuthorSub?.trim() || postRes.data.authorId
+      let targetAuthorDisplayName =
+        row.targetType === 'post'
+          ? row.targetAuthorDisplayName?.trim() || postRes.data.authorDisplayName
+          : row.targetAuthorDisplayName?.trim()
       if (row.targetType === 'reply') {
-        const rr = await listForumReplies(row.postId)
-        if (rr.success && rr.data) {
-          const hit = rr.data.find((r) => r.id === row.targetId)
-          if (hit) replySnippet = clipText(hit.body, 420)
+        const modReply = await getModForumReply(row.targetId)
+        if (modReply.success && modReply.data) {
+          replySnippet = clipText(modReply.data.body, 420)
+          targetAuthorSub = modReply.data.authorId
+          targetAuthorDisplayName = modReply.data.authorDisplayName
+        } else {
+          replySnippet ??= '暂未取得回复正文快照，请点击「查看详情」在新标签中核对。'
         }
-        replySnippet ??= '暂未取得回复正文快照，请点击「查看详情」在新标签中核对。'
       }
 
       previewByReportId.value = {
@@ -110,6 +135,8 @@ export function useModerationReportsQueue() {
           postSnippet: clipText(postRes.data.body, 520),
           replySnippet,
           postDetail: postRes.data,
+          targetAuthorSub,
+          targetAuthorDisplayName,
         },
       }
     } catch {
@@ -205,6 +232,85 @@ export function useModerationReportsQueue() {
     return p
   }
 
+  function targetAuthorSubForRow(row: ForumReportQueueItem): string | undefined {
+    const fromRow = row.targetAuthorSub?.trim()
+    if (fromRow) return fromRow
+    const p = previewByReportId.value[row.id]
+    if (p && p.loading === false) return p.targetAuthorSub
+    return undefined
+  }
+
+  function targetAuthorDisplayNameForRow(row: ForumReportQueueItem): string | undefined {
+    const fromRow = row.targetAuthorDisplayName?.trim()
+    if (fromRow) return fromRow
+    const p = previewByReportId.value[row.id]
+    if (p && p.loading === false) return p.targetAuthorDisplayName
+    return undefined
+  }
+
+  function targetTypeLabel(targetType: string) {
+    return targetType === 'reply' ? '回复' : '主帖'
+  }
+
+  function targetAuthorLabelForRow(row: ForumReportQueueItem): string | undefined {
+    const sub = targetAuthorSubForRow(row)
+    if (!sub) return undefined
+    return forumAuthorLabel(targetAuthorDisplayNameForRow(row), sub)
+  }
+
+  function targetSummaryForRow(row: ForumReportQueueItem): string {
+    const kind = targetTypeLabel(row.targetType)
+    const author = targetAuthorLabelForRow(row)
+    return author ? `${kind} · ${author}` : kind
+  }
+
+  function openSanctionDialog(row: ForumReportQueueItem, type: 'warning' | 'mute') {
+    sanctionTargetRow.value = row
+    sanctionType.value = type
+    sanctionDuration.value = '24h'
+    sanctionReason.value = ''
+    sanctionDialogOpen.value = true
+  }
+
+  function closeSanctionDialog() {
+    sanctionDialogOpen.value = false
+    sanctionTargetRow.value = null
+  }
+
+  const canSubmitSanction = computed(
+    () => sanctionReason.value.trim().length > 0 && Boolean(sanctionTargetRow.value),
+  )
+
+  async function submitSanction() {
+    const row = sanctionTargetRow.value
+    if (!row || !sanctionReason.value.trim()) return
+    if (!targetAuthorSubForRow(row)) {
+      ElMessage.error('无法解析被举报作者，内容可能已彻底删除')
+      return
+    }
+
+    sanctionBusy.value = true
+    try {
+      const res = await postModReportSanction(row.id, {
+        type: sanctionType.value,
+        reason: sanctionReason.value.trim(),
+        durationPreset: sanctionType.value === 'mute' ? sanctionDuration.value : undefined,
+      })
+      if (!res.success) {
+        ElMessage.error(res.message ?? '操作失败')
+        return
+      }
+      ElMessage.success(sanctionType.value === 'warning' ? '已发出警告' : '已禁言')
+      closeSanctionDialog()
+    } finally {
+      sanctionBusy.value = false
+    }
+  }
+
+  function reportContextForRow(row: ForumReportQueueItem) {
+    return { reportId: row.id }
+  }
+
   function reportPreviewIdleList(rowId: string): ReportPreviewIdle[] {
     const p = reportPreviewIdle(rowId)
     return p ? [p] : []
@@ -241,5 +347,20 @@ export function useModerationReportsQueue() {
     applyStatus,
     statusRowLabel,
     reportPreviewIdleList,
+    reportContextForRow,
+    targetAuthorSubForRow,
+    targetAuthorLabelForRow,
+    targetSummaryForRow,
+    targetTypeLabel,
+    sanctionDialogOpen,
+    sanctionType,
+    sanctionDuration,
+    sanctionReason,
+    sanctionBusy,
+    durationOptions,
+    canSubmitSanction,
+    openSanctionDialog,
+    closeSanctionDialog,
+    submitSanction,
   }
 }

@@ -9,6 +9,13 @@ export interface ApiResult<T> {
   code?: string
 }
 
+export type ApiErrorResult = {
+  success: false
+  message?: string
+  code?: string
+  data?: unknown
+}
+
 type RetryAuthConfig = InternalAxiosRequestConfig & { _retryAuth?: boolean }
 
 const refreshInFlightByPrefix = new Map<string, Promise<void>>()
@@ -300,23 +307,23 @@ export interface PagedModerationAudit {
   pageSize: number
 }
 
-function mapModerationError(error: unknown): ApiResult<never> {
+function mapModerationError(error: unknown): ApiErrorResult {
   const e = error as AxiosError<ApiResult<unknown>> | undefined
   const status = e?.response?.status
   const data = e?.response?.data
   if (data && typeof data === 'object' && data.success === false) {
-    return { success: false, message: data.message, code: data.code }
+    return { success: false, message: data.message, code: data.code, data: data.data }
   }
   if (status === 403) return { success: false, message: '无权操作', code: 'FORBIDDEN' }
   if (status === 404) return { success: false, message: '内容不存在或已删除', code: 'NOT_FOUND' }
   return { success: false, message: e instanceof Error ? e.message : '网络异常，请稍后重试', code: 'REQUEST_FAILED' }
 }
 
-function mapForumMutationError(error: unknown): ApiResult<never> {
+function mapForumMutationError(error: unknown): ApiErrorResult {
   const e = error as AxiosError<ApiResult<unknown>> | undefined
   const data = e?.response?.data
   if (data && typeof data === 'object' && data.success === false) {
-    return { success: false, message: data.message, code: data.code }
+    return { success: false, message: data.message, code: data.code, data: data.data }
   }
   return mapModerationError(error)
 }
@@ -355,18 +362,96 @@ export async function setForumPostRepliesLocked(postId: string, repliesLocked: b
   }
 }
 
-export async function deleteModerationForumPost(postId: string) {
+export async function deleteModerationForumPost(
+  postId: string,
+  context?: { reportId: string; reason?: string },
+) {
   try {
-    const { data } = await modelApi.delete<ApiResult<string>>(`/mod/posts/${postId}`)
+    const { data } = await modelApi.delete<ApiResult<string>>(`/mod/posts/${postId}`, {
+      data: context,
+    })
     return data
   } catch (e) {
     return mapModerationError(e)
   }
 }
 
-export async function deleteModerationForumReply(replyId: string) {
+export async function deleteModerationForumReply(
+  replyId: string,
+  context?: { reportId: string; reason?: string },
+) {
   try {
-    const { data } = await modelApi.delete<ApiResult<string>>(`/mod/replies/${replyId}`)
+    const { data } = await modelApi.delete<ApiResult<string>>(`/mod/replies/${replyId}`, {
+      data: context,
+    })
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export type ModSanctionDurationPreset = '24h' | '7d' | '30d'
+
+export async function postModUserSanction(
+  sub: string,
+  payload: {
+    type: 'warning' | 'mute'
+    reason: string
+    reportId: string
+    durationPreset?: ModSanctionDurationPreset
+  },
+) {
+  try {
+    const { data } = await modelApi.post<
+      ApiResult<{
+        sanctionId: string
+        type: string
+        durationPreset?: string
+        expiresAtUtc?: string
+      }>
+    >(`/mod/users/${encodeURIComponent(sub)}/sanctions`, payload)
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export async function postModReportSanction(
+  reportId: string,
+  payload: {
+    type: 'warning' | 'mute'
+    reason: string
+    durationPreset?: ModSanctionDurationPreset
+  },
+) {
+  try {
+    const { data } = await modelApi.post<
+      ApiResult<{
+        sanctionId: string
+        type: string
+        durationPreset?: string
+        expiresAtUtc?: string
+      }>
+    >(`/mod/reports/${encodeURIComponent(reportId)}/sanctions`, payload)
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export async function getModForumReply(replyId: string) {
+  try {
+    const { data } = await modelApi.get<
+      ApiResult<{
+        id: string
+        postId: string
+        authorId: string
+        authorDisplayName: string
+        body: string
+        state: string
+        createdAtUtc: string
+      }>
+    >(`/mod/replies/${encodeURIComponent(replyId)}`)
     return data
   } catch (e) {
     return mapModerationError(e)
@@ -522,11 +607,23 @@ export async function createForumReply(postId: string, body: string) {
     const status = e?.response?.status
     const parsed = e?.response?.data
     if (parsed && typeof parsed === 'object' && parsed.success === false)
-      return { success: false, message: parsed.message, code: parsed.code } as ApiResult<ForumReply>
+      return {
+        success: false,
+        message: parsed.message,
+        code: parsed.code,
+        data: parsed.data,
+      } as ApiResult<ForumReply>
     if (status === 401)
       return { success: false, message: '请先登录', code: 'UNAUTHORIZED' } as ApiResult<ForumReply>
     if (status === 403 && parsed?.code === 'REPLIES_LOCKED')
       return { success: false, message: parsed.message ?? '本帖已禁止回复', code: 'REPLIES_LOCKED' } as ApiResult<ForumReply>
+    if (status === 403 && parsed?.code === 'FORUM_MUTED')
+      return {
+        success: false,
+        message: parsed.message,
+        code: 'FORUM_MUTED',
+        data: parsed.data,
+      } as ApiResult<ForumReply>
     if (status === 403)
       return { success: false, message: '暂无回复权限', code: 'FORBIDDEN' } as ApiResult<ForumReply>
     if (status === 404)
@@ -588,6 +685,8 @@ export interface ForumReportQueueItem {
   updatedAtUtc: string
   handledBySub?: string | null
   handledAtUtc?: string | null
+  targetAuthorSub?: string | null
+  targetAuthorDisplayName?: string | null
 }
 
 export interface PagedForumReports {

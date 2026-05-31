@@ -4,6 +4,7 @@ using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
 using JIssWeb.Common.Security;
+using JIssWeb.Model.Api.Authorization;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
@@ -186,6 +187,7 @@ public class ForumPostsController : ControllerBase
 
     [HttpPost("{postId}/replies")]
     [Authorize]
+    [BlockForumMuted]
     public async Task<ActionResult<ApiResult<ReplyDto>>> CreateReply(string postId, [FromBody] CreateReplyRequest request)
     {
         var authorId = TryGetAuthorId();
@@ -264,9 +266,11 @@ public class ForumPostsController : ControllerBase
             else
                 return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
         }
-        else if (post.State == "draft" && !string.Equals(post.AuthorSubId, requesterId, StringComparison.Ordinal))
+        else if (post.State == "draft")
         {
-            return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
+            if (!string.Equals(post.AuthorSubId, requesterId, StringComparison.Ordinal))
+                return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
+            incrementView = false;
         }
 
         if (incrementView)
@@ -353,6 +357,7 @@ public class ForumPostsController : ControllerBase
 
     [HttpPut("{postId}/replies/{replyId}")]
     [Authorize]
+    [BlockForumMuted]
     public async Task<ActionResult<ApiResult<ReplyDto>>> UpdateReply(string postId, string replyId, [FromBody] UpdateReplyRequest request)
     {
         var authorId = TryGetAuthorId();
@@ -506,6 +511,7 @@ public class ForumPostsController : ControllerBase
 
     [HttpPut("{postId}")]
     [Authorize]
+    [BlockForumMuted]
     public async Task<ActionResult<ApiResult<PostListItemDto>>> UpdatePost(string postId, [FromBody] UpdatePostRequest request)
     {
         var authorId = TryGetAuthorId();
@@ -585,6 +591,7 @@ public class ForumPostsController : ControllerBase
 
     [HttpPost]
     [Authorize]
+    [BlockForumMuted]
     public async Task<ActionResult<ApiResult<CreatePostResultDto>>> Create([FromBody] CreatePostRequest request)
     {
         var authorId = TryGetAuthorId();

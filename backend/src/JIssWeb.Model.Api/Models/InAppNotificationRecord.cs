@@ -6,6 +6,7 @@ public static class InAppNotificationTypes
 {
     public const string ReplyToPost = "ReplyToPost";
     public const string ReportResolved = "ReportResolved";
+    public const string ForumWarning = "ForumWarning";
 }
 
 public class InAppNotificationRecord

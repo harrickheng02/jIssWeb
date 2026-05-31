@@ -25,12 +25,23 @@ builder.Services.Configure<ForumModerationOptions>(builder.Configuration.GetSect
 builder.Services.PostConfigure<ForumModerationOptions>(o => o.Moderators ??= new());
 builder.Services.Configure<ForumSearchRateLimitOptions>(builder.Configuration.GetSection(ForumSearchRateLimitOptions.SectionName));
 builder.Services.Configure<ForumReportRetentionOptions>(builder.Configuration.GetSection(ForumReportRetentionOptions.SectionName));
+builder.Services.Configure<InternalServiceOptions>(builder.Configuration.GetSection(InternalServiceOptions.SectionName));
+builder.Services.Configure<UserServiceOptions>(builder.Configuration.GetSection(UserServiceOptions.SectionName));
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IUserSanctionClient, UserSanctionClient>((sp, client) =>
+{
+    var opts = sp.GetRequiredService<IOptions<UserServiceOptions>>().Value;
+    var baseUrl = (opts.BaseUrl ?? "").Trim().TrimEnd('/');
+    if (baseUrl.Length > 0)
+        client.BaseAddress = new Uri(baseUrl + "/");
+});
 builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
 builder.Services.Configure<ForumSoftDeleteOptions>(builder.Configuration.GetSection(ForumSoftDeleteOptions.SectionName));
 builder.Services.AddHostedService<DraftCleanupBackgroundService>();
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection(RedisSettings.SectionName));
 builder.Services.AddSingleton<ForumSearchIpRateLimiter>();
 builder.Services.AddScoped<ForumAuthorDisplayResolver>();
+builder.Services.AddSingleton<ForumReportTargetResolver>();
 builder.Services.AddSingleton<ForumModerationAccessService>();
 builder.Services.AddSingleton<ForumEngagementLikeCountCache>(sp =>
 {

@@ -191,4 +191,66 @@ public sealed class ModerationDeleteTests : IClassFixture<ForumMeIntegrationFixt
         Assert.NotNull(post);
         Assert.Equal(0, post!.CommentCount);
     }
+
+    [Fact]
+    public async Task Report_queue_delete_reply_without_reason_succeeds()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var db = mongo.GetDatabase(_fx.DatabaseName);
+        var posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        var replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
+        var reports = db.GetCollection<ForumReportRecord>(ForumMongoSetup.ReportsCollectionName);
+        var pid = "mod-del-thread-rpt-" + Guid.NewGuid().ToString("N");
+        var rid = "mod-del-reply-rpt-" + Guid.NewGuid().ToString("N");
+        var reportId = "mod-del-report-" + Guid.NewGuid().ToString("N");
+        await posts.InsertOneAsync(new ForumPostRecord
+        {
+            Id = pid,
+            Title = "t",
+            Body = "b",
+            Excerpt = "b",
+            AuthorSubId = "user-a",
+            Board = "综合",
+            CommentCount = 1,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        await replies.InsertOneAsync(new ForumReplyRecord
+        {
+            Id = rid,
+            PostId = pid,
+            AuthorSubId = "user-b",
+            Body = "r",
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        await reports.InsertOneAsync(new ForumReportRecord
+        {
+            Id = reportId,
+            ReporterSub = "user-c",
+            TargetType = "reply",
+            TargetId = rid,
+            PostId = pid,
+            BoardId = "general",
+            BoardTitle = "综合",
+            Status = ForumReportStatuses.Pending,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow,
+        });
+
+        var req = new HttpRequestMessage(HttpMethod.Delete, $"/api/mod/replies/{rid}")
+        {
+            Content = new StringContent($"{{\"reportId\":\"{reportId}\"}}", Encoding.UTF8, "application/json"),
+        };
+        req.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator, new[] { "general" }));
+        var r = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+
+        var audit = db.GetCollection<ForumModerationAuditRecord>(ForumMongoSetup.ModerationAuditCollectionName);
+        var row = await audit.Find(x => x.Action == "reply.modDelete" && x.TargetId == rid).FirstOrDefaultAsync();
+        Assert.NotNull(row);
+        Assert.True(row!.Metadata!.ContainsKey("reportId"));
+        Assert.False(row.Metadata.ContainsKey("reason"));
+    }
 }

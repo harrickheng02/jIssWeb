@@ -150,6 +150,9 @@ onMounted(() => {
               <span v-if="n.type === 'ReportResolved'" class="notification-text">
                 {{ n.actorDisplayName?.trim() || '系统' }}：您对《{{ n.postTitle || '内容已移除' }}》的举报已处理
               </span>
+              <span v-else-if="n.type === 'ForumWarning'" class="notification-text">
+                {{ n.actorDisplayName?.trim() || '系统' }}：您有一条社区违规警告，请遵守社区规范
+              </span>
               <span v-else class="notification-text">
                 <strong>{{ n.actorDisplayName?.trim() || n.actorId }}</strong>
                 回复了你的帖子「{{ n.postTitle }}」

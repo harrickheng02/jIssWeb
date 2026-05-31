@@ -7,6 +7,7 @@ using JIssWeb.User.Api.Controllers;
 using JIssWeb.User.Api.Mongo;
 using JIssWeb.User.Api.Options;
 using JIssWeb.User.Api.Services;
+using Microsoft.Extensions.Caching.Memory;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
@@ -20,6 +21,9 @@ builder.Services.Configure<PasswordResetSettings>(builder.Configuration.GetSecti
 builder.Services.Configure<SmtpEmailSettings>(builder.Configuration.GetSection("SmtpEmail"));
 builder.Services.Configure<LoginSecuritySettings>(builder.Configuration.GetSection("LoginSecurity"));
 builder.Services.Configure<ForumOptions>(builder.Configuration.GetSection(ForumOptions.SectionName));
+builder.Services.Configure<InternalServiceOptions>(builder.Configuration.GetSection(InternalServiceOptions.SectionName));
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<UserSanctionService>();
 builder.Services.AddSingleton<ConsoleVerificationEmailSender>();
 builder.Services.AddSingleton<SmtpVerificationEmailSender>();
 builder.Services.AddSingleton<IVerificationEmailSender>(sp =>
@@ -45,3 +49,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
+
+public partial class Program { }

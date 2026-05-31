@@ -1,5 +1,6 @@
 using JIssWeb.Common.Options;
 using JIssWeb.User.Api.Controllers;
+using JIssWeb.User.Api.Models;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
@@ -23,5 +24,11 @@ public static class UserMongoSetup
         sessions.Indexes.CreateOne(new CreateIndexModel<RefreshSession>(tokenHashKeys, new CreateIndexOptions { Unique = true }));
         var userIdKeys = Builders<RefreshSession>.IndexKeys.Ascending(x => x.UserId);
         sessions.Indexes.CreateOne(new CreateIndexModel<RefreshSession>(userIdKeys));
+
+        var sanctions = db.GetCollection<UserSanctionRecord>("user_sanctions");
+        var sanctionSubKeys = Builders<UserSanctionRecord>.IndexKeys
+            .Ascending(x => x.Sub)
+            .Ascending(x => x.ExpiresAtUtc);
+        sanctions.Indexes.CreateOne(new CreateIndexModel<UserSanctionRecord>(sanctionSubKeys));
     }
 }

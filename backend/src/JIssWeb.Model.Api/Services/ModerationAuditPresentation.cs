@@ -18,6 +18,9 @@ internal static class ModerationAuditPresentation
             "post.unsetFeatured" => "取消精华",
             "post.modDelete" => "删除帖子",
             "reply.modDelete" => "删除回复",
+            "user.warn" => "账号警告",
+            "user.mute" => "账号禁言",
+            "user.unmute" => "解除禁言",
             _ => "操作",
         };
     }

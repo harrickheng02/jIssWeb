@@ -19,6 +19,7 @@ namespace JIssWeb.Model.Api.Controllers;
 public class ModPostsController : ControllerBase
 {
     private readonly IMongoCollection<ForumPostRecord> _posts;
+    private readonly IMongoCollection<ForumReportRecord> _reports;
     private readonly IMongoCollection<ForumModerationAuditRecord> _audit;
     private readonly ForumModerationAccessService _access;
     private readonly IOptions<ForumBoardsOptions> _boards;
@@ -35,6 +36,7 @@ public class ModPostsController : ControllerBase
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        _reports = db.GetCollection<ForumReportRecord>(ForumMongoSetup.ReportsCollectionName);
         _audit = db.GetCollection<ForumModerationAuditRecord>(ForumMongoSetup.ModerationAuditCollectionName);
         _boards = boardOptions;
         _access = access;
@@ -366,7 +368,10 @@ public class ModPostsController : ControllerBase
     [HttpDelete("{postId}")]
     [Authorize]
     [RequireForumModerator]
-    public async Task<ActionResult<ApiResult<string>>> DeletePost(string postId, CancellationToken ct)
+    public async Task<ActionResult<ApiResult<string>>> DeletePost(
+        string postId,
+        [FromBody] ModReportContextRequest? body,
+        CancellationToken ct)
     {
         var sub = TryGetSub();
         if (sub is null)
@@ -384,6 +389,13 @@ public class ModPostsController : ControllerBase
                 return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权操作该帖子", "FORBIDDEN"));
         }
 
+        if (body?.ReportId is { Length: > 0 } rid)
+        {
+            var reportErr = await ValidateReportDeleteContextAsync(rid, postId, null, sub, role, ct);
+            if (reportErr is not null)
+                return reportErr;
+        }
+
         var outcome = await _delete.TryDeletePostAsync(User, sub, postId, ct);
         if (outcome == ModerationDeletionOutcome.NotFound)
             return NotFound(ApiResult<string>.Fail("帖子不存在或已删除", "NOT_FOUND"));
@@ -395,6 +407,13 @@ public class ModPostsController : ControllerBase
         var boardIdResolved = ForumBoardIdLookup.ResolveBoardIdFromTitle(_boards.Value, post.Board);
         if (!string.IsNullOrEmpty(boardIdResolved))
             meta["boardId"] = boardIdResolved;
+        if (body?.ReportId is { Length: > 0 } reportId)
+        {
+            meta["reportId"] = reportId.Trim();
+            var reason = body.Reason?.Trim();
+            if (!string.IsNullOrEmpty(reason))
+                meta["reason"] = reason;
+        }
 
         try
         {
@@ -415,6 +434,41 @@ public class ModPostsController : ControllerBase
         }
 
         return Ok(ApiResult<string>.Ok("ok"));
+    }
+
+    private async Task<ActionResult<ApiResult<string>>?> ValidateReportDeleteContextAsync(
+        string reportId,
+        string? expectedPostId,
+        string? expectedReplyId,
+        string operatorSub,
+        ForumPrincipalRole role,
+        CancellationToken ct)
+    {
+        var report = await _reports.Find(x => x.Id == reportId.Trim()).FirstOrDefaultAsync(ct);
+        if (report is null)
+            return BadRequest(ApiResult<string>.Fail("举报不存在", "INVALID_REPORT_ID"));
+
+        if (role == ForumPrincipalRole.Moderator
+            && !_access.CanModerateBoardIdAsModerator(User, operatorSub, report.BoardId))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权处理该举报", "FORBIDDEN"));
+        }
+
+        if (expectedPostId is not null
+            && string.Equals(report.TargetType, "post", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(report.TargetId, expectedPostId, StringComparison.Ordinal))
+        {
+            return BadRequest(ApiResult<string>.Fail("举报与帖子不匹配", "INVALID_REPORT_ID"));
+        }
+
+        if (expectedReplyId is not null
+            && string.Equals(report.TargetType, "reply", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(report.TargetId, expectedReplyId, StringComparison.Ordinal))
+        {
+            return BadRequest(ApiResult<string>.Fail("举报与回复不匹配", "INVALID_REPORT_ID"));
+        }
+
+        return null;
     }
 
     private string? TryGetSub()

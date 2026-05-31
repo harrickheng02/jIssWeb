@@ -149,7 +149,7 @@ public class ForumNotificationsController : ControllerBase
     {
         var actorKey = n.ActorSubId ?? "";
         string actorDisplayName;
-        if (n.Type == InAppNotificationTypes.ReportResolved)
+        if (n.Type == InAppNotificationTypes.ReportResolved || n.Type == InAppNotificationTypes.ForumWarning)
         {
             actorDisplayName = "系统";
         }

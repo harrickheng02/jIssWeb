@@ -100,6 +100,7 @@ services:
       LoginSecurity__PairLockMinutes: ${LOGIN_PAIR_LOCK_MINUTES:-5}
       LoginSecurity__IpLockThreshold: ${LOGIN_IP_LOCK_THRESHOLD:-10}
       LoginSecurity__IpLockMinutes: ${LOGIN_IP_LOCK_MINUTES:-30}
+      InternalService__ApiKey: ${INTERNAL_SERVICE_API_KEY:-dev-internal-service-key-change-me}
     depends_on:
       mongo:
         condition: service_healthy
@@ -144,11 +145,15 @@ services:
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
       Jwt__Key: ${JWT_KEY}
+      UserService__BaseUrl: ${MODEL_USER_API_URL:-http://user-api:5097}
+      InternalService__ApiKey: ${INTERNAL_SERVICE_API_KEY:-dev-internal-service-key-change-me}
     depends_on:
       mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
+      user-api:
+        condition: service_started
 
   customer-api:
     build:

@@ -26,6 +26,21 @@ const {
   applyStatus,
   statusRowLabel,
   reportPreviewIdleList,
+  reportContextForRow,
+  targetAuthorSubForRow,
+  targetAuthorLabelForRow,
+  targetSummaryForRow,
+  targetTypeLabel,
+  sanctionDialogOpen,
+  sanctionType,
+  sanctionDuration,
+  sanctionReason,
+  sanctionBusy,
+  durationOptions,
+  canSubmitSanction,
+  openSanctionDialog,
+  closeSanctionDialog,
+  submitSanction,
 } = useModerationReportsQueue()
 </script>
 
@@ -116,6 +131,8 @@ const {
                 </div>
               </div>
               <div class="mod-reports__meta">
+                <span>举报对象：{{ targetSummaryForRow(row) }}</span>
+                <span class="mod-reports__meta-sep">·</span>
                 <span>举报人：{{ row.reporterDisplayName }}</span>
                 <span class="mod-reports__meta-sep">·</span>
                 <a
@@ -148,6 +165,11 @@ const {
                         <p class="mod-reports__preview-miss">{{ idle.unavailable }}</p>
                       </template>
                       <template v-else>
+                        <p class="mod-reports__preview-target">
+                          被举报{{ targetTypeLabel(row.targetType) }}作者：{{
+                            targetAuthorLabelForRow(row) ?? '未知'
+                          }}
+                        </p>
                         <p class="mod-reports__preview-title">{{ idle.title }}</p>
                         <p class="mod-reports__preview-label">主帖节选</p>
                         <p class="mod-reports__preview-snippet">{{ idle.postSnippet }}</p>
@@ -162,6 +184,29 @@ const {
                   </template>
                 </div>
                 <div class="mod-reports__governance" aria-label="版主操作">
+                  <div
+                    v-if="targetAuthorSubForRow(row)"
+                    class="mod-reports__sanctions"
+                    @click.stop
+                  >
+                    <span class="mod-reports__sanctions-label">账号处罚</span>
+                    <el-button
+                      size="small"
+                      type="warning"
+                      plain
+                      @click="openSanctionDialog(row, 'warning')"
+                    >
+                      警告
+                    </el-button>
+                    <el-button
+                      size="small"
+                      type="danger"
+                      plain
+                      @click="openSanctionDialog(row, 'mute')"
+                    >
+                      禁言
+                    </el-button>
+                  </div>
                   <ForumPostGovernancePanel
                     v-for="snap in governancePostSnapshotList(row)"
                     :key="`${row.id}-gov`"
@@ -170,6 +215,7 @@ const {
                     :post-snapshot="snap"
                     :reply-delete-only="row.targetType === 'reply'"
                     :focus-reply-id="row.targetType === 'reply' ? row.targetId : undefined"
+                    :report-context="reportContextForRow(row)"
                     @post-deleted="onGovernanceDeletedFromQueue"
                     @reply-deleted="onGovernanceDeletedFromQueue"
                   />
@@ -224,6 +270,47 @@ const {
         </el-card>
       </template>
     </div>
+
+    <el-dialog
+      v-model="sanctionDialogOpen"
+      :title="sanctionType === 'warning' ? '发出警告' : '禁言账号'"
+      width="420px"
+      destroy-on-close
+      @close="closeSanctionDialog"
+    >
+      <div class="mod-reports__sanction-form">
+        <el-select
+          v-if="sanctionType === 'mute'"
+          v-model="sanctionDuration"
+          class="mod-reports__sanction-duration"
+          placeholder="禁言时长"
+        >
+          <el-option
+            v-for="opt in durationOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-input
+          v-model="sanctionReason"
+          type="textarea"
+          :rows="3"
+          placeholder="请填写处罚原因（必填）"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="closeSanctionDialog">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="sanctionBusy"
+          :disabled="!canSubmitSanction"
+          @click="submitSanction"
+        >
+          确认
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -389,6 +476,12 @@ const {
   color: var(--text-primary);
 }
 
+.mod-reports__preview-target {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
 .mod-reports__preview-title {
   margin: 0 0 var(--space-xs);
   font-weight: 600;
@@ -462,5 +555,28 @@ const {
   margin-top: var(--space-md);
   display: flex;
   justify-content: center;
+}
+
+.mod-reports__sanctions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+
+.mod-reports__sanctions-label {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.mod-reports__sanction-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.mod-reports__sanction-duration {
+  width: 100%;
 }
 </style>

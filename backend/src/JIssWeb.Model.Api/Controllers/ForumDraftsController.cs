@@ -1,6 +1,7 @@
 using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
+using JIssWeb.Model.Api.Authorization;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
@@ -38,10 +39,15 @@ public class ForumDraftsController : ControllerBase
 
     // POST api/forum/posts/drafts
     [HttpPost]
+    [BlockForumMuted]
     public async Task<ActionResult<ApiResult<PublishDraftResultDto>>> CreateDraft([FromBody] CreateDraftRequest request)
     {
         var sub = GetSub();
         if (sub is null) return Unauthorized(ApiResult<PublishDraftResultDto>.Fail("未授权", "UNAUTHORIZED"));
+
+        var title = request.Title?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(title))
+            return BadRequest(ApiResult<PublishDraftResultDto>.Fail("标题不能为空", "INVALID_INPUT"));
 
         // Tags normalization (optional)
         var tagsResult = NormalizeTags(request.Tags);
@@ -52,7 +58,7 @@ public class ForumDraftsController : ControllerBase
         var doc = new ForumPostRecord
         {
             Id = ObjectId.GenerateNewId().ToString(),
-            Title = request.Title?.Trim() ?? "",
+            Title = title,
             Body = request.Body?.Trim() ?? "",
             Excerpt = MakeExcerpt(request.Body?.Trim() ?? ""),
             AuthorSubId = sub,
@@ -67,6 +73,7 @@ public class ForumDraftsController : ControllerBase
 
     // PUT api/forum/posts/drafts/{draftId}
     [HttpPut("{draftId}")]
+    [BlockForumMuted]
     public async Task<ActionResult<ApiResult<PostDetailDto>>> UpdateDraft(string draftId, [FromBody] CreateDraftRequest request)
     {
         var sub = GetSub();
@@ -80,6 +87,9 @@ public class ForumDraftsController : ControllerBase
         var tagsResult = NormalizeTags(request.Tags);
         if (tagsResult.Error is not null)
             return BadRequest(ApiResult<PostDetailDto>.Fail(tagsResult.Error, tagsResult.Code));
+
+        if (request.Title is not null && string.IsNullOrWhiteSpace(request.Title.Trim()))
+            return BadRequest(ApiResult<PostDetailDto>.Fail("标题不能为空", "INVALID_INPUT"));
 
         var update = Builders<ForumPostRecord>.Update.Set(x => x.UpdatedAtUtc, DateTime.UtcNow);
         if (request.Title is not null) update = update.Set(x => x.Title, request.Title.Trim());
@@ -119,6 +129,7 @@ public class ForumDraftsController : ControllerBase
 
     // POST api/forum/posts/drafts/{draftId}/publish
     [HttpPost("{draftId}/publish")]
+    [BlockForumMuted]
     public async Task<ActionResult<ApiResult<PublishDraftResultDto>>> PublishDraft(string draftId)
     {
         var sub = GetSub();
@@ -142,7 +153,8 @@ public class ForumDraftsController : ControllerBase
         await _posts.UpdateOneAsync(x => x.Id == draftId,
             Builders<ForumPostRecord>.Update
                 .Set(x => x.State, "published")
-                .Set(x => x.Board, boardTitle));
+                .Set(x => x.Board, boardTitle)
+                .Set(x => x.ViewCount, 0));
 
         // Tags UseCount +1 for published tags in registry
         if (draft.Tags?.Count > 0)

@@ -3,12 +3,12 @@ import ForumRepliesLockedMark from '@/components/forum/ForumRepliesLockedMark.vu
 import ForumPostGovernancePanel from '@/components/forum/ForumPostGovernancePanel.vue'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatForumMutedMessage } from '@/utils/forumMutedMessage'
 import {
   createForumReply,
   deleteForumPost,
   deleteForumReply,
-  permanentDeleteForumPost,
   getForumPost,
   listForumReplies,
   submitForumReport,
@@ -42,7 +42,6 @@ const reportSubmitting = ref(false)
 
 // ── Post / Reply self-delete ──────────────────────────────────────────────────
 const deletingPost = ref(false)
-const permanentDeletingPost = ref(false)
 const deletingReplyId = ref<string | null>(null)
 
 // ── Reply inline edit ─────────────────────────────────────────────────────────
@@ -57,7 +56,7 @@ const {
   composeOpen,
   composeTitle,
   composeBody,
-  composeBoardId,
+  composeBoardId: _composeBoardId,
   composeTags,
   composeSubmitting,
   tagSuggestions,
@@ -207,7 +206,7 @@ async function submitReply() {
   try {
     const res = await createForumReply(postId.value, text)
     if (!res.success) {
-      ElMessage.error(res.message ?? '回复失败')
+      ElMessage.error(res.code === 'FORUM_MUTED' ? formatForumMutedMessage(res) : (res.message ?? '回复失败'))
       return
     }
     replyBody.value = ''
@@ -294,7 +293,7 @@ function resetReportDialog() {
 }
 
 async function handleDeletePost() {
-  const ok = await ElMessageBox.confirm('确定要删除这篇帖子吗？删除后你仍可查看，也可在保留期内申请恢复。', '删除帖子', {
+  const ok = await ElMessageBox.confirm('确定要删除这篇帖子吗？删除后其他人将无法查看。', '删除帖子', {
     confirmButtonText: '删除',
     cancelButtonText: '取消',
     type: 'warning',
@@ -305,32 +304,11 @@ async function handleDeletePost() {
     const res = await deleteForumPost(postId.value)
     if (!res.success) { ElMessage.error(res.message ?? '删除失败'); return }
     ElMessage.success('帖子已删除')
-    // 刷新：作者可继续查看，触发 load 即可
-    await load()
+    await router.push('/')
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '删除失败')
   } finally {
     deletingPost.value = false
-  }
-}
-
-async function handlePermanentDeletePost() {
-  const ok = await ElMessageBox.confirm('永久删除后无法恢复，确定继续吗？', '永久删除', {
-    confirmButtonText: '永久删除',
-    cancelButtonText: '取消',
-    type: 'error',
-  }).catch(() => false)
-  if (!ok) return
-  permanentDeletingPost.value = true
-  try {
-    const res = await permanentDeleteForumPost(postId.value)
-    if (!res.success) { ElMessage.error(res.message ?? '操作失败'); return }
-    ElMessage.success('帖子已永久删除')
-    void router.push('/')
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
-  } finally {
-    permanentDeletingPost.value = false
   }
 }
 
@@ -468,17 +446,7 @@ watch(
             </div>
           </div>
           <div v-if="post.state === 'deleted' && post.deletedBySub === auth.sub" class="post-deleted-banner">
-            <span>该帖子已被你删除</span>
-            <el-button
-              v-if="post.likes === 0 && post.comments === 0 && (post.favoriteCount ?? 0) === 0"
-              type="danger"
-              size="small"
-              plain
-              :loading="permanentDeletingPost"
-              @click="handlePermanentDeletePost"
-            >
-              永久删除
-            </el-button>
+            <span>该帖子已被你删除，其他人无法查看。</span>
           </div>
           <div class="post-body">{{ post.body }}</div>
           <div class="post-stats">

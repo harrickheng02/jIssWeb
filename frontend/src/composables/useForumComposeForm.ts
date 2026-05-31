@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   createForumPost,
@@ -10,6 +10,8 @@ import {
   getForumTagSuggest,
   type ForumPostListItem,
 } from '@/api/clients'
+import { formatForumMutedMessage } from '@/utils/forumMutedMessage'
+import { useDraftUiStore } from '@/stores/draftUi'
 
 const maxComposeTags = 10
 
@@ -22,6 +24,8 @@ export function useForumComposeForm(opts: {
   onDraftSaved?: (draftId: string) => void
 }) {
   const router = useRouter()
+  const route = useRoute()
+  const draftUi = useDraftUiStore()
   const composeOpen = ref(false)
   const composeTitle = ref('')
   const composeBody = ref('')
@@ -185,7 +189,7 @@ export function useForumComposeForm(opts: {
         tags,
       })
       if (!res.success || !res.data?.id) {
-        ElMessage.error(res.message ?? '发帖失败')
+        ElMessage.error(res.code === 'FORUM_MUTED' ? formatForumMutedMessage(res) : (res.message ?? '发帖失败'))
         return
       }
       composeOpen.value = false
@@ -202,6 +206,10 @@ export function useForumComposeForm(opts: {
   async function saveDraft() {
     const title = composeTitle.value.trim()
     const body = composeBody.value.trim()
+    if (!title) {
+      ElMessage.warning('请填写标题后再保存草稿')
+      return
+    }
     const tags = composeTags.value.length ? [...composeTags.value] : undefined
     composeSavingDraft.value = true
     try {
@@ -213,6 +221,7 @@ export function useForumComposeForm(opts: {
         }
         ElMessage.success('草稿已更新')
         opts.onDraftSaved?.(editTargetId.value)
+        if (!route.path.startsWith('/me/drafts')) void draftUi.refreshBadgeFromServer()
       } else {
         const res = await createDraft({ title, body, boardId: composeBoardId.value, tags })
         if (!res.success || !res.data?.id) {
@@ -223,6 +232,7 @@ export function useForumComposeForm(opts: {
         editTargetId.value = res.data.id
         ElMessage.success('草稿已保存')
         opts.onDraftSaved?.(res.data.id)
+        if (!route.path.startsWith('/me/drafts')) void draftUi.refreshBadgeFromServer()
       }
     } catch (e) {
       ElMessage.error(e instanceof Error ? e.message : '保存草稿失败')
