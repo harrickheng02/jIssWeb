@@ -38,6 +38,28 @@ public sealed class ForumDraftTests
     }
 
     [Fact]
+    public async Task Create_draft_without_title_returns_400()
+    {
+        var r = await _fx.Client.SendAsync(AuthRequest(HttpMethod.Post, "/api/forum/posts/drafts", "user-a",
+            new { body = "body only", boardId = "general" }));
+        Assert.Equal(HttpStatusCode.BadRequest, r.StatusCode);
+        var json = JsonNode.Parse(await r.Content.ReadAsStringAsync())!;
+        Assert.Equal("INVALID_INPUT", json["code"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Update_draft_clears_title_returns_400()
+    {
+        var cr = await _fx.Client.SendAsync(AuthRequest(HttpMethod.Post, "/api/forum/posts/drafts", "user-a",
+            new { title = "t", body = "b" }));
+        var id = JsonNode.Parse(await cr.Content.ReadAsStringAsync())!["data"]!["id"]!.GetValue<string>();
+
+        var ur = await _fx.Client.SendAsync(AuthRequest(HttpMethod.Put, $"/api/forum/posts/drafts/{id}", "user-a",
+            new { title = "   " }));
+        Assert.Equal(HttpStatusCode.BadRequest, ur.StatusCode);
+    }
+
+    [Fact]
     public async Task Draft_not_in_public_post_list()
     {
         // Create a draft

@@ -59,12 +59,53 @@ public sealed class ForumDraftPublishTests
     [Fact]
     public async Task Publish_draft_missing_title_returns_400()
     {
-        var cr = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, "/api/forum/posts/drafts", "user-a",
-            new { body = "body only", boardId = "general" }));
-        var id = JsonNode.Parse(await cr.Content.ReadAsStringAsync())!["data"]!["id"]!.GetValue<string>();
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var posts = mongo.GetDatabase(_fx.DatabaseName).GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        var id = "draft-no-title-" + Guid.NewGuid().ToString("N");
+        await posts.InsertOneAsync(new ForumPostRecord
+        {
+            Id = id,
+            Title = "",
+            Body = "body only",
+            Excerpt = "body only",
+            AuthorSubId = "user-a",
+            Board = "综合",
+            State = "draft",
+            CreatedAtUtc = DateTime.UtcNow,
+        });
 
         var r = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, $"/api/forum/posts/drafts/{id}/publish", "user-a"));
         Assert.Equal(HttpStatusCode.BadRequest, r.StatusCode);
+    }
+
+    [Fact]
+    public async Task Publish_draft_resets_view_count_to_zero()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var posts = mongo.GetDatabase(_fx.DatabaseName).GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        var id = "draft-view-reset-" + Guid.NewGuid().ToString("N");
+        await posts.InsertOneAsync(new ForumPostRecord
+        {
+            Id = id,
+            Title = "t",
+            Body = "b",
+            Excerpt = "b",
+            AuthorSubId = "user-a",
+            Board = "综合",
+            State = "draft",
+            ViewCount = 7,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+
+        var r = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, $"/api/forum/posts/drafts/{id}/publish", "user-a"));
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+
+        var published = await posts.Find(x => x.Id == id).FirstOrDefaultAsync();
+        Assert.NotNull(published);
+        Assert.Equal("published", published!.State);
+        Assert.Equal(0, published.ViewCount);
     }
 
     [Fact]

@@ -1,24 +1,28 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getMyDrafts } from '@/api/clients'
+import { storeToRefs } from 'pinia'
+import { useDraftUiStore } from '@/stores/draftUi'
 
 const route = useRoute()
 const activePath = computed(() => route.path)
+const draftUi = useDraftUiStore()
+const { badgeCount } = storeToRefs(draftUi)
 
-const draftCount = ref(0)
-
-async function loadDraftCount() {
-  try {
-    const res = await getMyDrafts(1, 1)
-    if (res.success && res.data) draftCount.value = res.data.totalCount
-  } catch {
-    // non-critical
-  }
+function isDraftsRoute(path: string) {
+  return path.startsWith('/me/drafts')
 }
 
+watch(
+  () => route.path,
+  (path) => {
+    if (isDraftsRoute(path)) draftUi.clearBadge()
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
-  void loadDraftCount()
+  if (!isDraftsRoute(route.path)) void draftUi.refreshBadgeFromServer()
 })
 </script>
 
@@ -32,7 +36,7 @@ onMounted(() => {
             <el-menu-item index="/me/posts">我的帖子</el-menu-item>
             <el-menu-item index="/me/drafts">
               <span>草稿箱</span>
-              <el-badge v-if="draftCount > 0" :value="draftCount" class="draft-badge" />
+              <el-badge v-if="badgeCount > 0" :value="badgeCount" class="draft-badge" />
             </el-menu-item>
             <el-menu-item index="/me/replies">我的回复</el-menu-item>
             <el-menu-item index="/me/favorites">我的收藏</el-menu-item>

@@ -76,4 +76,37 @@ public sealed class ForumStateFilterTests
         Assert.Equal("deleted", json.RootElement.GetProperty("data").GetProperty("state").GetString());
         Assert.Equal("b", json.RootElement.GetProperty("data").GetProperty("body").GetString());
     }
+
+    [Fact]
+    public async Task Draft_post_detail_does_not_increment_view_count()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var posts = mongo.GetDatabase(_fx.DatabaseName)
+            .GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        var id = "draft-view-" + Guid.NewGuid().ToString("N");
+        await posts.InsertOneAsync(new ForumPostRecord
+        {
+            Id = id,
+            Title = "draft",
+            Body = "b",
+            Excerpt = "b",
+            AuthorSubId = "user-a",
+            Board = "综合",
+            State = "draft",
+            ViewCount = 3,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+
+        var req = new HttpRequestMessage(HttpMethod.Get, $"/api/forum/posts/{id}");
+        req.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            JwtTestTokens.CreateAccessToken("user-a"));
+        var r = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+
+        var left = await posts.Find(x => x.Id == id).FirstOrDefaultAsync();
+        Assert.NotNull(left);
+        Assert.Equal(3, left!.ViewCount);
+    }
 }

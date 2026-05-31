@@ -246,7 +246,7 @@ onMounted(() => {
     <el-dialog v-model="composeOpen" title="编辑草稿" width="520px" destroy-on-close>
       <el-form label-position="top">
         <el-form-item label="标题">
-          <el-input v-model="composeTitle" maxlength="200" show-word-limit placeholder="草稿标题（可选）" />
+          <el-input v-model="composeTitle" maxlength="200" show-word-limit placeholder="标题（必填）" />
         </el-form-item>
         <el-form-item label="正文">
           <el-input v-model="composeBody" type="textarea" :rows="8" maxlength="20000" show-word-limit placeholder="草稿正文（可选）" />
