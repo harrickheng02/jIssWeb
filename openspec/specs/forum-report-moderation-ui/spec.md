@@ -3,9 +3,7 @@
 ## Purpose
 
 定义举报入口与举报处理队列的前端可见性、导航与接口调用契约，与用户端 **`forum-report-api`**、**`forum-moderation-delete-content`**（帖子详情与举报队列展开区内共用 **`DELETE`** 删帖 / 删回复能力）以及既有版主 JWT 推导规则对齐。
-
 ## Requirements
-
 ### Requirement: Authenticated member can open a report flow from post and reply surfaces
 
 The frontend SHALL expose a report entry point on the forum post detail view and on each reply row (or equivalent reply list item) when the viewer is authenticated. The entry SHALL open a modal, drawer, or dedicated inline form where the user can submit optional `reason` text and SHALL call `POST /api/forum/reports` with the correct `targetType` and `targetId`. Anonymous viewers SHALL navigate through sign-in before submitting a report when the UX requires authentication.
@@ -41,7 +39,7 @@ The frontend SHALL expose a control on the moderation governance landing (route 
 
 ### Requirement: Report queue lists items and updates status via PATCH
 
-The report queue view SHALL load data using **`GET /api/mod/reports`** with pagination and optional **`status`** filter aligned with backend buckets **`pending`**, **`rejected`**, and **`resolved`**. The UX SHALL **`default`** to listing **`pending`** items (explicit filter or **`status=pending`**); **`全部`** / **all statuses** aligns with **`status`** omitted on the **`GET`** request. Each row SHALL surface board labeling, timestamps, reporter display fields returned by API, canonical **`status`**, and **`handledBySub` / `handledAtUtc`** when relevant. Rows SHALL expose a workflow affordance (`pending`, `rejected`, `resolved`) that maps to **`PATCH /api/mod/reports/{reportId}`** with **`{ "status": "<bucket>" }`** where **`bucket`** matches the backend contract aliases above (`dismissed` / `acknowledged` acceptable where frontend maps them). Applying **`PATCH`** SHALL refresh or reconcile local list state on success.
+The report queue view SHALL load data using **`GET /api/mod/reports`** with pagination and optional **`status`** filter aligned with backend buckets **`pending`**, **`rejected`**, and **`resolved`**. The UX SHALL **`default`** to listing **`pending`** items (explicit filter or **`status=pending`**); **`全部`** / **all statuses** aligns with **`status`** omitted on the **`GET`** request. Each row SHALL surface board labeling, timestamps, reporter display fields returned by API, canonical **`status`**, **`handledBySub` / `handledAtUtc`** when relevant, and **`acknowledgedAtUtc` / `acknowledgedBySub`** when set. Rows SHALL expose a workflow affordance (`pending`, `rejected`, `resolved`) that maps to **`PATCH /api/mod/reports/{reportId}`** with **`{ "status": "<bucket>" }`** where **`bucket`** matches the backend contract aliases above (`dismissed` / `acknowledged` acceptable where frontend maps them). Applying **`PATCH`** SHALL refresh or reconcile local list state on success.
 
 Content removal (delete post, delete reply) SHALL call **`forum-moderation-delete-content`** **`DELETE`** endpoints from moderation surfaces: **post detail** and **report queue** when an expanded row exposes the same controls (shared component or equivalent), separately from **`PATCH`** on reports.
 
@@ -50,6 +48,7 @@ Content removal (delete post, delete reply) SHALL call **`forum-moderation-delet
 - **WHEN** a moderator or admin opens **`/moderation/reports`**
 - **THEN** the client SHALL call **`GET /api/mod/reports`** with pagination aligned to backend conventions and **`status=pending`** by default unless the moderator selects **全部状态** (**`status`** omitted for all)
 - **AND** results SHALL render in a readable list layout
+
 #### Scenario: Handler sets status from queue
 
 - **WHEN** a moderator or admin invokes a **`pending`** / **`rejected`** / **`resolved`** control on a report row
@@ -58,7 +57,7 @@ Content removal (delete post, delete reply) SHALL call **`forum-moderation-delet
 #### Scenario: Queue handles forbidden and unauthorized errors
 
 - **WHEN** the queue request returns HTTP 403 or HTTP 401
-- **THEN** the UI SHALL show a permission or sign-in oriented message consistent with other moderation surfaces
+- **THEN** the UI SHALL show an explicit error or redirect consistent with other moderation routes
 
 ### Requirement: Report queue exposes warning and mute controls with required reason
 
@@ -88,3 +87,19 @@ When a muted member attempts a blocked write from post compose or reply UI, the 
 
 - **WHEN** a muted user submits a post and receives `403` with code `FORUM_MUTED`
 - **THEN** the UI SHALL show that posting is restricted until the indicated time
+
+### Requirement: Report queue exposes acknowledge action for pending items
+
+The report queue expanded row SHALL expose an **已受理** (acknowledge) control for reports whose canonical `status` is `pending`. Invoking the control SHALL call `POST /api/mod/reports/{reportId}/acknowledge`. On success the row SHALL reflect `acknowledgedAtUtc` / `acknowledgedBySub` from the API without removing the item from the default pending filter. The control SHALL be disabled or replaced with an already-acknowledged indicator when `acknowledgedAtUtc` is present. Styling SHALL use `forum-tokens.css` variables and primary actions via `el-button type="primary"` where applicable.
+
+#### Scenario: Moderator acknowledges from queue
+
+- **WHEN** a moderator expands a pending report row and clicks acknowledge
+- **THEN** the client SHALL POST to `/api/mod/reports/{reportId}/acknowledge`
+- **AND** the row SHALL show acknowledged state on success
+
+#### Scenario: Acknowledge button hidden or disabled for closed reports
+
+- **WHEN** a report row has canonical status `resolved` or `rejected`
+- **THEN** the acknowledge control SHALL NOT be offered
+

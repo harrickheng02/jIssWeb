@@ -247,13 +247,12 @@ issues:
       已交付 change / 子 Issue：
       - Issue #21 举报人结案站内通知（closed）
       - **change-A** `forum-user-sanctions-minimal`（merged）：警告 + 限时禁言；User.Api `user_sanctions` 与内网 status；Model.Api 写操作禁言拦截与版主下发/解封；举报队列 **处罚 reason 必填**、删内容 **reportId 强制且静默**；fail-closed（status 不可用 → 503 `SANCTION_SERVICE_UNAVAILABLE`）；规范见 `openspec/specs/forum-user-sanctions` 等；变更归档 `openspec/changes/archive/2026-05-31-forum-user-sanctions-minimal/`。
-      当前阶段（change-B，时序待定）：
-      - change-B：`forum-report-acknowledged-notification`（已受理 + 结案两节点；不公开处理结论）
-      后续 OpenSpec change（时序待定，M3 首期不含 SLA）：
+      - **change-B** `forum-report-acknowledged-notification`（merged）：`POST /api/mod/reports/{id}/acknowledge` 写 `ReportAcknowledged` 通知；pending 工单保留 status 并记录 acknowledge 字段；与 `ReportResolved` 双节点幂等共存；前端队列「标记已受理」与通知文案；规范见 `openspec/specs/report-acknowledged-notification` 等；变更归档 `openspec/changes/archive/2026-05-31-forum-report-acknowledged-notification/`。
+      当前阶段（change-C，时序待定）：
       - change-C：`forum-report-evidence-export-operational`（运营复盘级 zip 导出；法务级哈希链/WORM 后续迭代）
       - SLA / 指派或升级队列（账号处罚 + 证据导出稳定后再接入；与 Issue #18 审计深化并行规划边界）
       验收标准（方向性，逐项 change 收紧）：
-      - **change-B**：已受理站内通知（幂等）；结案见 Issue #21。
+      - **change-B**（已交付）：已受理站内通知（幂等）；结案见 Issue #21。
       - **change-C**：运营复盘级证据导出（快照 + zip）；与 `Forum:ReportRetention` purge 策略协调。
       - **SLA / 指派**：移出 M3 首期，独立 change 交付。
       依赖：Issue #4 closed；Issue #21 closed；`openspec/specs/forum-report-api`、`forum-moderation-delete-content`；可与 Issue #18 并行（共享 `audit.metadata.reportId` 契约）。
