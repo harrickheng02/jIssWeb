@@ -364,7 +364,7 @@ For non-search post lists, the system SHALL order sticky posts before non-sticky
 
 ### Requirement: Forum write endpoints reject actively muted users
 
-Before processing any authenticated forum **content write** operation, the Model service SHALL resolve the caller's `sub` against the User service internal forum sanction status. Content writes SHALL include at minimum: creating posts, creating replies, author self-edit of posts or replies, draft create/update/publish paths documented in `forum-draft-lifecycle` and `forum-post-self-edit`. When `isMuted` is true, the service SHALL respond HTTP **403** with the uniform error envelope, error code **`FORUM_MUTED`**, and SHALL include `mutedUntilUtc` when available. Read operations (lists, detail, likes, favorites, report submission) SHALL NOT be blocked by mute.
+Before processing any authenticated forum **content write** operation, the Model service SHALL resolve the caller's `sub` against the User service internal forum sanction status. Content writes SHALL include at minimum: creating posts, creating replies, author self-edit of posts or replies, draft create/update/publish paths documented in `forum-draft-lifecycle` and `forum-post-self-edit`. When `isMuted` is true, the service SHALL respond HTTP **403** with the uniform error envelope, error code **`FORUM_MUTED`**, and SHALL include `mutedUntilUtc` when available. When sanction status cannot be retrieved from the User service (network error, timeout, or non-success response), the service SHALL respond HTTP **503** with error code **`SANCTION_SERVICE_UNAVAILABLE`** and SHALL NOT proceed with the write. Read operations (lists, detail, likes, favorites, report submission) SHALL NOT be blocked by mute.
 
 #### Scenario: Muted user cannot create post
 
@@ -380,4 +380,9 @@ Before processing any authenticated forum **content write** operation, the Model
 
 - **WHEN** a user without an active mute creates a reply
 - **THEN** the write SHALL proceed under existing authorization rules
+
+#### Scenario: Sanction service unavailable blocks write
+
+- **WHEN** a forum content write is attempted and the User service sanction status query fails
+- **THEN** the response SHALL be HTTP 503 with code `SANCTION_SERVICE_UNAVAILABLE`
 
