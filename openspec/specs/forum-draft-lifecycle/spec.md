@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+定义草稿创建、更新、删除、列表、发布完整生命周期，以及个人中心草稿页 UI 契约。
+
+## Requirements
 
 ### Requirement: Create draft
 
@@ -114,3 +118,17 @@ The system SHALL expose `GET /api/forum/me/drafts` for authenticated clients ret
 
 - **WHEN** a client without a valid Bearer token requests `GET /api/forum/me/drafts`
 - **THEN** the response SHALL be 401
+
+### Requirement: Drafts list UI in personal center
+
+The SPA personal center SHALL expose `/me/drafts` listing the user's drafts with pagination. Each draft item SHALL allow opening the edit dialog by clicking the title (styled like post list titles). External row actions SHALL include **Publish** and **Delete**. The edit dialog footer SHALL match the compose dialog: **Cancel**, **Save draft** (non-primary), **Publish** (primary). Saving a draft from the dialog SHALL call the drafts update API; publishing SHALL save current form content then call the publish endpoint.
+
+#### Scenario: Click draft title opens edit dialog
+
+- **WHEN** the user clicks a draft title in the drafts list
+- **THEN** the edit dialog SHALL open pre-filled with that draft's title, body, board, and tags
+
+#### Scenario: Publish from draft dialog
+
+- **WHEN** the user clicks **Publish** in the draft edit dialog with valid title and body
+- **THEN** the client SHALL persist the draft then call `POST /api/forum/posts/drafts/{id}/publish` and navigate to the published post detail

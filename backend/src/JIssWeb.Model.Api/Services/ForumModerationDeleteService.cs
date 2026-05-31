@@ -56,7 +56,8 @@ public sealed class ForumModerationDeleteService
             return ModerationDeletionOutcome.NotFound;
 
         var role = user.GetForumPrincipalRole();
-        if (role == ForumPrincipalRole.Moderator)
+        if (role == ForumPrincipalRole.Moderator
+            && !string.Equals(post.AuthorSubId, operatorSub, StringComparison.Ordinal))
         {
             if (!_access.CanModeratePostAsModerator(user, operatorSub, post))
                 return ModerationDeletionOutcome.Forbidden;

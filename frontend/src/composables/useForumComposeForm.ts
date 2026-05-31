@@ -6,6 +6,7 @@ import {
   createDraft,
   updateForumPost,
   updateDraft,
+  publishDraft,
   getForumTagSuggest,
   type ForumPostListItem,
 } from '@/api/clients'
@@ -136,19 +137,33 @@ export function useForumComposeForm(opts: {
     if (mode.value === 'draft-edit') {
       const targetId = editTargetId.value
       if (!targetId) return
+      if (!title) {
+        ElMessage.warning('请填写标题')
+        return
+      }
+      if (!body) {
+        ElMessage.warning('请填写正文')
+        return
+      }
       composeSubmitting.value = true
       try {
         const tags = composeTags.value.length ? [...composeTags.value] : undefined
-        const res = await updateDraft(targetId, { title, body, boardId: composeBoardId.value, tags })
-        if (!res.success) {
-          ElMessage.error(res.message ?? '保存草稿失败')
+        const updateRes = await updateDraft(targetId, { title, body, boardId: composeBoardId.value, tags })
+        if (!updateRes.success) {
+          ElMessage.error(updateRes.message ?? '保存草稿失败')
+          return
+        }
+        const pubRes = await publishDraft(targetId)
+        if (!pubRes.success) {
+          ElMessage.error(pubRes.message ?? '发布失败')
           return
         }
         composeOpen.value = false
-        ElMessage.success('草稿已保存')
+        ElMessage.success('草稿已发布')
         opts.onDraftSaved?.(targetId)
+        void router.push({ name: 'post-detail', params: { id: targetId } })
       } catch (e) {
-        ElMessage.error(e instanceof Error ? e.message : '保存草稿失败')
+        ElMessage.error(e instanceof Error ? e.message : '发布失败')
       } finally {
         composeSubmitting.value = false
       }

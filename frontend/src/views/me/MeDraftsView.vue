@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMyDrafts, deleteDraft, publishDraft, getForumPost, type ForumPostListItem } from '@/api/clients'
 import { useForumBoards } from '@/composables/useForumBoards'
 import { useForumComposeForm } from '@/composables/useForumComposeForm'
 
 const { forumBoards, loadForumBoards } = useForumBoards()
+const router = useRouter()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -23,12 +25,14 @@ const {
   composeBoardId,
   composeTags,
   composeSubmitting,
+  composeSavingDraft,
   tagSuggestions,
   tagSuggestionsLoading,
   onTagSearch,
   onComposeTagsChange,
   openComposeDialogForDraftEdit,
   submitCompose,
+  saveDraft,
 } = useForumComposeForm({
   getDefaultBoardId: () => forumBoards.value[0]?.id ?? 'general',
   onDraftSaved() {
@@ -73,6 +77,7 @@ function formatRelativeTime(iso: string) {
 const loadingEditId = ref<string | null>(null)
 
 async function editDraft(draft: ForumPostListItem) {
+  if (loadingEditId.value === draft.id) return
   loadingEditId.value = draft.id
   try {
     const res = await getForumPost(draft.id)
@@ -146,6 +151,7 @@ async function confirmPublish(draft: ForumPostListItem) {
     }
     ElMessage.success('草稿已发布')
     void fetchDrafts()
+    void router.push({ name: 'post-detail', params: { id: draft.id } })
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '发布失败')
   } finally {
@@ -188,7 +194,16 @@ onMounted(() => {
         class="draft-card"
       >
         <div class="draft-header">
-          <span class="draft-title">{{ draft.title?.trim() || '（无标题）' }}</span>
+          <div
+            class="draft-title"
+            role="link"
+            tabindex="0"
+            :aria-busy="loadingEditId === draft.id"
+            @click="editDraft(draft)"
+            @keydown.enter.prevent="editDraft(draft)"
+          >
+            {{ draft.title?.trim() || '（无标题）' }}
+          </div>
           <el-tag size="small" type="info" effect="plain">草稿</el-tag>
         </div>
         <div v-if="draft.tags?.length" class="draft-tags">
@@ -199,7 +214,6 @@ onMounted(() => {
           <span v-if="draft.updatedAtUtc" class="draft-time">已编辑 {{ formatRelativeTime(draft.updatedAtUtc) }}</span>
         </div>
         <div class="draft-actions">
-          <el-button type="primary" size="small" :loading="loadingEditId === draft.id" @click="editDraft(draft)">继续编辑</el-button>
           <el-button
             type="success"
             size="small"
@@ -263,7 +277,8 @@ onMounted(() => {
       </el-form>
       <template #footer>
         <el-button @click="composeOpen = false">取消</el-button>
-        <el-button type="primary" :loading="composeSubmitting" @click="submitCompose">保存草稿</el-button>
+        <el-button :loading="composeSavingDraft" @click="saveDraft">保存草稿</el-button>
+        <el-button type="primary" :loading="composeSubmitting" @click="submitCompose">发布</el-button>
       </template>
     </el-dialog>
   </div>
@@ -309,14 +324,27 @@ onMounted(() => {
 }
 
 .draft-title {
-  font-size: var(--font-md);
-  font-weight: 600;
+  font-size: var(--font-lg);
+  font-weight: 700;
   line-height: 1.4;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--color-primary);
+  cursor: pointer;
+  outline: none;
+}
+
+.draft-title:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 35%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.draft-title[aria-busy='true'] {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .draft-tags {

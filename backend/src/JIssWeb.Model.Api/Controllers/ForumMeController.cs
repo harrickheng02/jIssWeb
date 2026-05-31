@@ -102,7 +102,9 @@ public class ForumMeController : ControllerBase
             return Unauthorized(ApiResult<PagedRepliesDto>.Fail("未授权", "UNAUTHORIZED"));
         }
 
-        var filter = Builders<ForumReplyRecord>.Filter.Eq(x => x.AuthorSubId, sub);
+        var filter = Builders<ForumReplyRecord>.Filter.And(
+            ForumPostFilters.ReplyPublished(),
+            Builders<ForumReplyRecord>.Filter.Eq(x => x.AuthorSubId, sub));
         var total = await _replies.CountDocumentsAsync(filter);
         var items = await _replies.Find(filter)
             .SortByDescending(x => x.CreatedAtUtc)

@@ -59,6 +59,10 @@ export default defineConfig(({ mode }) => {
           target: modelBase,
           changeOrigin: true,
         },
+        '/api/mod': {
+          target: modelBase,
+          changeOrigin: true,
+        },
         '/api': local(gatewayBase, '/api', false),
       },
     },

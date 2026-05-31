@@ -105,9 +105,8 @@ public static class WebApiHostExtensions
                                 var rawBoards = context.Principal?.FindFirst(ForumBoardIdsClaim.Name)?.Value;
                                 if (rawBoards is not null && !ForumBoardIdsClaimJson.TryDeserialize(rawBoards, out _))
                                 {
-                                    logger.LogWarning("JWT invalid forumBoardIds claim");
-                                    context.Fail("invalid_token_forum_board_ids");
-                                    return Task.CompletedTask;
+                                    // 无效 forumBoardIds 不应使整个 token 失效；Model 侧会回退到 roster / 全板块
+                                    logger.LogWarning("JWT invalid forumBoardIds claim; ignoring and falling back to server roster");
                                 }
                             }
                         }

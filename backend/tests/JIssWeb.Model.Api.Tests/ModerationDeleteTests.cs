@@ -48,6 +48,95 @@ public sealed class ModerationDeleteTests : IClassFixture<ForumMeIntegrationFixt
     }
 
     [Fact]
+    public async Task Moderator_without_roster_entry_can_delete_post_in_any_board()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var db = mongo.GetDatabase(_fx.DatabaseName);
+        var posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        var pid = "mod-del-rosterless-" + Guid.NewGuid().ToString("N");
+        await posts.InsertOneAsync(new ForumPostRecord
+        {
+            Id = pid,
+            Title = "x",
+            Body = "y",
+            Excerpt = "y",
+            AuthorSubId = "user-a",
+            Board = "技术",
+            State = "published",
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+
+        var req = new HttpRequestMessage(HttpMethod.Delete, $"/api/mod/posts/{pid}");
+        req.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            JwtTestTokens.CreateAccessToken("user-rosterless-mod", ForumRoleClaim.Moderator));
+        var r = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+    }
+
+    [Fact]
+    public async Task Moderator_can_delete_others_post_via_forum_posts_endpoint()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var posts = mongo.GetDatabase(_fx.DatabaseName)
+            .GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        var pid = "mod-del-forum-api-" + Guid.NewGuid().ToString("N");
+        await posts.InsertOneAsync(new ForumPostRecord
+        {
+            Id = pid,
+            Title = "x",
+            Body = "y",
+            Excerpt = "y",
+            AuthorSubId = "user-a",
+            Board = "综合",
+            State = "published",
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+
+        var req = new HttpRequestMessage(HttpMethod.Delete, $"/api/forum/posts/{pid}");
+        req.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator));
+        var r = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+    }
+
+    [Fact]
+    public async Task Moderator_can_delete_own_post_out_of_scope_via_mod_endpoint()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var posts = mongo.GetDatabase(_fx.DatabaseName)
+            .GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        var pid = "mod-del-own-tech-" + Guid.NewGuid().ToString("N");
+        await posts.InsertOneAsync(new ForumPostRecord
+        {
+            Id = pid,
+            Title = "x",
+            Body = "y",
+            Excerpt = "y",
+            AuthorSubId = "user-mod",
+            Board = "技术",
+            State = "published",
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+
+        var req = new HttpRequestMessage(HttpMethod.Delete, $"/api/mod/posts/{pid}");
+        req.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator));
+        var r = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+
+        var left = await posts.Find(x => x.Id == pid).FirstOrDefaultAsync();
+        Assert.NotNull(left);
+        Assert.Equal("deleted", left!.State);
+        Assert.Equal("user-mod", left.DeletedBySub);
+    }
+
+    [Fact]
     public async Task Moderator_cannot_delete_post_out_of_scope()
     {
         var req = new HttpRequestMessage(HttpMethod.Delete, "/api/mod/posts/me-post-tech");

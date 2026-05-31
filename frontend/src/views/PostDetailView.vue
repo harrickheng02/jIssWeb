@@ -6,7 +6,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   createForumReply,
-  deleteModerationForumReply,
   deleteForumPost,
   deleteForumReply,
   permanentDeleteForumPost,
@@ -74,6 +73,7 @@ const {
     post.value = {
       ...post.value,
       title: updated.title,
+      body: composeBody.value.trim(),
       tags: updated.tags,
       updatedAtUtc: updated.updatedAtUtc,
     }
@@ -273,7 +273,8 @@ async function confirmDeleteReply(reply: ForumReply) {
 
   deleteReplyBusyId.value = reply.id
   try {
-    const res = await deleteModerationForumReply(reply.id)
+    // 走 /api/forum 直连 Model API；后端对版主会委派到软删逻辑
+    const res = await deleteForumReply(postId.value, reply.id)
     if (!res.success) {
       ElMessage.error(res.message ?? '删除失败')
       return
@@ -356,13 +357,11 @@ async function handleDeleteReply(reply: ForumReply) {
 
 function handleEditPost() {
   if (!post.value) return
-  const boardId = forumBoards.value.find((b) => b.title === post.value!.board)?.id
   openComposeDialogForEdit({
     id: post.value.id,
     title: post.value.title,
     body: post.value.body,
     tags: post.value.tags,
-    boardId,
   })
 }
 
@@ -446,7 +445,15 @@ watch(
               <span class="post-time">{{ formatRelativeTime(post.publishedAtUtc) }}</span>
               <template v-if="isPostAuthor && post.state !== 'deleted'">
                 <el-button type="primary" link size="small" @click="handleEditPost">编辑</el-button>
-                <el-button type="danger" link size="small" :loading="deletingPost" @click="handleDeletePost">删除</el-button>
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  :loading="deletingPost"
+                  @click="handleDeletePost"
+                >
+                  删除
+                </el-button>
               </template>
             </div>
           </div>
@@ -530,7 +537,7 @@ watch(
                 <el-button type="primary" link size="small" @click="startEditReply(r)">编辑</el-button>
                 <el-button type="danger" link size="small" :loading="deletingReplyId === r.id" @click="handleDeleteReply(r)">删除</el-button>
               </div>
-              <div v-if="canModerate" class="reply-mod">
+              <div v-if="canModerate && auth.sub !== r.authorId" class="reply-mod">
                 <el-button
                   type="danger"
                   link
@@ -574,9 +581,8 @@ watch(
           <el-input v-model="composeBody" type="textarea" :rows="8" maxlength="20000" show-word-limit />
         </el-form-item>
         <el-form-item label="板块">
-          <el-select v-model="composeBoardId" class="compose-board-select">
-            <el-option v-for="b in forumBoards" :key="b.id" :label="b.title" :value="b.id" />
-          </el-select>
+          <div class="compose-board-readonly">{{ post?.board ?? '—' }}</div>
+          <p class="compose-field-hint">已发布后不可更换板块</p>
         </el-form-item>
         <el-form-item label="标签">
           <el-select
@@ -868,6 +874,17 @@ watch(
 
 .reply-submit {
   align-self: flex-start;
+}
+
+.compose-board-readonly {
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+}
+
+.compose-field-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 .compose-board-select {

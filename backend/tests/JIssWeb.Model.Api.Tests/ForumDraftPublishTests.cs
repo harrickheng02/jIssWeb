@@ -3,6 +3,10 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using JIssWeb.Model.Api.Models;
+using JIssWeb.Model.Api.Mongo;
+using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 
 namespace JIssWeb.Model.Api.Tests;
 
@@ -33,14 +37,23 @@ public sealed class ForumDraftPublishTests
     public async Task Publish_valid_draft_returns_200_and_appears_in_list()
     {
         var id = await CreateDraftAsync("user-a", "published title", "published body");
-        var r = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, $"/api/forum/posts/drafts/{id}/publish", "user-a"));
-        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
-        var json = JsonNode.Parse(await r.Content.ReadAsStringAsync())!;
-        Assert.Equal("published", json["data"]!["state"]!.GetValue<string>());
+        try
+        {
+            var r = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, $"/api/forum/posts/drafts/{id}/publish", "user-a"));
+            Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+            var json = JsonNode.Parse(await r.Content.ReadAsStringAsync())!;
+            Assert.Equal("published", json["data"]!["state"]!.GetValue<string>());
 
-        // Now visible in public list
-        var lr = await _fx.Client.GetAsync("/api/forum/posts?page=1&pageSize=50");
-        Assert.Contains(id, await lr.Content.ReadAsStringAsync());
+            var lr = await _fx.Client.GetAsync("/api/forum/posts?page=1&pageSize=50");
+            Assert.Contains(id, await lr.Content.ReadAsStringAsync());
+        }
+        finally
+        {
+            using var scope = _fx.Factory.Services.CreateScope();
+            var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+            var posts = mongo.GetDatabase(_fx.DatabaseName).GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+            await posts.DeleteOneAsync(x => x.Id == id);
+        }
     }
 
     [Fact]
@@ -60,5 +73,30 @@ public sealed class ForumDraftPublishTests
         var id = await CreateDraftAsync("user-a", "t", "b");
         var r = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, $"/api/forum/posts/drafts/{id}/publish", "user-b"));
         Assert.Equal(HttpStatusCode.Forbidden, r.StatusCode);
+    }
+
+    [Fact]
+    public async Task Publish_draft_with_invalid_board_returns_400()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var posts = mongo.GetDatabase(_fx.DatabaseName).GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        var id = "draft-bad-board-" + Guid.NewGuid().ToString("N");
+        await posts.InsertOneAsync(new ForumPostRecord
+        {
+            Id = id,
+            Title = "t",
+            Body = "b",
+            Excerpt = "b",
+            AuthorSubId = "user-a",
+            Board = "不存在的板块",
+            State = "draft",
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+
+        var r = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, $"/api/forum/posts/drafts/{id}/publish", "user-a"));
+        Assert.Equal(HttpStatusCode.BadRequest, r.StatusCode);
+        var json = JsonNode.Parse(await r.Content.ReadAsStringAsync())!;
+        Assert.Equal("INVALID_BOARD_ID", json["code"]!.GetValue<string>());
     }
 }

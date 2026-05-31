@@ -32,14 +32,16 @@
 
 ## 5. 帖子自编辑接口
 
-- [x] 5.1 编写集成测试：作者编辑成功（200 + UpdatedAtUtc 非空）、非作者编辑 403、deleted 帖子编辑 404（先写测试）
+- [x] 5.1 编写集成测试：作者编辑成功（200 + UpdatedAtUtc 非空）、非作者编辑 403、deleted 帖子编辑 404、板块变更 400、Tags UseCount delta（先写测试）
 - [x] 5.2 `ForumPostsController` 新增 `[HttpPut("{postId}")]` 端点：校验 State、作者身份；更新 Title/Body/Tags/Excerpt/UpdatedAtUtc
 - [x] 5.3 实现 Tags UseCount 差量更新逻辑（`旧∖新` -1，`新∖旧` +1，交集跳过），封装为私有方法
 - [x] 5.4 运行测试 5.1 直至全绿
 
+- [x] 5.5 集成测试：`ForumPostSelfEditTests` — Tags delta `[A,B]→[B,C]`、移除未注册 tag 仍 200（`Edit_post_tags_applies_use_count_delta`、`Edit_post_removing_unregistered_tag_succeeds_without_tag_writes`）
+
 ## 6. 回复自编辑接口
 
-- [x] 6.1 编写集成测试：作者编辑回复成功、非作者 403、locked 帖子的回复仍可编辑（先写测试）
+- [x] 6.1 编写集成测试：作者编辑回复成功、非作者 403、locked 帖子的回复仍可编辑、已删回复/已删帖 404（先写测试）
 - [x] 6.2 `ForumPostsController` 新增 `[HttpPut("{postId}/replies/{replyId}")]` 端点：校验回复 State 与作者；更新 Body/UpdatedAtUtc
 - [x] 6.3 运行测试 6.1 直至全绿
 
@@ -84,24 +86,25 @@
 ## 12. 前端发帖表单扩展（编辑 & 草稿模式）
 
 - [x] 12.1 扩展 `useForumComposeForm.ts`，新增 `mode: 'create' | 'edit' | 'draft-edit'`、`editTargetId: string | null`
-- [x] 12.2 `edit` 模式下 `submitCompose()` 调用 `updateForumPost`；`draft-edit` 模式调用 `updateDraft`
+- [x] 12.2 `edit` 模式下 `submitCompose()` 调用 `updateForumPost`；`draft-edit` 模式下 `saveDraft()` 调用 `updateDraft`，`submitCompose()` 先保存再 `publishDraft`
 - [x] 12.3 新增 `saveDraft()` 方法：mode=create 时调用 `createDraft`，mode=draft-edit 时调用 `updateDraft`
-- [x] 12.4 Vitest 单元测试：`submitCompose` 在 edit 模式调用正确 API（mock axios）
+- [x] 12.4 Vitest 单元测试：`submitCompose` 在 edit / draft-edit 模式调用正确 API（mock axios）
+- [x] 12.5 已发布帖编辑对话框：板块只读展示；后端 `BOARD_NOT_EDITABLE` 拒绝板块变更
 
 ## 13. 前端帖子详情页编辑入口
 
 - [x] 13.1 `PostDetailView.vue` 帖子标题区加入「编辑」按钮（仅当 `authStore.userId === post.authorId`）
-- [x] 13.2 点击「编辑」打开 compose dialog，初始化 `mode='edit'`，预填 title/body/tags/boardId
+- [x] 13.2 点击「编辑」打开 compose dialog，初始化 `mode='edit'`，预填 title/body/tags；已发布帖板块只读
 - [x] 13.3 帖子 meta 信息区：当 `post.updatedAtUtc` 非空时显示「已编辑 X 时间前」
 - [x] 13.4 回复列表每条回复：当作者为当前用户时，显示「编辑」按钮，点击后打开行内编辑 textarea
 - [x] 13.5 回复旁：当 `reply.updatedAtUtc` 非空时显示「已编辑」标记
 
 ## 14. 前端草稿页
 
-- [x] 14.1 新增 `frontend/src/views/me/MeDraftsView.vue`：展示草稿分页列表，每项有「继续编辑」和「删除」操作
+- [x] 14.1 新增 `frontend/src/views/me/MeDraftsView.vue`：草稿分页列表；**点击标题**打开编辑；外部操作 **发布**、**删除**
 - [x] 14.2 在 `frontend/src/router/index.ts` 的 `/me` children 中新增 `{ path: 'drafts', name: 'me-drafts', ... }`
-- [x] 14.3 个人中心侧边导航（`PersonalCenterLayout.vue`）新增「草稿」入口，显示草稿计数徽标
-- [x] 14.4 发帖 compose dialog 新增「保存草稿」按钮（`el-button` 非 primary），调用 `saveDraft()`
+- [x] 14.3 个人中心侧边导航（`PersonalCenterLayout.vue`）新增「草稿箱」入口，显示草稿计数徽标
+- [x] 14.4 草稿/发帖 compose dialog 底部：**取消**、**保存草稿**（非 primary）、**发布**（primary）
 
 ## 16. 用户自删帖子/回复（软删除）+ 0 互动永久硬删除
 
@@ -112,14 +115,23 @@
 - [x] 16.5 新增 `DELETE /api/forum/posts/{postId}/permanent`（0 互动永久删）：验证 likes/comments/favorites 全为 0，级联物理删
 - [x] 16.6 集成测试 `ForumSelfDeleteTests.cs`（10 个场景全绿）
 - [x] 16.7 前端 `clients.ts`：新增 `deleteForumPost`、`deleteForumReply`、`permanentDeleteForumPost`
-- [x] 16.8 前端 `PostDetailView.vue`：作者删除帖子按钮 + 已删横幅 + 永久删除按钮（0 互动时）+ 作者删除回复按钮
+- [x] 16.8 前端 `PostDetailView.vue`：作者删除帖子按钮 + 已删横幅 + 永久删除按钮（0 互动时）+ 作者删除回复按钮；版主兼作者时仍显示作者删除/编辑
+
+## 17. 版主 scope 与删帖例外（change-review 跟进）
+
+- [x] 17.1 `design.md` D7：记录 JWT + roster 合并、空 scope 回退全板块、生产配置建议
+- [x] 17.2 版主删**他人**帖仍校验板块 scope；删**自己**帖跳过 scope（`ModPostsController`、`ForumModerationDeleteService`）
+- [x] 17.3 集成测试：`Moderator_can_delete_own_post_out_of_scope_via_mod_endpoint`；保留 `Moderator_cannot_delete_post_out_of_scope`
+- [x] 17.4 前端：版主兼作者显示作者删除；治理面板删自己的帖走 `deleteForumPost`
 
 ## 15. 全量验证
 
-- [x] 15.1 运行 `cd backend && dotnet test tests/JIssWeb.Model.Api.Tests` 全绿（3 个跨 fixture 污染用例为预存在缺陷，隔离运行全部通过）
+- [x] 15.1 运行 `cd backend && dotnet test tests/JIssWeb.Model.Api.Tests` 全绿（154/154）；集成测试 teardown 避免 ForumMe fixture 污染
 - [x] 15.2 运行 `cd frontend && npm test` 全绿（7 个测试，含新增 4 个 compose form 单测）
-- [ ] 15.3 本地联调：创建草稿 → 编辑草稿 → 发布草稿 → 编辑已发布帖子 → 编辑回复 → 版主软删帖子 → 公开列表不可见
-- [x] 15.4 `change-review`：对照 specs 中所有 SHALL/MUST 确认无遗漏；修复以下 3 项：
-  - `CreateDraft` 响应补充 `state: "draft"` 字段（spec 明确要求）
-  - `GetById` 允许版主/管理员查看任意 `state=deleted` 帖子（task 3.3）
-  - `PostListItemDto`/`PostDetailDto` 暴露 `deletedAtUtc`/`deletedBySub`；前端永久删除按钮改为检查 `post.deletedBySub === auth.sub`
+- [x] 15.3 本地联调：创建草稿 → 编辑草稿 → 发布草稿 → 编辑已发布帖子 → 编辑回复 → 版主软删帖子 → 公开列表不可见
+- [x] 15.4 `change-review` 第二轮：补 Tags delta + 回复 404 测试；更新 spec/tasks 反映草稿 UI 与板块不可编辑；确认 D7 版主 scope 生产策略
+  - `ForumPostSelfEditTests`：Tags delta、未注册 tag、板块不可编辑
+  - `ForumReplySelfEditTests`：已删回复/已删帖 404
+  - `forum-post-self-edit/spec.md`：`Published post board is immutable`
+  - `forum-draft-lifecycle/spec.md`：`Drafts list UI in personal center`
+  - 首轮已修复：`CreateDraft` state、版主 GetById deleted、`deletedBySub` DTO

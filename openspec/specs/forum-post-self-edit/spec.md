@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+定义帖子与回复作者自编辑 HTTP 契约：权限校验、Tags UseCount 差量更新、已发布帖板块不可变更、UpdatedAtUtc 追踪。
+
+## Requirements
 
 ### Requirement: Post author self-edit
 
@@ -28,6 +32,20 @@ The system SHALL expose `PUT /api/forum/posts/{postId}` allowing the authenticat
 
 - **WHEN** a client without a valid Bearer token calls PUT on any post
 - **THEN** the response SHALL be 401
+
+### Requirement: Published post board is immutable
+
+Once a post's `State` is `"published"`, the system SHALL NOT allow changing its board via `PUT /api/forum/posts/{postId}`. If the request body includes `boardId` or `board`, the response SHALL be 400 with error code `BOARD_NOT_EDITABLE`. Draft posts MAY still change board via `PUT /api/forum/posts/drafts/{draftId}`.
+
+#### Scenario: Published post board change rejected
+
+- **WHEN** an author sends PUT to a published post with a `boardId` or `board` field
+- **THEN** the response SHALL be 400 with error code `BOARD_NOT_EDITABLE`
+
+#### Scenario: Draft board change still allowed
+
+- **WHEN** an author sends PUT to a draft via the drafts endpoint with a valid `boardId`
+- **THEN** the response SHALL be 200 and the draft board SHALL update
 
 ### Requirement: Post edit tags UseCount delta update
 

@@ -30,6 +30,7 @@ public class ForumPostsController : ControllerBase
     private readonly IOptions<ForumBoardsOptions> _boardOptions;
     private readonly ForumAuthorDisplayResolver _authorNames;
     private readonly ForumEngagementService _engagement;
+    private readonly ForumModerationDeleteService _moderationDelete;
     private readonly ILogger<ForumPostsController> _logger;
 
     public ForumPostsController(
@@ -38,6 +39,7 @@ public class ForumPostsController : ControllerBase
         IOptions<ForumBoardsOptions> boardOptions,
         ForumAuthorDisplayResolver authorNames,
         ForumEngagementService engagement,
+        ForumModerationDeleteService moderationDelete,
         ILogger<ForumPostsController> logger)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
@@ -50,6 +52,7 @@ public class ForumPostsController : ControllerBase
         _boardOptions = boardOptions;
         _authorNames = authorNames;
         _engagement = engagement;
+        _moderationDelete = moderationDelete;
         _logger = logger;
     }
 
@@ -158,8 +161,18 @@ public class ForumPostsController : ControllerBase
     public async Task<ActionResult<ApiResult<List<ReplyDto>>>> GetReplies(string postId)
     {
         var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
-        if (post is null || post.State == "deleted")
+        if (post is null)
             return NotFound(ApiResult<List<ReplyDto>>.Fail("未找到", "NOT_FOUND"));
+
+        if (post.State == "deleted")
+        {
+            var requesterId = TryGetAuthorId();
+            var isAuthorSelfDelete = string.Equals(post.DeletedBySub, post.AuthorSubId, StringComparison.Ordinal);
+            var isAuthor = string.Equals(post.AuthorSubId, requesterId, StringComparison.Ordinal);
+            var isMod = IsModeratorOrAdmin();
+            if (!((isAuthorSelfDelete && isAuthor) || isMod))
+                return NotFound(ApiResult<List<ReplyDto>>.Fail("未找到", "NOT_FOUND"));
+        }
 
         var replyFilter = Builders<ForumReplyRecord>.Filter.And(
             ForumPostFilters.ReplyPublished(),
@@ -196,6 +209,7 @@ public class ForumPostsController : ControllerBase
             PostId = postId,
             AuthorSubId = authorId,
             Body = request.Body.Trim(),
+            State = "published",
             CreatedAtUtc = now,
         };
         await _replies.InsertOneAsync(reply);
@@ -387,7 +401,18 @@ public class ForumPostsController : ControllerBase
             return BadRequest(ApiResult<string>.Fail("请先删除草稿", "DRAFT_MUST_BE_DELETED_DIRECTLY"));
 
         if (!string.Equals(post.AuthorSubId, sub, StringComparison.Ordinal))
+        {
+            if (IsModeratorOrAdmin())
+            {
+                var modOutcome = await _moderationDelete.TryDeletePostAsync(User, sub, postId);
+                if (modOutcome == ModerationDeletionOutcome.Success)
+                    return Ok(ApiResult<string>.Ok("已删除"));
+                if (modOutcome == ModerationDeletionOutcome.NotFound)
+                    return NotFound(ApiResult<string>.Fail("未找到", "NOT_FOUND"));
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权删除", "FORBIDDEN"));
+            }
             return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权删除", "FORBIDDEN"));
+        }
 
         var now = DateTime.UtcNow;
         await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update
@@ -415,12 +440,23 @@ public class ForumPostsController : ControllerBase
         if (post is null)
             return NotFound(ApiResult<string>.Fail("未找到", "NOT_FOUND"));
 
-        var reply = await _replies.Find(x => x.Id == replyId && x.PostId == postId && x.State == "published").FirstOrDefaultAsync();
-        if (reply is null)
+        var reply = await _replies.Find(x => x.Id == replyId && x.PostId == postId).FirstOrDefaultAsync();
+        if (reply is null || reply.State == "deleted")
             return NotFound(ApiResult<string>.Fail("未找到", "NOT_FOUND"));
 
         if (!string.Equals(reply.AuthorSubId, sub, StringComparison.Ordinal))
+        {
+            if (IsModeratorOrAdmin())
+            {
+                var modOutcome = await _moderationDelete.TryDeleteReplyAsync(User, sub, replyId);
+                if (modOutcome == ModerationDeletionOutcome.Success)
+                    return Ok(ApiResult<string>.Ok("已删除"));
+                if (modOutcome == ModerationDeletionOutcome.NotFound)
+                    return NotFound(ApiResult<string>.Fail("未找到", "NOT_FOUND"));
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权删除", "FORBIDDEN"));
+            }
             return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权删除", "FORBIDDEN"));
+        }
 
         var now = DateTime.UtcNow;
         await _replies.UpdateOneAsync(x => x.Id == replyId, Builders<ForumReplyRecord>.Update
@@ -482,6 +518,10 @@ public class ForumPostsController : ControllerBase
 
         if (!string.Equals(post.AuthorSubId, authorId, StringComparison.Ordinal))
             return StatusCode(StatusCodes.Status403Forbidden, ApiResult<PostListItemDto>.Fail("无权编辑", "FORBIDDEN"));
+
+        if (post.State == "published"
+            && (!string.IsNullOrWhiteSpace(request.BoardId) || !string.IsNullOrWhiteSpace(request.Board)))
+            return BadRequest(ApiResult<PostListItemDto>.Fail("已发布帖子不可更换板块", "BOARD_NOT_EDITABLE"));
 
         // Tags normalization & validation
         List<string>? newTags = null;
@@ -828,6 +868,8 @@ public class UpdatePostRequest
 {
     public string? Title { get; set; }
     public string? Body { get; set; }
+    public string? BoardId { get; set; }
+    public string? Board { get; set; }
     public List<string>? Tags { get; set; }
 }
 

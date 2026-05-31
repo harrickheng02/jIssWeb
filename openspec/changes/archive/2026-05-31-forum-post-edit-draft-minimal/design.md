@@ -60,6 +60,25 @@
 ### D6：前端 compose 复用单一 composable
 `useForumComposeForm.ts` 扩展为接收可选 `mode: 'create' | 'edit' | 'draft-edit'` 和 `postId/draftId`，内部路由到对应 API；不新建独立 composable，减少重复代码。
 
+### D7：版主板块 scope 解析与生产配置
+
+**选择**：`ForumModerationAccessService.ResolveModeratorBoardIds` 合并 JWT `forumBoardIds` 与 Model API `Forum:Moderation:Moderators` roster 的 `boardIds`（去重）。仅当确认为 `Moderator` 角色且合并后仍为空时，**回退为全部已配置板块**（便于本地 dev 与 roster 未配全的环境）。
+
+**作者例外**：版主/管理员删除或编辑**自己发布**的内容时，**不校验板块 scope**（作者自删 API 或 mod 端点均适用）。
+
+**生产可接受性**：
+- **推荐**：User API 签发 JWT 时写入正确 `forumBoardIds`；Model API `appsettings.Local.json` / 生产配置中为每位版主配置 `Forum:Moderation:Moderators[].boardIds`，使 scope 明确、可审计。
+- **回退策略**：仅在「版主身份已确认 + 无任何 scope 配置」时生效；有任一有效 `boardIds` 时严格按 scope 过滤。生产环境配置完整时，回退路径**不会触发**。
+- **风险**：若生产误留空 roster 且 JWT 无 `forumBoardIds`，版主将获得全站治理权限。部署 checklist 应验证版主 scope 非空。
+
+---
+
+### D8：已发布帖板块不可变更
+
+**选择**：`PUT /api/forum/posts/{postId}` 对已发布帖拒绝 `boardId`/`board` 字段（`BOARD_NOT_EDITABLE`）；草稿仍可通过 drafts 端点改板块。
+
+**理由**：避免帖子跨板块迁移导致列表、版主 scope 与标签统计混乱；前端编辑对话框对已发布帖展示只读板块。
+
 ## Risks / Trade-offs
 
 | 风险 | 缓解 |
@@ -69,6 +88,7 @@
 | Tags UseCount 差量更新极小漂移 | UseCount 为展示计数，允许统计误差；后续可加定时对账任务 |
 | 定时清理误删仍在举报流程中的帖子 | 清理前检查是否存在 `state = "open"` 的关联举报，有则跳过该帖子并记录日志 |
 | 路由 `/posts/drafts` 与 `/posts/{postId}` 冲突 | ASP.NET Core 字面量段优先于参数段，已验证无冲突；单测覆盖 |
+| 版主 scope 回退为全板块 | 生产应配置 JWT + roster `boardIds`；见 D7；集成测试覆盖 scoped 拒绝与作者自删例外 |
 
 ## Migration Plan
 

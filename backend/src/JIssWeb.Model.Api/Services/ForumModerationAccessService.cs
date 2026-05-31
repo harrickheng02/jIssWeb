@@ -82,34 +82,71 @@ public sealed class ForumModerationAccessService
             if (role == ForumPrincipalRole.Moderator)
             {
                 var raw = user.FindFirstValue(ForumBoardIdsClaim.Name);
-                if (raw != null)
+                if (raw != null && ForumBoardIdsClaimJson.TryDeserialize(raw, out var parsed))
                 {
-                    if (!ForumBoardIdsClaimJson.TryDeserialize(raw, out var parsed))
-                        return null;
                     jwtIds = parsed;
-                    if (parsed.Count > 0)
-                        return parsed;
                 }
             }
         }
 
         var entry = _moderation.Value.Moderators
             .FirstOrDefault(x => string.Equals((x.Sub ?? "").Trim(), moderatorSub.Trim(), StringComparison.Ordinal));
-        if (entry?.BoardIds is { Count: > 0 })
-            return entry.BoardIds;
 
-        return jwtIds ?? entry?.BoardIds;
+        var merged = new List<string>();
+        if (jwtIds is { Count: > 0 })
+            merged.AddRange(jwtIds);
+        if (entry?.BoardIds is { Count: > 0 })
+            merged.AddRange(entry.BoardIds);
+        merged = merged
+            .Select(id => (id ?? "").Trim())
+            .Where(id => id.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (merged.Count > 0)
+            return merged;
+
+        // 版主身份已确认但未配置板块范围时，默认可治理全部已配置板块
+        if (user?.Identity?.IsAuthenticated == true && user.GetForumPrincipalRole() == ForumPrincipalRole.Moderator)
+        {
+            var allBoardIds = AllConfiguredBoardIds();
+            if (allBoardIds.Count > 0)
+                return allBoardIds;
+        }
+
+        return null;
     }
+
+    private List<string> AllConfiguredBoardIds() =>
+        _boards.Value.Boards
+            .Select(b => (b.Id ?? "").Trim())
+            .Where(id => id.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private bool PostBoardInModeratorScope(IReadOnlyList<string>? boardIds, ForumPostRecord post)
     {
         if (boardIds is null || boardIds.Count == 0) return false;
-        var boardTitles = boardIds
-            .Select(id => ForumBoardIdLookup.ResolveConfiguredBoardTitle(_boards.Value, id))
-            .Where(t => !string.IsNullOrWhiteSpace(t))
-            .Select(t => t!.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var postBoard = (post.Board ?? "").Trim();
+        if (postBoard.Length == 0) return false;
 
-        return boardTitles.Contains((post.Board ?? "").Trim());
+        var postBoardId = ForumBoardIdLookup.ResolveBoardIdFromTitle(_boards.Value, postBoard);
+        var allowedTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var allowedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var raw in boardIds)
+        {
+            var token = (raw ?? "").Trim();
+            if (token.Length == 0) continue;
+            allowedIds.Add(token);
+            var title = ForumBoardIdLookup.ResolveConfiguredBoardTitle(_boards.Value, token);
+            if (!string.IsNullOrWhiteSpace(title))
+                allowedTitles.Add(title.Trim());
+            else
+                allowedTitles.Add(token);
+        }
+
+        if (allowedTitles.Contains(postBoard)) return true;
+        if (postBoardId is not null && allowedIds.Contains(postBoardId)) return true;
+        return false;
     }
 }

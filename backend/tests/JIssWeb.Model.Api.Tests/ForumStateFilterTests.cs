@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using JIssWeb.Common.Security;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +15,7 @@ public sealed class ForumStateFilterTests
     private readonly ForumMeIntegrationFixture _fx;
     public ForumStateFilterTests(ForumMeIntegrationFixture fx) => _fx = fx;
 
-    private async Task<string> SeedPostWithStateAsync(string state)
+    private async Task<string> SeedPostWithStateAsync(string state, string? deletedBySub = null)
     {
         using var scope = _fx.Factory.Services.CreateScope();
         var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
@@ -26,6 +27,8 @@ public sealed class ForumStateFilterTests
             Id = id, Title = "t", Body = "b", Excerpt = "b",
             AuthorSubId = "user-a", Board = "综合",
             State = state, CreatedAtUtc = DateTime.UtcNow,
+            DeletedAtUtc = state == "deleted" ? DateTime.UtcNow : null,
+            DeletedBySub = deletedBySub,
         });
         return id;
     }
@@ -55,5 +58,22 @@ public sealed class ForumStateFilterTests
         // No auth = anonymous, not the author
         var r = await _fx.Client.GetAsync($"/api/forum/posts/{id}");
         Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
+    }
+
+    [Fact]
+    public async Task Moderator_GetById_deleted_post_returns_200_with_state()
+    {
+        var id = await SeedPostWithStateAsync("deleted", deletedBySub: "user-mod");
+
+        var req = new HttpRequestMessage(HttpMethod.Get, $"/api/forum/posts/{id}");
+        req.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            JwtTestTokens.CreateAccessToken("user-admin", ForumRoleClaim.Admin));
+        var r = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+
+        var json = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
+        Assert.Equal("deleted", json.RootElement.GetProperty("data").GetProperty("state").GetString());
+        Assert.Equal("b", json.RootElement.GetProperty("data").GetProperty("body").GetString());
     }
 }

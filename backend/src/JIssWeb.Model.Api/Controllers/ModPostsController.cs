@@ -377,7 +377,8 @@ public class ModPostsController : ControllerBase
             return NotFound(ApiResult<string>.Fail("帖子不存在或已删除", "NOT_FOUND"));
 
         var role = User.GetForumPrincipalRole();
-        if (role == ForumPrincipalRole.Moderator)
+        if (role == ForumPrincipalRole.Moderator
+            && !string.Equals(post.AuthorSubId, sub, StringComparison.Ordinal))
         {
             if (!_access.CanModeratePostAsModerator(User, sub, post))
                 return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权操作该帖子", "FORBIDDEN"));

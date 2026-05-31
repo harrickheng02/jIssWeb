@@ -4,7 +4,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   deleteModerationForumPost,
-  deleteModerationForumReply,
+  deleteForumPost,
+  deleteForumReply,
   getForumPost,
   listModerationAuditByPost,
   setForumPostFeatured,
@@ -209,9 +210,12 @@ async function onDeletePost() {
   const ok = await confirmDeleteModerationForumPost()
   if (!ok) return
 
+  const isAuthor = Boolean(auth.sub && auth.sub === localPost.value.authorId)
   deletePostBusy.value = true
   try {
-    const res = await deleteModerationForumPost(props.postId)
+    const res = isAuthor
+      ? await deleteForumPost(props.postId)
+      : await deleteModerationForumPost(props.postId)
     if (!res.success) {
       ElMessage.error(res.message ?? '删除失败')
       return
@@ -234,7 +238,7 @@ async function onDeleteFocusedReply() {
 
   deleteFocusReplyBusy.value = true
   try {
-    const res = await deleteModerationForumReply(rid)
+    const res = await deleteForumReply(props.postId, rid)
     if (!res.success) {
       ElMessage.error(res.message ?? '删除失败')
       return

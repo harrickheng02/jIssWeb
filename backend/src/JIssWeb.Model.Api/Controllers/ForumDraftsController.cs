@@ -67,19 +67,19 @@ public class ForumDraftsController : ControllerBase
 
     // PUT api/forum/posts/drafts/{draftId}
     [HttpPut("{draftId}")]
-    public async Task<ActionResult<ApiResult<CreatePostResultDto>>> UpdateDraft(string draftId, [FromBody] CreateDraftRequest request)
+    public async Task<ActionResult<ApiResult<PostDetailDto>>> UpdateDraft(string draftId, [FromBody] CreateDraftRequest request)
     {
         var sub = GetSub();
-        if (sub is null) return Unauthorized(ApiResult<CreatePostResultDto>.Fail("未授权", "UNAUTHORIZED"));
+        if (sub is null) return Unauthorized(ApiResult<PostDetailDto>.Fail("未授权", "UNAUTHORIZED"));
 
         var draft = await _posts.Find(x => x.Id == draftId && x.State == "draft").FirstOrDefaultAsync();
-        if (draft is null) return NotFound(ApiResult<CreatePostResultDto>.Fail("未找到", "NOT_FOUND"));
+        if (draft is null) return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
         if (!string.Equals(draft.AuthorSubId, sub, StringComparison.Ordinal))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<CreatePostResultDto>.Fail("无权操作", "FORBIDDEN"));
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<PostDetailDto>.Fail("无权操作", "FORBIDDEN"));
 
         var tagsResult = NormalizeTags(request.Tags);
         if (tagsResult.Error is not null)
-            return BadRequest(ApiResult<CreatePostResultDto>.Fail(tagsResult.Error, tagsResult.Code));
+            return BadRequest(ApiResult<PostDetailDto>.Fail(tagsResult.Error, tagsResult.Code));
 
         var update = Builders<ForumPostRecord>.Update.Set(x => x.UpdatedAtUtc, DateTime.UtcNow);
         if (request.Title is not null) update = update.Set(x => x.Title, request.Title.Trim());
@@ -95,7 +95,10 @@ public class ForumDraftsController : ControllerBase
         }
         if (tagsResult.Tags is not null) update = update.Set(x => x.Tags, tagsResult.Tags);
         await _posts.UpdateOneAsync(x => x.Id == draftId, update);
-        return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto { Id = draftId }));
+
+        var updated = await _posts.Find(x => x.Id == draftId).FirstOrDefaultAsync();
+        var names = await _authorNames.ResolveAsync(new[] { updated!.AuthorSubId });
+        return Ok(ApiResult<PostDetailDto>.Ok(ForumDtoMapping.MapDetail(updated, names)));
     }
 
     // DELETE api/forum/posts/drafts/{draftId}

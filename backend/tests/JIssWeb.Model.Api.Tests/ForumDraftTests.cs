@@ -34,6 +34,7 @@ public sealed class ForumDraftTests
         var json = JsonNode.Parse(await r.Content.ReadAsStringAsync())!;
         var id = json["data"]!["id"]!.GetValue<string>();
         Assert.False(string.IsNullOrEmpty(id));
+        Assert.Equal("draft", json["data"]!["state"]!.GetValue<string>());
     }
 
     [Fact]
@@ -61,6 +62,9 @@ public sealed class ForumDraftTests
         var ur = await _fx.Client.SendAsync(AuthRequest(HttpMethod.Put, $"/api/forum/posts/drafts/{id}", "user-a",
             new { title = "updated title" }));
         Assert.Equal(HttpStatusCode.OK, ur.StatusCode);
+        var json = JsonNode.Parse(await ur.Content.ReadAsStringAsync())!;
+        Assert.Equal("updated title", json["data"]!["title"]!.GetValue<string>());
+        Assert.Equal("draft", json["data"]!["state"]!.GetValue<string>());
     }
 
     [Fact]

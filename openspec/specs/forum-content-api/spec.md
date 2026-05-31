@@ -4,12 +4,12 @@
 ## Requirements
 ### Requirement: Forum posts list endpoint
 
-The system SHALL expose `GET /api/forum/posts` for anonymous clients returning a paginated list of post summaries suitable for homepage feed cards.
+The system SHALL expose `GET /api/forum/posts` for anonymous clients returning a paginated list of post summaries suitable for homepage feed cards. The list SHALL only include posts with `State: "published"`. Posts with `State: "draft"` or `State: "deleted"` SHALL be excluded from all results.
 
 #### Scenario: List returns feed fields
 
 - **WHEN** a client requests `GET /api/forum/posts` with supported pagination query parameters
-- **THEN** each item SHALL include identifiers, title, excerpt, author identity field aligned with `sub`, published time, optional board or category label, tags, and numeric counters for likes, comments, and views as defined by the implementation contract
+- **THEN** each item SHALL include identifiers, title, excerpt, author identity field aligned with `sub`, published time, optional board or category label, tags, numeric counters for likes, comments, and views, `updatedAtUtc` (nullable), and `isSticky` as defined by the implementation contract
 
 #### Scenario: Invalid pagination rejected
 
@@ -99,12 +99,17 @@ The system SHALL expose `GET /api/forum/boards` for anonymous clients returning 
 
 ### Requirement: Forum post detail endpoint
 
-The system SHALL expose `GET /api/forum/posts/{postId}` for anonymous clients returning post detail including body content needed for a detail view.
+The system SHALL expose `GET /api/forum/posts/{postId}` for anonymous clients returning post detail including body content needed for a detail view. The endpoint SHALL return 404 for posts with `State: "deleted"` to non-author, non-moderator clients. For posts with `State: "draft"`, the endpoint SHALL return 404 to anonymous clients but SHALL return 200 to the authenticated draft author. Moderators and administrators MAY read soft-deleted posts via authenticated detail access per `forum-soft-delete`.
 
-#### Scenario: Detail for existing post
+#### Scenario: Detail for existing published post
 
-- **WHEN** a client requests detail for an existing post id
-- **THEN** the response SHALL include the post body and metadata consistent with the list item
+- **WHEN** a client requests detail for an existing published post id
+- **THEN** the response SHALL include the post body, metadata consistent with the list item, and `updatedAtUtc` (nullable)
+
+#### Scenario: Detail for soft-deleted post returns 404
+
+- **WHEN** any non-moderator, non-author client requests detail for a post with `State: "deleted"`
+- **THEN** the response SHALL be 404 with the unified error contract
 
 #### Scenario: Detail for missing post
 
@@ -195,12 +200,12 @@ The system SHALL expose `GET /api/forum/tags/suggest` for anonymous clients retu
 
 ### Requirement: Replies on a post
 
-The system SHALL expose endpoints to list replies for a post and to create a reply, with create requiring authentication and author from `sub`.
+The system SHALL expose endpoints to list replies for a post and to create a reply, with create requiring authentication and author from `sub`. Public reply lists SHALL include only replies with `State: "published"`.
 
 #### Scenario: List replies is public
 
 - **WHEN** a client requests replies for an existing post
-- **THEN** the response SHALL return a list of replies with author identity and timestamps
+- **THEN** the response SHALL return a list of published replies with author identity, timestamps, and `updatedAtUtc` (nullable)
 
 #### Scenario: Create reply requires authentication
 
@@ -223,7 +228,7 @@ The forum API SHALL use JWT `sub` as the canonical author key for all write oper
 
 ### Requirement: Current user's posts list
 
-The system SHALL expose an authenticated HTTP endpoint that returns a paginated list of post summaries for which the persisted author key equals JWT `sub`, using the same summary field contract as the public posts list where applicable.
+The system SHALL expose an authenticated HTTP endpoint that returns a paginated list of post summaries for which the persisted author key equals JWT `sub` and `State` is `"published"`, using the same summary field contract as the public posts list where applicable. Draft posts SHALL be returned only via `GET /api/forum/me/drafts` per `forum-draft-lifecycle`.
 
 #### Scenario: Authenticated user retrieves own posts
 

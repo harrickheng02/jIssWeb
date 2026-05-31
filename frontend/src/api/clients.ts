@@ -307,9 +307,18 @@ function mapModerationError(error: unknown): ApiResult<never> {
   if (data && typeof data === 'object' && data.success === false) {
     return { success: false, message: data.message, code: data.code }
   }
-  if (status === 403) return { success: false, message: '无权操作该帖子', code: 'FORBIDDEN' }
-  if (status === 404) return { success: false, message: '帖子不存在或已删除', code: 'NOT_FOUND' }
+  if (status === 403) return { success: false, message: '无权操作', code: 'FORBIDDEN' }
+  if (status === 404) return { success: false, message: '内容不存在或已删除', code: 'NOT_FOUND' }
   return { success: false, message: e instanceof Error ? e.message : '网络异常，请稍后重试', code: 'REQUEST_FAILED' }
+}
+
+function mapForumMutationError(error: unknown): ApiResult<never> {
+  const e = error as AxiosError<ApiResult<unknown>> | undefined
+  const data = e?.response?.data
+  if (data && typeof data === 'object' && data.success === false) {
+    return { success: false, message: data.message, code: data.code }
+  }
+  return mapModerationError(error)
 }
 
 export async function setForumPostSticky(postId: string, isSticky: boolean) {
@@ -752,13 +761,21 @@ export async function updateForumReply(postId: string, replyId: string, body: Up
 }
 
 export async function deleteForumPost(postId: string) {
-  const { data } = await modelApi.delete<ApiResult<string>>(`/forum/posts/${postId}`)
-  return data
+  try {
+    const { data } = await modelApi.delete<ApiResult<string>>(`/forum/posts/${postId}`)
+    return data
+  } catch (e) {
+    return mapForumMutationError(e)
+  }
 }
 
 export async function deleteForumReply(postId: string, replyId: string) {
-  const { data } = await modelApi.delete<ApiResult<string>>(`/forum/posts/${postId}/replies/${replyId}`)
-  return data
+  try {
+    const { data } = await modelApi.delete<ApiResult<string>>(`/forum/posts/${postId}/replies/${replyId}`)
+    return data
+  } catch (e) {
+    return mapForumMutationError(e)
+  }
 }
 
 export async function permanentDeleteForumPost(postId: string) {
@@ -779,7 +796,7 @@ export async function createDraft(body: { title?: string; body?: string; boardId
 }
 
 export async function updateDraft(draftId: string, body: { title?: string; body?: string; boardId?: string; tags?: string[] }) {
-  const { data } = await modelApi.put<ApiResult<DraftResult>>(`/forum/posts/drafts/${draftId}`, body)
+  const { data } = await modelApi.put<ApiResult<ForumPostDetail>>(`/forum/posts/drafts/${draftId}`, body)
   return data
 }
 

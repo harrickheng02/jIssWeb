@@ -10,6 +10,7 @@ vi.mock('@/api/clients', () => ({
   updateForumPost: vi.fn(),
   updateDraft: vi.fn(),
   createDraft: vi.fn(),
+  publishDraft: vi.fn(),
   getForumTagSuggest: vi.fn().mockResolvedValue({ success: true, data: [] }),
 }))
 
@@ -51,9 +52,27 @@ describe('useForumComposeForm', () => {
     expect(vi.mocked(clients.createForumPost)).not.toHaveBeenCalled()
   })
 
-  it('calls updateDraft when mode is draft-edit', async () => {
+  it('calls updateDraft and publishDraft when mode is draft-edit and submitCompose', async () => {
     const mockUpdateDraft = vi.mocked(clients.updateDraft)
-    mockUpdateDraft.mockResolvedValue({ success: true, data: { id: 'd1', state: 'draft' } })
+    const mockPublishDraft = vi.mocked(clients.publishDraft)
+    mockUpdateDraft.mockResolvedValue({
+      success: true,
+      data: {
+        id: 'd1',
+        title: 'Draft',
+        body: 'Draft body',
+        excerpt: '',
+        authorId: 'u1',
+        publishedAtUtc: new Date().toISOString(),
+        board: 'general',
+        tags: [],
+        likes: 0,
+        comments: 0,
+        views: 0,
+        state: 'draft',
+      },
+    })
+    mockPublishDraft.mockResolvedValue({ success: true, data: { id: 'd1', state: 'published' } })
 
     const form = useForumComposeForm({ getDefaultBoardId: () => 'general' })
     form.openComposeDialogForDraftEdit({ id: 'd1', title: 'Draft', body: 'Draft body' })
@@ -61,7 +80,9 @@ describe('useForumComposeForm', () => {
     await form.submitCompose()
 
     expect(mockUpdateDraft).toHaveBeenCalledOnce()
-    expect(mockUpdateDraft).toHaveBeenCalledWith('d1', expect.objectContaining({ title: 'Draft' }))
+    expect(mockUpdateDraft).toHaveBeenCalledWith('d1', expect.objectContaining({ title: 'Draft', body: 'Draft body' }))
+    expect(mockPublishDraft).toHaveBeenCalledOnce()
+    expect(mockPublishDraft).toHaveBeenCalledWith('d1')
   })
 
   it('calls createForumPost when mode is create', async () => {
