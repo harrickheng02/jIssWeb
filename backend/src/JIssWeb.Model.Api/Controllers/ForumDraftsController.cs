@@ -153,8 +153,7 @@ public class ForumDraftsController : ControllerBase
         await _posts.UpdateOneAsync(x => x.Id == draftId,
             Builders<ForumPostRecord>.Update
                 .Set(x => x.State, "published")
-                .Set(x => x.Board, boardTitle)
-                .Set(x => x.ViewCount, 0));
+                .Set(x => x.Board, boardTitle));
 
         // Tags UseCount +1 for published tags in registry
         if (draft.Tags?.Count > 0)
