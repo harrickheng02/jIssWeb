@@ -30,6 +30,12 @@ public class ForumReportNotificationTests
             Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken(sub, role)) },
         };
 
+    private static HttpRequestMessage AuthPost(string url, string sub, string role) =>
+        new(HttpMethod.Post, url)
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken(sub, role)) },
+        };
+
     /// <summary>Inserts a pending report and returns its Id.</summary>
     private async Task<string> SeedReportAsync(string reporterSub, string postId = "rn-post-1")
     {
@@ -318,5 +324,130 @@ public class ForumReportNotificationTests
         Assert.Equal("", notifEl.GetProperty("actorId").GetString());
         Assert.Equal("举报通知测试帖", notifEl.GetProperty("postTitle").GetString());
         Assert.Equal("rn-post-1", notifEl.GetProperty("postId").GetString());
+    }
+
+    [Fact]
+    public async Task Acknowledge_creates_ReportAcknowledged_notification_for_reporter()
+    {
+        var reporterSub = "reporter-ack-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var req = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+        var res = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var col = mongo.GetDatabase(_fx.DatabaseName)
+            .GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+        var notif = await col.Find(x => x.ReportId == reportId && x.Type == InAppNotificationTypes.ReportAcknowledged)
+            .FirstOrDefaultAsync();
+
+        Assert.NotNull(notif);
+        Assert.Equal(reporterSub, notif!.RecipientSubId);
+        Assert.Equal("举报通知测试帖", notif.PostTitle);
+        Assert.Equal("", notif.ActorSubId);
+    }
+
+    [Fact]
+    public async Task Acknowledge_twice_produces_only_one_ReportAcknowledged_notification()
+    {
+        var reporterSub = "reporter-ack-idem-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+        var auth = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(auth)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin))).StatusCode);
+
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var col = mongo.GetDatabase(_fx.DatabaseName)
+            .GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+        var count = await col.CountDocumentsAsync(x =>
+            x.ReportId == reportId && x.Type == InAppNotificationTypes.ReportAcknowledged);
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public async Task Acknowledge_on_closed_report_returns_400()
+    {
+        var reporterSub = "reporter-ack-closed-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var close = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"resolved\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(close)).StatusCode);
+
+        var ack = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+        var res = await _fx.Client.SendAsync(ack);
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Acknowledged_then_closed_produces_two_notifications()
+    {
+        var reporterSub = "reporter-two-node-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var ack = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(ack)).StatusCode);
+
+        var close = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"resolved\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(close)).StatusCode);
+
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var col = mongo.GetDatabase(_fx.DatabaseName)
+            .GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+        var ackNotif = await col.Find(x => x.ReportId == reportId && x.Type == InAppNotificationTypes.ReportAcknowledged)
+            .FirstOrDefaultAsync();
+        var resolvedNotif = await col.Find(x => x.ReportId == reportId && x.Type == InAppNotificationTypes.ReportResolved)
+            .FirstOrDefaultAsync();
+
+        Assert.NotNull(ackNotif);
+        Assert.NotNull(resolvedNotif);
+    }
+
+    [Fact]
+    public async Task Acknowledge_keeps_status_pending_and_sets_acknowledge_fields()
+    {
+        var reporterSub = "reporter-ack-fields-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var req = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+        var res = await _fx.Client.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        var data = doc.RootElement.GetProperty("data");
+        Assert.Equal("pending", data.GetProperty("status").GetString());
+        Assert.True(data.TryGetProperty("acknowledgedAtUtc", out var ackAt) && ackAt.ValueKind != JsonValueKind.Null);
+        Assert.Equal("user-admin", data.GetProperty("acknowledgedBySub").GetString());
+    }
+
+    [Fact]
+    public async Task Notification_list_returns_ReportAcknowledged_with_system_actor_display_name()
+    {
+        var reporterSub = "reporter-ack-dto-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var ackReq = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(ackReq)).StatusCode);
+
+        var listReq = new HttpRequestMessage(HttpMethod.Get, "/api/forum/notifications?page=1&pageSize=50");
+        listReq.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer", JwtTestTokens.CreateAccessToken(reporterSub, ForumRoleClaim.Member));
+        var listRes = await _fx.Client.SendAsync(listReq);
+        Assert.Equal(HttpStatusCode.OK, listRes.StatusCode);
+
+        using var doc = JsonDocument.Parse(await listRes.Content.ReadAsStringAsync());
+        var items = doc.RootElement.GetProperty("data").GetProperty("items");
+        var notifEl = items.EnumerateArray()
+            .FirstOrDefault(x => x.GetProperty("type").GetString() == InAppNotificationTypes.ReportAcknowledged);
+
+        Assert.NotEqual(default, notifEl);
+        Assert.Equal("系统", notifEl.GetProperty("actorDisplayName").GetString());
+        Assert.Equal("", notifEl.GetProperty("actorId").GetString());
     }
 }

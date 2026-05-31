@@ -56,9 +56,11 @@ public class ForumNotificationsController : ControllerBase
             .Limit(pageSize)
             .ToListAsync();
 
-        // For ReportResolved notifications, ActorSubId is "" (system) — skip resolution to avoid empty-sub lookups.
+        // For system report notifications, ActorSubId is "" — skip resolution to avoid empty-sub lookups.
         var actorSubsToResolve = items
-            .Where(x => x.Type != InAppNotificationTypes.ReportResolved)
+            .Where(x => x.Type is not (InAppNotificationTypes.ReportResolved
+                or InAppNotificationTypes.ReportAcknowledged
+                or InAppNotificationTypes.ForumWarning))
             .Select(x => x.ActorSubId);
         var actorNames = await _authorNames.ResolveAsync(actorSubsToResolve);
         var dtos = items.Select(n => MapDto(n, actorNames)).ToList();
@@ -149,7 +151,9 @@ public class ForumNotificationsController : ControllerBase
     {
         var actorKey = n.ActorSubId ?? "";
         string actorDisplayName;
-        if (n.Type == InAppNotificationTypes.ReportResolved || n.Type == InAppNotificationTypes.ForumWarning)
+        if (n.Type is InAppNotificationTypes.ReportResolved
+            or InAppNotificationTypes.ReportAcknowledged
+            or InAppNotificationTypes.ForumWarning)
         {
             actorDisplayName = "系统";
         }

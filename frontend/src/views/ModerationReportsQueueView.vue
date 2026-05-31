@@ -24,6 +24,7 @@ const {
   onGovernanceDeletedFromQueue,
   onFilterChange,
   applyStatus,
+  acknowledgeReport,
   statusRowLabel,
   reportPreviewIdleList,
   reportContextForRow,
@@ -226,6 +227,17 @@ const {
               </div>
               <div class="mod-reports__actions" @click.stop>
                 <span class="mod-reports__actions-label">举报工单状态</span>
+                <el-button
+                  v-if="row.status === 'pending'"
+                  size="small"
+                  type="primary"
+                  plain
+                  class="mod-reports__ack-btn"
+                  :disabled="busyId === row.id || Boolean(row.acknowledgedAtUtc)"
+                  @click="acknowledgeReport(row)"
+                >
+                  {{ row.acknowledgedAtUtc ? '已受理' : '标记已受理' }}
+                </el-button>
                 <el-button-group class="mod-reports__status-btns">
                   <el-button
                     size="small"

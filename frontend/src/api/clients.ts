@@ -685,6 +685,8 @@ export interface ForumReportQueueItem {
   updatedAtUtc: string
   handledBySub?: string | null
   handledAtUtc?: string | null
+  acknowledgedAtUtc?: string | null
+  acknowledgedBySub?: string | null
   targetAuthorSub?: string | null
   targetAuthorDisplayName?: string | null
 }
@@ -723,6 +725,17 @@ export async function listModerationForumReports(page = 1, pageSize = 20, status
 export async function patchModerationForumReportStatus(reportId: string, status: ForumReportModStatus) {
   try {
     const { data } = await modelApi.patch<ApiResult<ForumReportQueueItem>>(`/mod/reports/${reportId}`, { status })
+    return data
+  } catch (e) {
+    return mapModerationReportsError(e)
+  }
+}
+
+export async function postModReportAcknowledge(reportId: string) {
+  try {
+    const { data } = await modelApi.post<ApiResult<ForumReportQueueItem>>(
+      `/mod/reports/${encodeURIComponent(reportId)}/acknowledge`,
+    )
     return data
   } catch (e) {
     return mapModerationReportsError(e)

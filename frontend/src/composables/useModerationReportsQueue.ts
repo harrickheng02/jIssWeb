@@ -1,6 +1,7 @@
 import {
   listModerationForumReports,
   patchModerationForumReportStatus,
+  postModReportAcknowledge,
   getForumPost,
   getModForumReply,
   postModReportSanction,
@@ -219,7 +220,24 @@ export function useModerationReportsQueue() {
     }
   }
 
+  async function acknowledgeReport(row: ForumReportQueueItem) {
+    if (row.status !== 'pending' || row.acknowledgedAtUtc) return
+    busyId.value = row.id
+    try {
+      const res = await postModReportAcknowledge(row.id)
+      if (!res.success) {
+        ElMessage.error(res.message ?? '操作失败')
+        return
+      }
+      ElMessage.success('已标记受理')
+      await load()
+    } finally {
+      busyId.value = null
+    }
+  }
+
   function statusRowLabel(row: ForumReportQueueItem) {
+    if (row.status === 'pending' && row.acknowledgedAtUtc) return '已受理'
     if (row.status === 'pending') return '待处理'
     if (row.status === 'rejected') return '已驳回'
     if (row.status === 'resolved') return '已处置'
@@ -345,6 +363,7 @@ export function useModerationReportsQueue() {
     onGovernanceDeletedFromQueue,
     onFilterChange,
     applyStatus,
+    acknowledgeReport,
     statusRowLabel,
     reportPreviewIdleList,
     reportContextForRow,

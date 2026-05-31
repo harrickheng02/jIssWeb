@@ -30,4 +30,6 @@ public class ForumReportRecord
     public DateTime UpdatedAtUtc { get; set; }
     public string? HandledBySub { get; set; }
     public DateTime? HandledAtUtc { get; set; }
+    public DateTime? AcknowledgedAtUtc { get; set; }
+    public string? AcknowledgedBySub { get; set; }
 }

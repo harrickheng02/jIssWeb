@@ -73,9 +73,23 @@ public static class ForumMongoSetup
         var byReplyId = Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.ReplyId);
         notifications.Indexes.CreateOne(
             new CreateIndexModel<InAppNotificationRecord>(byReplyId, new CreateIndexOptions { Unique = true, Sparse = true }));
-        var byReportId = Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.ReportId);
+        const string reportIdTypeIndexName = "uniq_reportId_type";
+        try { notifications.Indexes.DropOne("ReportId_1"); }
+        catch { /* legacy index may be absent */ }
+        try { notifications.Indexes.DropOne(reportIdTypeIndexName); }
+        catch { /* re-create on startup */ }
+        var byReportIdType = Builders<InAppNotificationRecord>.IndexKeys
+            .Ascending(x => x.ReportId).Ascending(x => x.Type);
+        var reportIdExists = Builders<InAppNotificationRecord>.Filter.Exists(x => x.ReportId);
         notifications.Indexes.CreateOne(
-            new CreateIndexModel<InAppNotificationRecord>(byReportId, new CreateIndexOptions { Unique = true, Sparse = true }));
+            new CreateIndexModel<InAppNotificationRecord>(
+                byReportIdType,
+                new CreateIndexOptions<InAppNotificationRecord>
+                {
+                    Unique = true,
+                    Name = reportIdTypeIndexName,
+                    PartialFilterExpression = reportIdExists,
+                }));
 
         var likes = db.GetCollection<ForumPostLikeRecord>(LikesCollectionName);
         var likeUnique = Builders<ForumPostLikeRecord>.IndexKeys.Ascending(x => x.PostId).Ascending(x => x.UserSubId);

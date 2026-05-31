@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import {
   listForumNotifications,
   markAllForumNotificationsRead,
@@ -24,6 +24,19 @@ const canMarkAllRead = computed(
 const showInitialSkeleton = computed(() => loading.value && items.value.length === 0)
 
 const totalPages = () => Math.max(1, Math.ceil(totalCount.value / pageSize.value))
+
+function notifyBadgeChanged() {
+  window.dispatchEvent(new CustomEvent('jiss-forum-notifications-changed'))
+}
+
+function isNotificationPostNavigable(n: ForumNotificationItem): boolean {
+  if (!n.postId?.trim()) return false
+  if (n.type === 'ForumWarning') return false
+  if (n.type === 'ReportResolved' || n.type === 'ReportAcknowledged') {
+    return Boolean(n.postTitle?.trim())
+  }
+  return true
+}
 
 async function load(opts?: { preserveItems?: boolean }) {
   loading.value = true
@@ -70,7 +83,7 @@ async function load(opts?: { preserveItems?: boolean }) {
 }
 
 function goPost(n: ForumNotificationItem) {
-  if (!n.postId) return
+  if (!isNotificationPostNavigable(n)) return
   void router.push({
     name: 'post-detail',
     params: { id: n.postId },
@@ -78,21 +91,42 @@ function goPost(n: ForumNotificationItem) {
   })
 }
 
-async function onMarkRead(n: ForumNotificationItem, ev: Event) {
-  ev.stopPropagation()
+async function markRead(n: ForumNotificationItem) {
+  if (n.read) return
   const r = await markForumNotificationRead(n.id)
   if (r.success) {
     n.read = true
-    window.dispatchEvent(new CustomEvent('jiss-forum-notifications-changed'))
+    notifyBadgeChanged()
   }
+}
+
+async function onCardClick(n: ForumNotificationItem) {
+  if (!isNotificationPostNavigable(n)) {
+    await markRead(n)
+    return
+  }
+  goPost(n)
+}
+
+async function onMarkRead(n: ForumNotificationItem, ev: Event) {
+  ev.stopPropagation()
+  await markRead(n)
 }
 
 async function onMarkAll() {
   const r = await markAllForumNotificationsRead()
   if (r.success) {
     items.value = items.value.map((x) => ({ ...x, read: true }))
-    window.dispatchEvent(new CustomEvent('jiss-forum-notifications-changed'))
+    notifyBadgeChanged()
   }
+}
+
+async function markAllReadOnLeave() {
+  const r = await markAllForumNotificationsRead()
+  if (r.success) {
+    items.value = items.value.map((x) => ({ ...x, read: true }))
+  }
+  notifyBadgeChanged()
 }
 
 function onToggleUnreadOnly() {
@@ -104,6 +138,10 @@ function onToggleUnreadOnly() {
 
 onMounted(() => {
   void load()
+})
+
+onBeforeRouteLeave(async () => {
+  await markAllReadOnLeave()
 })
 </script>
 
@@ -141,14 +179,17 @@ onMounted(() => {
           :key="n.id"
           shadow="hover"
           class="notification-card"
-          :class="{ 'is-unread': !n.read, 'no-link': !n.postId }"
-          @click="goPost(n)"
+          :class="{ 'is-unread': !n.read, 'no-link': !isNotificationPostNavigable(n) }"
+          @click="onCardClick(n)"
         >
           <div class="notification-row">
             <div class="notification-main">
               <span v-if="!n.read" class="dot" aria-hidden="true" />
               <span v-if="n.type === 'ReportResolved'" class="notification-text">
                 {{ n.actorDisplayName?.trim() || '系统' }}：您对《{{ n.postTitle || '内容已移除' }}》的举报已处理
+              </span>
+              <span v-else-if="n.type === 'ReportAcknowledged'" class="notification-text">
+                {{ n.actorDisplayName?.trim() || '系统' }}：您对《{{ n.postTitle || '内容已移除' }}》的举报已受理，正在处理
               </span>
               <span v-else-if="n.type === 'ForumWarning'" class="notification-text">
                 {{ n.actorDisplayName?.trim() || '系统' }}：您有一条社区违规警告，请遵守社区规范
@@ -159,7 +200,7 @@ onMounted(() => {
               </span>
             </div>
             <el-button
-              v-if="!n.read"
+              v-if="!n.read && isNotificationPostNavigable(n)"
               type="primary"
               link
               @click="onMarkRead(n, $event)"

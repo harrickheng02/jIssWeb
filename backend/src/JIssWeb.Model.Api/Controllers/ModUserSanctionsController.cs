@@ -215,16 +215,23 @@ public sealed class ModUserSanctionsController : ControllerBase
 
         if (type == "warning")
         {
-            await _notifications.InsertOneAsync(new InAppNotificationRecord
+            try
             {
-                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                RecipientSubId = targetSub,
-                Type = InAppNotificationTypes.ForumWarning,
-                PostId = report.PostId,
-                ActorSubId = "",
-                PostTitle = "",
-                CreatedAtUtc = DateTime.UtcNow,
-            }, cancellationToken: ct);
+                await _notifications.InsertOneAsync(new InAppNotificationRecord
+                {
+                    Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                    RecipientSubId = targetSub,
+                    Type = InAppNotificationTypes.ForumWarning,
+                    PostId = report.PostId,
+                    ActorSubId = "",
+                    PostTitle = "",
+                    CreatedAtUtc = DateTime.UtcNow,
+                }, cancellationToken: ct);
+            }
+            catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+            {
+                // Non-idempotent warning path; duplicate unlikely but must not fail the sanction.
+            }
         }
 
         return Ok(ApiResult<ModUserSanctionResultDto>.Ok(new ModUserSanctionResultDto

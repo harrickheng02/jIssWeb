@@ -164,6 +164,8 @@ public sealed class ModReportsController : ControllerBase
                 .Set(x => x.ResolutionCode, (string?)null)
                 .Set(x => x.HandledBySub, (string?)null)
                 .Set(x => x.HandledAtUtc, (DateTime?)null)
+                .Set(x => x.AcknowledgedAtUtc, (DateTime?)null)
+                .Set(x => x.AcknowledgedBySub, (string?)null)
                 .Set(x => x.UpdatedAtUtc, now);
         }
         else
@@ -187,30 +189,7 @@ public sealed class ModReportsController : ControllerBase
         // Write a ReportResolved notification when the report is closed (resolved or rejected).
         if (storedStatus == ForumReportStatuses.Resolved || storedStatus == ForumReportStatuses.Rejected)
         {
-            var postTitle = await _posts
-                .Find(x => x.Id == report.PostId)
-                .Project(x => x.Title)
-                .FirstOrDefaultAsync(ct) ?? "";
-
-            var notification = new InAppNotificationRecord
-            {
-                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                RecipientSubId = report.ReporterSub,
-                Type = InAppNotificationTypes.ReportResolved,
-                PostId = report.PostId,
-                ReportId = report.Id,
-                ActorSubId = "",
-                PostTitle = postTitle,
-                CreatedAtUtc = now,
-            };
-            try
-            {
-                await _notifications.InsertOneAsync(notification, cancellationToken: ct);
-            }
-            catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
-            {
-                // Idempotent: notification already exists for this report — silently skip.
-            }
+            await TryWriteReportNotificationAsync(report, InAppNotificationTypes.ReportResolved, now, ct);
         }
 
         var targetAuthorSub = await _targetResolver.ResolveTargetAuthorSubAsync(updated, ct);
@@ -219,6 +198,95 @@ public sealed class ModReportsController : ControllerBase
                 .Concat(string.IsNullOrWhiteSpace(targetAuthorSub) ? Array.Empty<string>() : new[] { targetAuthorSub! }),
             ct);
         return Ok(ApiResult<ForumReportListItemDto>.Ok(ToListItemDto(updated, patchNames, targetAuthorSub)));
+    }
+
+    [HttpPost("{reportId}/acknowledge")]
+    [Authorize]
+    [RequireForumModerator]
+    public async Task<ActionResult<ApiResult<ForumReportListItemDto>>> Acknowledge(string reportId, CancellationToken ct = default)
+    {
+        var rid = (reportId ?? "").Trim();
+        if (rid.Length == 0)
+            return BadRequest(ApiResult<ForumReportListItemDto>.Fail("举报无效", "INVALID_REPORT_ID"));
+
+        string sub;
+        try
+        {
+            sub = User.GetUserId();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(ApiResult<ForumReportListItemDto>.Fail("未授权", "UNAUTHORIZED"));
+        }
+
+        var report = await _reports.Find(x => x.Id == rid).FirstOrDefaultAsync(ct);
+        if (report is null)
+            return NotFound(ApiResult<ForumReportListItemDto>.Fail("举报不存在", "NOT_FOUND"));
+
+        var role = User.GetForumPrincipalRole();
+        if (role == ForumPrincipalRole.Moderator)
+        {
+            if (!_access.CanModerateBoardIdAsModerator(User, sub, report.BoardId))
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResult<ForumReportListItemDto>.Fail("无权处理该举报", "FORBIDDEN"));
+        }
+
+        if (!string.Equals(report.Status, ForumReportStatuses.Pending, StringComparison.Ordinal))
+            return BadRequest(ApiResult<ForumReportListItemDto>.Fail("仅待处理举报可标记已受理", "REPORT_NOT_PENDING"));
+
+        var now = DateTime.UtcNow;
+        var update = Builders<ForumReportRecord>.Update
+            .Set(x => x.AcknowledgedAtUtc, now)
+            .Set(x => x.AcknowledgedBySub, sub)
+            .Set(x => x.UpdatedAtUtc, now);
+
+        var upd = await _reports.UpdateOneAsync(x => x.Id == rid, update, cancellationToken: ct);
+        if (upd.MatchedCount != 1)
+            return NotFound(ApiResult<ForumReportListItemDto>.Fail("举报不存在", "NOT_FOUND"));
+
+        await TryWriteReportNotificationAsync(report, InAppNotificationTypes.ReportAcknowledged, now, ct);
+
+        var updated = await _reports.Find(x => x.Id == rid).FirstOrDefaultAsync(ct);
+        if (updated is null)
+            return NotFound(ApiResult<ForumReportListItemDto>.Fail("举报不存在", "NOT_FOUND"));
+
+        var targetAuthorSub = await _targetResolver.ResolveTargetAuthorSubAsync(updated, ct);
+        var names = await _displayNames.ResolveAsync(
+            new[] { updated.ReporterSub }
+                .Concat(string.IsNullOrWhiteSpace(targetAuthorSub) ? Array.Empty<string>() : new[] { targetAuthorSub! }),
+            ct);
+        return Ok(ApiResult<ForumReportListItemDto>.Ok(ToListItemDto(updated, names, targetAuthorSub)));
+    }
+
+    private async Task TryWriteReportNotificationAsync(
+        ForumReportRecord report,
+        string notificationType,
+        DateTime nowUtc,
+        CancellationToken ct)
+    {
+        var postTitle = await _posts
+            .Find(x => x.Id == report.PostId)
+            .Project(x => x.Title)
+            .FirstOrDefaultAsync(ct) ?? "";
+
+        var notification = new InAppNotificationRecord
+        {
+            Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+            RecipientSubId = report.ReporterSub,
+            Type = notificationType,
+            PostId = report.PostId,
+            ReportId = report.Id,
+            ActorSubId = "",
+            PostTitle = postTitle,
+            CreatedAtUtc = nowUtc,
+        };
+        try
+        {
+            await _notifications.InsertOneAsync(notification, cancellationToken: ct);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
+        {
+            // Idempotent: notification already exists for this (ReportId, Type) — silently skip.
+        }
     }
 
     /// <summary>Accepted PATCH body synonyms: pending, rejected, resolved, dismissed→rejected, acknowledged→resolved.</summary>
@@ -305,6 +373,8 @@ public sealed class ModReportsController : ControllerBase
             UpdatedAtUtc = r.UpdatedAtUtc,
             HandledBySub = r.HandledBySub,
             HandledAtUtc = r.HandledAtUtc,
+            AcknowledgedAtUtc = r.AcknowledgedAtUtc,
+            AcknowledgedBySub = r.AcknowledgedBySub,
             TargetAuthorSub = targetAuthorSub,
             TargetAuthorDisplayName = targetAuthorDisplayName,
         };
@@ -336,6 +406,8 @@ public class ForumReportListItemDto
     public DateTime UpdatedAtUtc { get; set; }
     public string? HandledBySub { get; set; }
     public DateTime? HandledAtUtc { get; set; }
+    public DateTime? AcknowledgedAtUtc { get; set; }
+    public string? AcknowledgedBySub { get; set; }
     public string? TargetAuthorSub { get; set; }
     public string? TargetAuthorDisplayName { get; set; }
 }

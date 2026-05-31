@@ -14,6 +14,9 @@ const auth = useAuthStore()
 const unreadCount = ref(0)
 const unreadBadgeValue = computed(() => formatBadgeCount(unreadCount.value, 99))
 
+const UNREAD_POLL_MS = 60_000
+let unreadPollTimer: ReturnType<typeof setInterval> | undefined
+
 function refreshUnread() {
   if (!auth.token) {
     unreadCount.value = 0
@@ -25,17 +28,45 @@ function refreshUnread() {
   })
 }
 
+function startUnreadPoll() {
+  stopUnreadPoll()
+  if (!auth.token) return
+  unreadPollTimer = window.setInterval(refreshUnread, UNREAD_POLL_MS)
+}
+
+function stopUnreadPoll() {
+  if (unreadPollTimer !== undefined) {
+    window.clearInterval(unreadPollTimer)
+    unreadPollTimer = undefined
+  }
+}
+
 function onNotificationsChanged() {
   refreshUnread()
 }
 
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') refreshUnread()
+}
+
+let removeAfterEach: (() => void) | undefined
+
 onMounted(() => {
   refreshUnread()
+  startUnreadPoll()
   window.addEventListener('jiss-forum-notifications-changed', onNotificationsChanged)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  removeAfterEach = router.afterEach(() => {
+    refreshUnread()
+  })
 })
 
 onUnmounted(() => {
+  stopUnreadPoll()
   window.removeEventListener('jiss-forum-notifications-changed', onNotificationsChanged)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  removeAfterEach?.()
+  removeAfterEach = undefined
 })
 
 const navItems = [
@@ -48,7 +79,11 @@ const isAuthed = computed(() => Boolean(auth.token))
 
 watch(
   () => auth.token,
-  () => refreshUnread(),
+  (token) => {
+    refreshUnread()
+    if (token) startUnreadPoll()
+    else stopUnreadPoll()
+  },
 )
 
 function handleCreatePost() {
