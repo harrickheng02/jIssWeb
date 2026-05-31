@@ -4,6 +4,8 @@ public sealed class ForumSanctionStatusResult
 {
     public bool IsMuted { get; set; }
     public DateTime? MutedUntilUtc { get; set; }
+    /// <summary>User.Api status 查询失败时为 true；写 Guard 应拒绝操作。</summary>
+    public bool QueryUnavailable { get; set; }
 }
 
 public interface IUserSanctionClient

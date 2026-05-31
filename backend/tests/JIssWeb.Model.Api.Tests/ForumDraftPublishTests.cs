@@ -83,8 +83,18 @@ public sealed class ForumDraftPublishTests
     public async Task Non_owner_publish_returns_403()
     {
         var id = await CreateDraftAsync("user-a", "t", "b");
-        var r = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, $"/api/forum/posts/drafts/{id}/publish", "user-b"));
-        Assert.Equal(HttpStatusCode.Forbidden, r.StatusCode);
+        try
+        {
+            var r = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, $"/api/forum/posts/drafts/{id}/publish", "user-b"));
+            Assert.Equal(HttpStatusCode.Forbidden, r.StatusCode);
+        }
+        finally
+        {
+            using var scope = _fx.Factory.Services.CreateScope();
+            var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+            var posts = mongo.GetDatabase(_fx.DatabaseName).GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+            await posts.DeleteOneAsync(x => x.Id == id);
+        }
     }
 
     [Fact]

@@ -53,8 +53,8 @@ public sealed class UserSanctionClient : IUserSanctionClient
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to query forum sanction status for {Sub}; allowing write", sub);
-            return new ForumSanctionStatusResult { IsMuted = false };
+            _logger.LogWarning(ex, "Failed to query forum sanction status for {Sub}; blocking write", sub);
+            return new ForumSanctionStatusResult { QueryUnavailable = true };
         }
     }
 

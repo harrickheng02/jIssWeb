@@ -54,7 +54,7 @@ public class UserSanctionsCollection : ICollectionFixture<UserSanctionsIntegrati
 }
 
 [Collection("UserSanctions")]
-public sealed class UserSanctionsTests : IClassFixture<UserSanctionsIntegrationFixture>
+public sealed class UserSanctionsTests
 {
     private readonly UserSanctionsIntegrationFixture _fx;
 
@@ -115,6 +115,32 @@ public sealed class UserSanctionsTests : IClassFixture<UserSanctionsIntegrationF
 
         var status = _fx.WithKey(new HttpRequestMessage(HttpMethod.Get, "/api/internal/users/u2/forum-sanction-status"));
         var r = await _fx.Client.SendAsync(status);
+        var body = await r.Content.ReadFromJsonAsync<ApiEnvelope<ForumSanctionStatusDto>>();
+        Assert.False(body!.Data!.IsMuted);
+    }
+
+    [Fact]
+    public async Task Expired_mute_returns_isMuted_false()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var col = mongo.GetDatabase(_fx.DatabaseName).GetCollection<UserSanctionRecord>("user_sanctions");
+        await col.InsertOneAsync(new UserSanctionRecord
+        {
+            Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+            Sub = "u-expired",
+            Type = UserSanctionTypes.Mute,
+            Reason = "test",
+            OperatorSub = "mod-1",
+            DurationPreset = UserSanctionDurationPresets.Hours24,
+            StartsAtUtc = DateTime.UtcNow.AddDays(-2),
+            ExpiresAtUtc = DateTime.UtcNow.AddHours(-1),
+            CreatedAtUtc = DateTime.UtcNow.AddDays(-2),
+        });
+
+        var status = _fx.WithKey(new HttpRequestMessage(HttpMethod.Get, "/api/internal/users/u-expired/forum-sanction-status"));
+        var r = await _fx.Client.SendAsync(status);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
         var body = await r.Content.ReadFromJsonAsync<ApiEnvelope<ForumSanctionStatusDto>>();
         Assert.False(body!.Data!.IsMuted);
     }

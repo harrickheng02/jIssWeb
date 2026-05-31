@@ -13,11 +13,34 @@ using MongoDB.Driver;
 namespace JIssWeb.Model.Api.Tests;
 
 [Collection("ForumUserSanctions")]
-public sealed class ForumUserSanctionsTests : IClassFixture<ForumUserSanctionsIntegrationFixture>
+public sealed class ForumUserSanctionsTests
 {
     private readonly ForumUserSanctionsIntegrationFixture _fx;
 
     public ForumUserSanctionsTests(ForumUserSanctionsIntegrationFixture fx) => _fx = fx;
+
+    [Fact]
+    public async Task Sanction_status_unavailable_blocks_write_with_503()
+    {
+        try
+        {
+            _fx.Sanctions.SimulateQueryUnavailable = true;
+            var body = JsonSerializer.Serialize(new { title = "t", body = "b", boardId = "general" });
+            var req = new HttpRequestMessage(HttpMethod.Post, "/api/forum/posts")
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-ok")) },
+            };
+            var r = await _fx.Client.SendAsync(req);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, r.StatusCode);
+            var json = await r.Content.ReadAsStringAsync();
+            Assert.Contains("SANCTION_SERVICE_UNAVAILABLE", json);
+        }
+        finally
+        {
+            _fx.Sanctions.SimulateQueryUnavailable = false;
+        }
+    }
 
     [Fact]
     public async Task Muted_user_cannot_create_post()

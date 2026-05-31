@@ -10,7 +10,7 @@ using MongoDB.Driver;
 namespace JIssWeb.Model.Api.Tests;
 
 [Collection("ForumMe")]
-public sealed class ModerationDeleteTests : IClassFixture<ForumMeIntegrationFixture>
+public sealed class ModerationDeleteTests
 {
     private readonly ForumMeIntegrationFixture _fx;
 

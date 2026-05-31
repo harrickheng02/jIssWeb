@@ -9,6 +9,8 @@ public sealed class TestUserSanctionClient : IUserSanctionClient
     private readonly ConcurrentDictionary<string, ForumSanctionStatusResult> _status = new();
     private readonly ConcurrentDictionary<string, List<UserSanctionCreatedResult>> _created = new();
 
+    public bool SimulateQueryUnavailable { get; set; }
+
     public void SetMuted(string sub, DateTime? untilUtc = null)
     {
         var until = untilUtc ?? DateTime.UtcNow.AddHours(24);
@@ -20,6 +22,9 @@ public sealed class TestUserSanctionClient : IUserSanctionClient
 
     public Task<ForumSanctionStatusResult> GetForumSanctionStatusAsync(string sub, CancellationToken ct = default)
     {
+        if (SimulateQueryUnavailable)
+            return Task.FromResult(new ForumSanctionStatusResult { QueryUnavailable = true });
+
         var hit = _status.GetValueOrDefault(sub) ?? new ForumSanctionStatusResult { IsMuted = false };
         return Task.FromResult(hit);
     }

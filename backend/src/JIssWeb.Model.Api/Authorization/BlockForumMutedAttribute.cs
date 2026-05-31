@@ -30,6 +30,15 @@ public sealed class BlockForumMutedAttribute : Attribute, IAsyncActionFilter
 
         var client = context.HttpContext.RequestServices.GetRequiredService<IUserSanctionClient>();
         var status = await client.GetForumSanctionStatusAsync(sub, context.HttpContext.RequestAborted);
+        if (status.QueryUnavailable)
+        {
+            context.Result = new ObjectResult(ApiResult<object>.Fail("处罚服务暂不可用，请稍后重试", "SANCTION_SERVICE_UNAVAILABLE"))
+            {
+                StatusCode = StatusCodes.Status503ServiceUnavailable,
+            };
+            return;
+        }
+
         if (!status.IsMuted)
         {
             await next();
