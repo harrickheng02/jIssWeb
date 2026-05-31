@@ -25,4 +25,8 @@ public class ForumPostRecord
     public int CommentCount { get; set; }
     public int ViewCount { get; set; }
     public DateTime CreatedAtUtc { get; set; }
+    public string State { get; set; } = "published";  // published | draft | deleted
+    public DateTime? UpdatedAtUtc { get; set; }
+    public DateTime? DeletedAtUtc { get; set; }
+    public string? DeletedBySub { get; set; }
 }

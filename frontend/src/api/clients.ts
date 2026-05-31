@@ -238,6 +238,10 @@ export interface ForumPostListItem {
   likedByMe?: boolean
   favoritedByMe?: boolean
   favoriteCount?: number
+  updatedAtUtc?: string | null
+  state?: string
+  deletedAtUtc?: string | null
+  deletedBySub?: string | null
 }
 
 /** Partial update after like/favorite mutation (merge into list row). */
@@ -378,6 +382,7 @@ export interface ForumReply {
   authorDisplayName?: string
   body: string
   createdAtUtc: string
+  updatedAtUtc?: string | null
 }
 
 export interface PagedForumReplies {
@@ -654,5 +659,141 @@ export async function markForumNotificationRead(id: string) {
 
 export async function markAllForumNotificationsRead() {
   const { data } = await modelApi.post<ApiResult<unknown>>('/forum/notifications/read-all')
+  return data
+}
+
+// ── Tag Registry ─────────────────────────────────────────────────────────────
+
+export async function getForumTagSuggest(q?: string, limit = 10) {
+  const params: Record<string, string | number> = { limit }
+  if (q?.trim()) params.q = q.trim()
+  const { data } = await modelApi.get<ApiResult<string[]>>('/forum/tags/suggest', { params })
+  return data
+}
+
+export interface ForumTagDto {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  status: 'active' | 'disabled'
+  useCount: number
+  createdAtUtc: string
+  updatedAtUtc?: string
+}
+
+export interface PagedForumTags {
+  items: ForumTagDto[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+export async function adminListTags(params?: {
+  page?: number
+  pageSize?: number
+  status?: string
+  q?: string
+}) {
+  const { data } = await modelApi.get<ApiResult<PagedForumTags>>('/forum/admin/tags', { params })
+  return data
+}
+
+export async function adminCreateTag(body: { name: string; description?: string }) {
+  const { data } = await modelApi.post<ApiResult<ForumTagDto>>('/forum/admin/tags', body)
+  return data
+}
+
+export async function adminPatchTag(id: string, body: { name?: string; description?: string }) {
+  const { data } = await modelApi.patch<ApiResult<ForumTagDto>>(`/forum/admin/tags/${id}`, body)
+  return data
+}
+
+export async function adminDisableTag(id: string) {
+  const { data } = await modelApi.post<ApiResult<ForumTagDto>>(`/forum/admin/tags/${id}/disable`)
+  return data
+}
+
+export async function adminEnableTag(id: string) {
+  const { data } = await modelApi.post<ApiResult<ForumTagDto>>(`/forum/admin/tags/${id}/enable`)
+  return data
+}
+
+export async function adminDeleteTag(id: string) {
+  const { data } = await modelApi.delete<ApiResult<unknown>>(`/forum/admin/tags/${id}`)
+  return data
+}
+
+export async function adminSeedTagsFromPosts() {
+  const { data } = await modelApi.post<ApiResult<unknown>>('/forum/admin/tags/seed-from-posts')
+  return data
+}
+
+// ── Post / Reply self-edit ────────────────────────────────────────────────────
+
+export interface UpdateForumPostRequest {
+  title?: string
+  body?: string
+  tags?: string[]
+}
+
+export interface UpdateForumReplyRequest {
+  body: string
+}
+
+export async function updateForumPost(postId: string, body: UpdateForumPostRequest) {
+  const { data } = await modelApi.put<ApiResult<ForumPostListItem>>(`/forum/posts/${postId}`, body)
+  return data
+}
+
+export async function updateForumReply(postId: string, replyId: string, body: UpdateForumReplyRequest) {
+  const { data } = await modelApi.put<ApiResult<ForumReply>>(`/forum/posts/${postId}/replies/${replyId}`, body)
+  return data
+}
+
+export async function deleteForumPost(postId: string) {
+  const { data } = await modelApi.delete<ApiResult<string>>(`/forum/posts/${postId}`)
+  return data
+}
+
+export async function deleteForumReply(postId: string, replyId: string) {
+  const { data } = await modelApi.delete<ApiResult<string>>(`/forum/posts/${postId}/replies/${replyId}`)
+  return data
+}
+
+export async function permanentDeleteForumPost(postId: string) {
+  const { data } = await modelApi.delete<ApiResult<string>>(`/forum/posts/${postId}/permanent`)
+  return data
+}
+
+// ── Draft lifecycle ───────────────────────────────────────────────────────────
+
+export interface DraftResult {
+  id: string
+  state: string
+}
+
+export async function createDraft(body: { title?: string; body?: string; boardId?: string; tags?: string[] }) {
+  const { data } = await modelApi.post<ApiResult<DraftResult>>('/forum/posts/drafts', body)
+  return data
+}
+
+export async function updateDraft(draftId: string, body: { title?: string; body?: string; boardId?: string; tags?: string[] }) {
+  const { data } = await modelApi.put<ApiResult<DraftResult>>(`/forum/posts/drafts/${draftId}`, body)
+  return data
+}
+
+export async function deleteDraft(draftId: string) {
+  const { data } = await modelApi.delete<ApiResult<unknown>>(`/forum/posts/drafts/${draftId}`)
+  return data
+}
+
+export async function publishDraft(draftId: string) {
+  const { data } = await modelApi.post<ApiResult<DraftResult>>(`/forum/posts/drafts/${draftId}/publish`)
+  return data
+}
+
+export async function getMyDrafts(page = 1, pageSize = 20) {
+  const { data } = await modelApi.get<ApiResult<PagedForumPosts>>('/forum/me/drafts', { params: { page, pageSize } })
   return data
 }

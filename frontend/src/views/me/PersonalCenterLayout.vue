@@ -1,9 +1,25 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { getMyDrafts } from '@/api/clients'
 
 const route = useRoute()
 const activePath = computed(() => route.path)
+
+const draftCount = ref(0)
+
+async function loadDraftCount() {
+  try {
+    const res = await getMyDrafts(1, 1)
+    if (res.success && res.data) draftCount.value = res.data.totalCount
+  } catch {
+    // non-critical
+  }
+}
+
+onMounted(() => {
+  void loadDraftCount()
+})
 </script>
 
 <template>
@@ -14,6 +30,10 @@ const activePath = computed(() => route.path)
           <template #header>个人中心</template>
           <el-menu class="me-menu" :default-active="activePath" router>
             <el-menu-item index="/me/posts">我的帖子</el-menu-item>
+            <el-menu-item index="/me/drafts">
+              <span>草稿箱</span>
+              <el-badge v-if="draftCount > 0" :value="draftCount" class="draft-badge" />
+            </el-menu-item>
             <el-menu-item index="/me/replies">我的回复</el-menu-item>
             <el-menu-item index="/me/favorites">我的收藏</el-menu-item>
             <el-menu-item index="/me/profile">个人资料</el-menu-item>
@@ -64,6 +84,10 @@ const activePath = computed(() => route.path)
 .me-main {
   flex: 1;
   min-width: 0;
+}
+
+.draft-badge {
+  margin-left: var(--space-sm);
 }
 
 @media (max-width: 900px) {

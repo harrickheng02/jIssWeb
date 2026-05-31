@@ -67,9 +67,14 @@ const {
   composeBoardId,
   composeTags,
   composeSubmitting,
+  composeSavingDraft,
+  tagSuggestions,
+  tagSuggestionsLoading,
+  onTagSearch,
   onComposeTagsChange,
   openComposeDialog,
   submitCompose,
+  saveDraft,
 } = useForumComposeForm({
   getDefaultBoardId: getDefaultComposeBoardId,
   fetchPosts,
@@ -265,19 +270,23 @@ onMounted(() => {
                 v-model="composeTags"
                 class="compose-board-select compose-tags-select"
                 multiple
+                remote
                 filterable
                 allow-create
                 default-first-option
+                :remote-method="onTagSearch"
+                :loading="tagSuggestionsLoading"
                 :reserve-keyword="false"
-                placeholder="可选，最多 10 个，单个不超过 32 字，输入后回车添加"
+                placeholder="可选，最多 10 个，输入新标签或从建议中选择"
                 @change="onComposeTagsChange"
               >
-                <el-option v-for="t in popularTags" :key="t" :label="t" :value="t" />
+                <el-option v-for="t in tagSuggestions" :key="t" :label="t" :value="t" />
               </el-select>
             </el-form-item>
           </el-form>
           <template #footer>
             <el-button @click="composeOpen = false">取消</el-button>
+            <el-button :loading="composeSavingDraft" @click="saveDraft">保存草稿</el-button>
             <el-button type="primary" :loading="composeSubmitting" @click="submitCompose">发布</el-button>
           </template>
         </el-dialog>

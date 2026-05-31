@@ -17,6 +17,10 @@ const roleLabel = computed(() => {
 function goReportQueue() {
   void router.push({ name: 'moderation-reports' })
 }
+
+function goTagAdmin() {
+  void router.push({ name: 'admin-tags' })
+}
 </script>
 
 <template>
@@ -57,6 +61,7 @@ function goReportQueue() {
 
         <div class="guide-actions">
           <el-button v-if="canModerate" type="primary" plain @click="goReportQueue">举报队列</el-button>
+          <el-button v-if="canModerate" type="primary" plain @click="goTagAdmin">标签管理</el-button>
           <el-button type="primary" @click="router.push('/')">去首页</el-button>
         </div>
       </el-card>

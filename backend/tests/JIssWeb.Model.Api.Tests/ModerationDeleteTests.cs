@@ -43,7 +43,8 @@ public sealed class ModerationDeleteTests : IClassFixture<ForumMeIntegrationFixt
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
 
         var left = await posts.Find(x => x.Id == pid).FirstOrDefaultAsync();
-        Assert.Null(left);
+        Assert.NotNull(left);
+        Assert.Equal("deleted", left!.State);
     }
 
     [Fact]
@@ -95,7 +96,8 @@ public sealed class ModerationDeleteTests : IClassFixture<ForumMeIntegrationFixt
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
 
         var replyLeft = await replies.Find(x => x.Id == rid).FirstOrDefaultAsync();
-        Assert.Null(replyLeft);
+        Assert.NotNull(replyLeft);
+        Assert.Equal("deleted", replyLeft!.State);
         var post = await posts.Find(x => x.Id == pid).FirstOrDefaultAsync();
         Assert.NotNull(post);
         Assert.Equal(0, post!.CommentCount);

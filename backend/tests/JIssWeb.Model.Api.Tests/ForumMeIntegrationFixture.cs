@@ -127,6 +127,16 @@ public sealed class ForumMeIntegrationFixture : IAsyncLifetime
             CreatedAtUtc = t.AddMinutes(-2),
         });
 
+        var tags = db.GetCollection<ForumTagRecord>(ForumMongoSetup.TagsCollectionName);
+        var tagNow = DateTime.UtcNow;
+        await tags.InsertManyAsync(new[]
+        {
+            new ForumTagRecord { Id = "tag-alpha",   Name = "alpha",   Slug = "alpha",   Status = ForumTagStatuses.Active, UseCount = 2, CreatedAtUtc = tagNow, CreatedBySub = "user-admin" },
+            new ForumTagRecord { Id = "tag-shared",  Name = "shared",  Slug = "shared",  Status = ForumTagStatuses.Active, UseCount = 2, CreatedAtUtc = tagNow, CreatedBySub = "user-admin" },
+            new ForumTagRecord { Id = "tag-beta",    Name = "beta",    Slug = "beta",    Status = ForumTagStatuses.Active, UseCount = 1, CreatedAtUtc = tagNow, CreatedBySub = "user-admin" },
+            new ForumTagRecord { Id = "tag-techtag", Name = "techtag", Slug = "techtag", Status = ForumTagStatuses.Active, UseCount = 1, CreatedAtUtc = tagNow, CreatedBySub = "user-admin" },
+        });
+
         var announcements = db.GetCollection<ForumAnnouncementRecord>(ForumMongoSetup.AnnouncementsCollectionName);
         await announcements.InsertManyAsync(new[]
         {

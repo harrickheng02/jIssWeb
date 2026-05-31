@@ -87,6 +87,14 @@ export const useAuthStore = defineStore('auth', () => {
     setPendingVerifyCooldownUntil(Date.now() + Math.max(seconds, 0) * 1000)
   }
 
+  const sub = computed<string | null>(() => {
+    const t = token.value?.trim()
+    if (!t) return null
+    const payload = decodeJwtPayload(t)
+    const s = payload?.sub
+    return typeof s === 'string' && s.length > 0 ? s : null
+  })
+
   const forumRole = computed<ForumRole>(() => {
     const t = token.value?.trim()
     if (!t) return 'member'
@@ -97,14 +105,17 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   const canModerate = computed(() => forumRole.value === 'moderator' || forumRole.value === 'admin')
+  const canAdmin = computed(() => forumRole.value === 'admin')
 
   return {
     token,
     refreshToken,
     pendingVerifyEmail,
     pendingVerifyCooldownUntil,
+    sub,
     forumRole,
     canModerate,
+    canAdmin,
     setToken,
     setRefreshToken,
     applyAuthSession,

@@ -22,6 +22,10 @@ internal static class ForumDtoMapping
         FavoriteCount = p.FavoriteCount,
         Comments = p.CommentCount,
         Views = p.ViewCount,
+        UpdatedAtUtc = p.UpdatedAtUtc,
+        State = p.State,
+        DeletedAtUtc = p.DeletedAtUtc,
+        DeletedBySub = p.DeletedBySub,
     };
 
     internal static PostDetailDto MapDetail(ForumPostRecord p, IReadOnlyDictionary<string, string> names) => new()
@@ -42,6 +46,10 @@ internal static class ForumDtoMapping
         FavoriteCount = p.FavoriteCount,
         Comments = p.CommentCount,
         Views = p.ViewCount,
+        UpdatedAtUtc = p.UpdatedAtUtc,
+        State = p.State,
+        DeletedAtUtc = p.DeletedAtUtc,
+        DeletedBySub = p.DeletedBySub,
     };
 
     internal static ReplyDto ToReplyDto(ForumReplyRecord r, IReadOnlyDictionary<string, string> names) => new()
@@ -52,6 +60,7 @@ internal static class ForumDtoMapping
         AuthorDisplayName = Display(r.AuthorSubId, names),
         Body = r.Body,
         CreatedAtUtc = r.CreatedAtUtc,
+        UpdatedAtUtc = r.UpdatedAtUtc,
     };
 
     private static string Display(string? sub, IReadOnlyDictionary<string, string> names)

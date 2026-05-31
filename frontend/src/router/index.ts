@@ -87,6 +87,12 @@ const router = createRouter({
           component: () => import('../views/me/MeFavoritesView.vue'),
         },
         {
+          path: 'drafts',
+          name: 'me-drafts',
+          meta: { requiresAuth: true },
+          component: () => import('../views/me/MeDraftsView.vue'),
+        },
+        {
           path: 'settings',
           name: 'me-settings',
           meta: { requiresAuth: true },
@@ -110,12 +116,18 @@ const router = createRouter({
       name: 'register-verified',
       component: () => import('../views/RegisterVerifiedView.vue'),
     },
+    {
+      path: '/admin/tags',
+      name: 'admin-tags',
+      component: () => import('../views/AdminTagsView.vue'),
+      meta: { requiresAuth: true, requiresModerate: true },
+    },
   ],
 })
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (to.meta.requiresModerate && !auth.canModerate) return { name: 'moderation' }
+  if (to.meta.requiresModerate && !auth.canModerate) return { name: 'home' }
   if (!to.meta.requiresAuth) return true
   if (auth.token) return true
   return { name: 'auth' }

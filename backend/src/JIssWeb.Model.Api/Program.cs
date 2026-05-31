@@ -26,6 +26,8 @@ builder.Services.PostConfigure<ForumModerationOptions>(o => o.Moderators ??= new
 builder.Services.Configure<ForumSearchRateLimitOptions>(builder.Configuration.GetSection(ForumSearchRateLimitOptions.SectionName));
 builder.Services.Configure<ForumReportRetentionOptions>(builder.Configuration.GetSection(ForumReportRetentionOptions.SectionName));
 builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
+builder.Services.Configure<ForumSoftDeleteOptions>(builder.Configuration.GetSection(ForumSoftDeleteOptions.SectionName));
+builder.Services.AddHostedService<DraftCleanupBackgroundService>();
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection(RedisSettings.SectionName));
 builder.Services.AddSingleton<ForumSearchIpRateLimiter>();
 builder.Services.AddScoped<ForumAuthorDisplayResolver>();
@@ -62,6 +64,8 @@ builder.Services.AddJIssWebCoreApi(builder.Configuration);
 var app = builder.Build();
 
 ForumMongoSetup.EnsureIndexes(app.Services);
+await ForumMongoSetup.EnsureStateFieldAsync(app.Services);
+await ForumMongoSetup.SeedInitialTagsAsync(app.Services);
 
 if (app.Environment.IsDevelopment())
 {

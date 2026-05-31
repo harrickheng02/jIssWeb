@@ -156,10 +156,11 @@ public class ForumPostsSearchTests
     }
 
     [Fact]
-    public async Task PopularTags_InvalidBoard_Returns400()
+    public async Task PopularTags_UnknownBoard_ReturnsOkBoardIdIgnored()
     {
+        // boardId is accepted for API compatibility but ignored since tags are global
         var res = await _fx.Client.GetAsync("/api/forum/tags/popular?boardId=unknown");
-        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 
     [Fact]

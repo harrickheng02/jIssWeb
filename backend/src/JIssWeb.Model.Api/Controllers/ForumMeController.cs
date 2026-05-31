@@ -52,7 +52,9 @@ public class ForumMeController : ControllerBase
             return Unauthorized(ApiResult<PagedPostsDto>.Fail("未授权", "UNAUTHORIZED"));
         }
 
-        var filter = Builders<ForumPostRecord>.Filter.Eq(x => x.AuthorSubId, sub);
+        var filter = Builders<ForumPostRecord>.Filter.And(
+            ForumPostFilters.Published(),
+            Builders<ForumPostRecord>.Filter.Eq(x => x.AuthorSubId, sub));
         var total = await _posts.CountDocumentsAsync(filter);
         var items = await _posts.Find(filter)
             .SortByDescending(x => x.CreatedAtUtc)
@@ -111,6 +113,42 @@ public class ForumMeController : ControllerBase
         var names = await _authorNames.ResolveAsync(items.Select(x => x.AuthorSubId));
         var dtos = items.Select(r => ForumDtoMapping.ToReplyDto(r, names)).ToList();
         return Ok(ApiResult<PagedRepliesDto>.Ok(new PagedRepliesDto
+        {
+            Items = dtos,
+            TotalCount = (int)total,
+            Page = page,
+            PageSize = pageSize,
+        }));
+    }
+
+    [HttpGet("drafts")]
+    public async Task<ActionResult<ApiResult<PagedPostsDto>>> MyDrafts(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        if (page < 1 || pageSize < 1 || pageSize > 50)
+            return BadRequest(ApiResult<PagedPostsDto>.Fail("分页参数无效", "INVALID_PAGINATION"));
+
+        string sub;
+        try { sub = User.GetUserId(); }
+        catch (UnauthorizedAccessException)
+        { return Unauthorized(ApiResult<PagedPostsDto>.Fail("未授权", "UNAUTHORIZED")); }
+
+        var filter = Builders<ForumPostRecord>.Filter.And(
+            Builders<ForumPostRecord>.Filter.Eq(x => x.State, "draft"),
+            Builders<ForumPostRecord>.Filter.Eq(x => x.AuthorSubId, sub));
+
+        var total = await _posts.CountDocumentsAsync(filter);
+        var items = await _posts.Find(filter)
+            .SortByDescending(x => x.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
+
+        var names = await _authorNames.ResolveAsync(items.Select(x => x.AuthorSubId));
+        var dtos = items.Select(p => ForumDtoMapping.ToListItem(p, names)).ToList();
+
+        return Ok(ApiResult<PagedPostsDto>.Ok(new PagedPostsDto
         {
             Items = dtos,
             TotalCount = (int)total,

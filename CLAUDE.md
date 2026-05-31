@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> **语言约定**：所有对话回复、分析、注释与报告一律使用**简体中文**。代码标识符、命令、文件路径保持原语言不变。
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project shape

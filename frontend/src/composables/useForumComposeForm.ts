@@ -1,19 +1,24 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createForumPost } from '@/api/clients'
+import {
+  createForumPost,
+  createDraft,
+  updateForumPost,
+  updateDraft,
+  getForumTagSuggest,
+  type ForumPostListItem,
+} from '@/api/clients'
 
 const maxComposeTags = 10
-const maxComposeTagLen = 32
 
-function composeTagsListEqual(a: string[], b: string[]) {
-  if (a.length !== b.length) return false
-  return a.every((t, i) => t === b[i])
-}
+type ComposeMode = 'create' | 'edit' | 'draft-edit'
 
 export function useForumComposeForm(opts: {
   getDefaultBoardId: () => string
-  fetchPosts: () => Promise<void>
+  fetchPosts?: () => Promise<void>
+  onEditSuccess?: (updated: ForumPostListItem) => void
+  onDraftSaved?: (draftId: string) => void
 }) {
   const router = useRouter()
   const composeOpen = ref(false)
@@ -22,45 +27,135 @@ export function useForumComposeForm(opts: {
   const composeBoardId = ref('general')
   const composeTags = ref<string[]>([])
   const composeSubmitting = ref(false)
+  const composeSavingDraft = ref(false)
+
+  const mode = ref<ComposeMode>('create')
+  const editTargetId = ref<string | null>(null)
+
+  const tagSuggestions = ref<string[]>([])
+  const tagSuggestionsLoading = ref(false)
+
+  async function onTagSearch(q: string) {
+    tagSuggestionsLoading.value = true
+    try {
+      const res = await getForumTagSuggest(q || undefined, 50)
+      if (res.success && res.data) {
+        tagSuggestions.value = res.data
+      }
+    } catch {
+      // ignore
+    } finally {
+      tagSuggestionsLoading.value = false
+    }
+  }
 
   function onComposeTagsChange(val: string[]) {
-    const next: string[] = []
-    const seen = new Set<string>()
-    let droppedLong = false
     let capped = false
-    for (const raw of val) {
-      const t = raw.trim()
-      if (!t) continue
-      if (t.length > maxComposeTagLen) {
-        droppedLong = true
-        continue
-      }
-      const k = t.toLowerCase()
-      if (seen.has(k)) continue
-      if (next.length >= maxComposeTags) {
-        capped = true
-        break
-      }
-      seen.add(k)
-      next.push(t)
+    const next = val.slice(0, maxComposeTags)
+    if (val.length > maxComposeTags) {
+      capped = true
     }
-    if (droppedLong) ElMessage.warning(`单个标签不超过 ${maxComposeTagLen} 字`)
     if (capped) ElMessage.warning(`最多 ${maxComposeTags} 个标签`)
-    if (composeTagsListEqual(val, next)) return
     composeTags.value = next
   }
 
   function openComposeDialog() {
+    mode.value = 'create'
+    editTargetId.value = null
     composeTitle.value = ''
     composeBody.value = ''
     composeBoardId.value = opts.getDefaultBoardId()
     composeTags.value = []
+    tagSuggestions.value = []
     composeOpen.value = true
+    void onTagSearch('')
+  }
+
+  function openComposeDialogForEdit(post: {
+    id: string
+    title: string
+    body: string
+    tags?: string[]
+    boardId?: string
+  }) {
+    mode.value = 'edit'
+    editTargetId.value = post.id
+    composeTitle.value = post.title
+    composeBody.value = post.body
+    composeBoardId.value = post.boardId ?? opts.getDefaultBoardId()
+    composeTags.value = post.tags ? [...post.tags] : []
+    tagSuggestions.value = []
+    composeOpen.value = true
+    void onTagSearch('')
+  }
+
+  function openComposeDialogForDraftEdit(draft: {
+    id: string
+    title?: string
+    body?: string
+    tags?: string[]
+    boardId?: string
+  }) {
+    mode.value = 'draft-edit'
+    editTargetId.value = draft.id
+    composeTitle.value = draft.title ?? ''
+    composeBody.value = draft.body ?? ''
+    composeBoardId.value = draft.boardId ?? opts.getDefaultBoardId()
+    composeTags.value = draft.tags ? [...draft.tags] : []
+    tagSuggestions.value = []
+    composeOpen.value = true
+    void onTagSearch('')
   }
 
   async function submitCompose() {
     const title = composeTitle.value.trim()
     const body = composeBody.value.trim()
+
+    if (mode.value === 'edit') {
+      const targetId = editTargetId.value
+      if (!targetId) return
+      composeSubmitting.value = true
+      try {
+        const tags = composeTags.value.length ? [...composeTags.value] : []
+        const res = await updateForumPost(targetId, { title, body, tags })
+        if (!res.success || !res.data) {
+          ElMessage.error(res.message ?? '编辑失败')
+          return
+        }
+        composeOpen.value = false
+        ElMessage.success('帖子已更新')
+        opts.onEditSuccess?.(res.data)
+      } catch (e) {
+        ElMessage.error(e instanceof Error ? e.message : '编辑失败')
+      } finally {
+        composeSubmitting.value = false
+      }
+      return
+    }
+
+    if (mode.value === 'draft-edit') {
+      const targetId = editTargetId.value
+      if (!targetId) return
+      composeSubmitting.value = true
+      try {
+        const tags = composeTags.value.length ? [...composeTags.value] : undefined
+        const res = await updateDraft(targetId, { title, body, boardId: composeBoardId.value, tags })
+        if (!res.success) {
+          ElMessage.error(res.message ?? '保存草稿失败')
+          return
+        }
+        composeOpen.value = false
+        ElMessage.success('草稿已保存')
+        opts.onDraftSaved?.(targetId)
+      } catch (e) {
+        ElMessage.error(e instanceof Error ? e.message : '保存草稿失败')
+      } finally {
+        composeSubmitting.value = false
+      }
+      return
+    }
+
+    // create mode
     if (!title || !body) {
       ElMessage.warning('请填写标题与正文')
       return
@@ -80,12 +175,44 @@ export function useForumComposeForm(opts: {
       }
       composeOpen.value = false
       ElMessage.success('已发布')
-      await opts.fetchPosts()
+      await opts.fetchPosts?.()
       void router.push({ name: 'post-detail', params: { id: res.data.id } })
     } catch (e) {
       ElMessage.error(e instanceof Error ? e.message : '发帖失败')
     } finally {
       composeSubmitting.value = false
+    }
+  }
+
+  async function saveDraft() {
+    const title = composeTitle.value.trim()
+    const body = composeBody.value.trim()
+    const tags = composeTags.value.length ? [...composeTags.value] : undefined
+    composeSavingDraft.value = true
+    try {
+      if (mode.value === 'draft-edit' && editTargetId.value) {
+        const res = await updateDraft(editTargetId.value, { title, body, boardId: composeBoardId.value, tags })
+        if (!res.success) {
+          ElMessage.error(res.message ?? '保存草稿失败')
+          return
+        }
+        ElMessage.success('草稿已更新')
+        opts.onDraftSaved?.(editTargetId.value)
+      } else {
+        const res = await createDraft({ title, body, boardId: composeBoardId.value, tags })
+        if (!res.success || !res.data?.id) {
+          ElMessage.error(res.message ?? '保存草稿失败')
+          return
+        }
+        mode.value = 'draft-edit'
+        editTargetId.value = res.data.id
+        ElMessage.success('草稿已保存')
+        opts.onDraftSaved?.(res.data.id)
+      }
+    } catch (e) {
+      ElMessage.error(e instanceof Error ? e.message : '保存草稿失败')
+    } finally {
+      composeSavingDraft.value = false
     }
   }
 
@@ -96,8 +223,17 @@ export function useForumComposeForm(opts: {
     composeBoardId,
     composeTags,
     composeSubmitting,
+    composeSavingDraft,
+    mode,
+    editTargetId,
+    tagSuggestions,
+    tagSuggestionsLoading,
+    onTagSearch,
     onComposeTagsChange,
     openComposeDialog,
+    openComposeDialogForEdit,
+    openComposeDialogForDraftEdit,
     submitCompose,
+    saveDraft,
   }
 }

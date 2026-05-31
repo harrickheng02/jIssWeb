@@ -1,11 +1,11 @@
 using System.Security.Claims;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using JIssWeb.Common.Security;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
 namespace JIssWeb.Model.Api.Services;
@@ -17,12 +17,13 @@ public enum ModerationDeletionOutcome
     Forbidden,
 }
 
-/// <summary>Hard-delete forum posts/replies under moderator/admin authorization.</summary>
+/// <summary>Soft-delete forum posts/replies under moderator/admin authorization.</summary>
 public sealed class ForumModerationDeleteService
 {
     private readonly IMongoCollection<ForumPostRecord> _posts;
     private readonly IMongoCollection<ForumReplyRecord> _replies;
     private readonly IMongoCollection<InAppNotificationRecord> _notifications;
+    private readonly IMongoCollection<ForumTagRecord> _tagRecords;
     private readonly ForumModerationAccessService _access;
     private readonly ForumEngagementService _engagement;
     private readonly ILogger<ForumModerationDeleteService> _logger;
@@ -38,6 +39,7 @@ public sealed class ForumModerationDeleteService
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
         _notifications = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+        _tagRecords = db.GetCollection<ForumTagRecord>(ForumMongoSetup.TagsCollectionName);
         _access = access;
         _engagement = engagement;
         _logger = logger;
@@ -62,12 +64,24 @@ public sealed class ForumModerationDeleteService
 
         try
         {
-            await _engagement.RemoveAllForPostAsync(postId);
-            await _replies.DeleteManyAsync(x => x.PostId == postId, ct);
-            await _notifications.DeleteManyAsync(x => x.PostId == postId, ct);
-            var dp = await _posts.DeleteOneAsync(x => x.Id == postId, ct);
-            if (dp.DeletedCount != 1)
+            var now = DateTime.UtcNow;
+            var softDeleteUpdate = Builders<ForumPostRecord>.Update
+                .Set(x => x.State, "deleted")
+                .Set(x => x.DeletedAtUtc, now)
+                .Set(x => x.DeletedBySub, operatorSub);
+            var ur = await _posts.UpdateOneAsync(x => x.Id == postId, softDeleteUpdate, cancellationToken: ct);
+            if (ur.MatchedCount != 1)
                 return ModerationDeletionOutcome.NotFound;
+
+            // Tags UseCount -1 delta（软删与硬删行为一致）
+            if (post.Tags?.Count > 0)
+                await _tagRecords.UpdateManyAsync(
+                    Builders<ForumTagRecord>.Filter.And(
+                        Builders<ForumTagRecord>.Filter.In(x => x.Name, post.Tags),
+                        Builders<ForumTagRecord>.Filter.Gt(x => x.UseCount, 0)),
+                    Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, -1),
+                    cancellationToken: ct);
+
             return ModerationDeletionOutcome.Success;
         }
         catch (Exception ex)
@@ -100,10 +114,13 @@ public sealed class ForumModerationDeleteService
 
         try
         {
-            await _notifications.DeleteManyAsync(x => x.ReplyId == replyId, ct);
-
-            var dr = await _replies.DeleteOneAsync(x => x.Id == replyId, ct);
-            if (dr.DeletedCount != 1)
+            var now = DateTime.UtcNow;
+            var softDeleteReply = Builders<ForumReplyRecord>.Update
+                .Set(x => x.State, "deleted")
+                .Set(x => x.DeletedAtUtc, now)
+                .Set(x => x.DeletedBySub, operatorSub);
+            var ur = await _replies.UpdateOneAsync(x => x.Id == replyId, softDeleteReply, cancellationToken: ct);
+            if (ur.MatchedCount != 1)
                 return ModerationDeletionOutcome.NotFound;
 
             await _posts.UpdateOneAsync(

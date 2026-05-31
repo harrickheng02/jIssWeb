@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
+using JIssWeb.Common.Security;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
@@ -23,6 +24,9 @@ public class ForumPostsController : ControllerBase
     private readonly IMongoCollection<ForumPostRecord> _posts;
     private readonly IMongoCollection<ForumReplyRecord> _replies;
     private readonly IMongoCollection<InAppNotificationRecord> _notifications;
+    private readonly IMongoCollection<ForumTagRecord> _tags;
+    private readonly IMongoCollection<ForumPostLikeRecord> _likes;
+    private readonly IMongoCollection<ForumPostFavoriteRecord> _favorites;
     private readonly IOptions<ForumBoardsOptions> _boardOptions;
     private readonly ForumAuthorDisplayResolver _authorNames;
     private readonly ForumEngagementService _engagement;
@@ -40,6 +44,9 @@ public class ForumPostsController : ControllerBase
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
         _notifications = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
+        _tags = db.GetCollection<ForumTagRecord>(ForumMongoSetup.TagsCollectionName);
+        _likes = db.GetCollection<ForumPostLikeRecord>(ForumMongoSetup.LikesCollectionName);
+        _favorites = db.GetCollection<ForumPostFavoriteRecord>(ForumMongoSetup.FavoritesCollectionName);
         _boardOptions = boardOptions;
         _authorNames = authorNames;
         _engagement = engagement;
@@ -93,6 +100,7 @@ public class ForumPostsController : ControllerBase
         }
 
         var parts = new List<FilterDefinition<ForumPostRecord>>();
+        parts.Add(ForumPostFilters.Published());
         if (boardFilter is not null) parts.Add(boardFilter);
         if (searchFilter is not null) parts.Add(searchFilter);
         if (tagFilter is not null) parts.Add(tagFilter);
@@ -150,10 +158,13 @@ public class ForumPostsController : ControllerBase
     public async Task<ActionResult<ApiResult<List<ReplyDto>>>> GetReplies(string postId)
     {
         var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
-        if (post is null)
+        if (post is null || post.State == "deleted")
             return NotFound(ApiResult<List<ReplyDto>>.Fail("未找到", "NOT_FOUND"));
 
-        var list = await _replies.Find(x => x.PostId == postId)
+        var replyFilter = Builders<ForumReplyRecord>.Filter.And(
+            ForumPostFilters.ReplyPublished(),
+            Builders<ForumReplyRecord>.Filter.Eq(x => x.PostId, postId));
+        var list = await _replies.Find(replyFilter)
             .SortBy(x => x.CreatedAtUtc)
             .ToListAsync();
         var replyNames = await _authorNames.ResolveAsync(list.Select(x => x.AuthorSubId));
@@ -226,8 +237,29 @@ public class ForumPostsController : ControllerBase
         if (post is null)
             return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
 
-        await _posts.UpdateOneAsync(x => x.Id == id, Builders<ForumPostRecord>.Update.Inc(x => x.ViewCount, 1));
-        post.ViewCount += 1;
+        // draft 只有作者本人可见；deleted 仅作者自删时本人可见，或版主/管理员可见
+        var requesterId = TryGetAuthorId();
+        bool incrementView = true;
+        if (post.State == "deleted")
+        {
+            var isAuthorSelfDelete = string.Equals(post.DeletedBySub, post.AuthorSubId, StringComparison.Ordinal);
+            var isAuthor = string.Equals(post.AuthorSubId, requesterId, StringComparison.Ordinal);
+            var isMod = IsModeratorOrAdmin();
+            if ((isAuthorSelfDelete && isAuthor) || isMod)
+                incrementView = false; // 已删帖不计浏览
+            else
+                return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
+        }
+        else if (post.State == "draft" && !string.Equals(post.AuthorSubId, requesterId, StringComparison.Ordinal))
+        {
+            return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
+        }
+
+        if (incrementView)
+        {
+            await _posts.UpdateOneAsync(x => x.Id == id, Builders<ForumPostRecord>.Update.Inc(x => x.ViewCount, 1));
+            post.ViewCount += 1;
+        }
 
         var detailNames = await _authorNames.ResolveAsync(new[] { post.AuthorSubId });
         var dto = ForumDtoMapping.MapDetail(post, detailNames);
@@ -305,6 +337,212 @@ public class ForumPostsController : ControllerBase
         return Ok(ApiResult<PostEngagementStateDto>.Ok(ToEngagementState(postId, snap)));
     }
 
+    [HttpPut("{postId}/replies/{replyId}")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<ReplyDto>>> UpdateReply(string postId, string replyId, [FromBody] UpdateReplyRequest request)
+    {
+        var authorId = TryGetAuthorId();
+        if (authorId is null)
+            return Unauthorized(ApiResult<ReplyDto>.Fail("未授权", "UNAUTHORIZED"));
+
+        if (string.IsNullOrWhiteSpace(request.Body))
+            return BadRequest(ApiResult<ReplyDto>.Fail("内容不能为空", "INVALID_INPUT"));
+
+        var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
+        if (post is null || post.State == "deleted")
+            return NotFound(ApiResult<ReplyDto>.Fail("未找到", "NOT_FOUND"));
+
+        var reply = await _replies.Find(x => x.Id == replyId && x.PostId == postId).FirstOrDefaultAsync();
+        if (reply is null || reply.State == "deleted")
+            return NotFound(ApiResult<ReplyDto>.Fail("未找到", "NOT_FOUND"));
+
+        if (!string.Equals(reply.AuthorSubId, authorId, StringComparison.Ordinal))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<ReplyDto>.Fail("无权编辑", "FORBIDDEN"));
+
+        var now = DateTime.UtcNow;
+        await _replies.UpdateOneAsync(
+            x => x.Id == replyId,
+            Builders<ForumReplyRecord>.Update
+                .Set(x => x.Body, request.Body.Trim())
+                .Set(x => x.UpdatedAtUtc, now));
+
+        var updated = await _replies.Find(x => x.Id == replyId).FirstOrDefaultAsync();
+        var names = await _authorNames.ResolveAsync(new[] { updated!.AuthorSubId });
+        return Ok(ApiResult<ReplyDto>.Ok(ForumDtoMapping.ToReplyDto(updated, names)));
+    }
+
+    [HttpDelete("{postId}")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<string>>> DeletePost(string postId)
+    {
+        var sub = TryGetAuthorId();
+        if (sub is null)
+            return Unauthorized(ApiResult<string>.Fail("未授权", "UNAUTHORIZED"));
+
+        var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
+        if (post is null || post.State == "deleted")
+            return NotFound(ApiResult<string>.Fail("未找到", "NOT_FOUND"));
+
+        if (post.State == "draft")
+            return BadRequest(ApiResult<string>.Fail("请先删除草稿", "DRAFT_MUST_BE_DELETED_DIRECTLY"));
+
+        if (!string.Equals(post.AuthorSubId, sub, StringComparison.Ordinal))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权删除", "FORBIDDEN"));
+
+        var now = DateTime.UtcNow;
+        await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update
+            .Set(x => x.State, "deleted")
+            .Set(x => x.DeletedAtUtc, now)
+            .Set(x => x.DeletedBySub, sub));
+
+        // Tags UseCount -1
+        if (post.Tags.Count > 0)
+            await ApplyTagsDeltaAsync(post.Tags, new List<string>());
+
+        return Ok(ApiResult<string>.Ok("已删除"));
+    }
+
+    [HttpDelete("{postId}/replies/{replyId}")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<string>>> DeleteReply(string postId, string replyId)
+    {
+        var sub = TryGetAuthorId();
+        if (sub is null)
+            return Unauthorized(ApiResult<string>.Fail("未授权", "UNAUTHORIZED"));
+
+        // 查父帖（不要求 published，但不能是 deleted 状态的版主删帖；对作者自删的帖子也允许作者删其下回复）
+        var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
+        if (post is null)
+            return NotFound(ApiResult<string>.Fail("未找到", "NOT_FOUND"));
+
+        var reply = await _replies.Find(x => x.Id == replyId && x.PostId == postId && x.State == "published").FirstOrDefaultAsync();
+        if (reply is null)
+            return NotFound(ApiResult<string>.Fail("未找到", "NOT_FOUND"));
+
+        if (!string.Equals(reply.AuthorSubId, sub, StringComparison.Ordinal))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权删除", "FORBIDDEN"));
+
+        var now = DateTime.UtcNow;
+        await _replies.UpdateOneAsync(x => x.Id == replyId, Builders<ForumReplyRecord>.Update
+            .Set(x => x.State, "deleted")
+            .Set(x => x.DeletedAtUtc, now)
+            .Set(x => x.DeletedBySub, sub));
+
+        await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, -1));
+
+        return Ok(ApiResult<string>.Ok("已删除"));
+    }
+
+    [HttpDelete("{postId}/permanent")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<string>>> PermanentDeletePost(string postId)
+    {
+        var sub = TryGetAuthorId();
+        if (sub is null)
+            return Unauthorized(ApiResult<string>.Fail("未授权", "UNAUTHORIZED"));
+
+        var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
+        if (post is null || post.State != "deleted")
+            return NotFound(ApiResult<string>.Fail("未找到", "NOT_FOUND"));
+
+        // 只有作者自删的帖子，作者才能永久删除
+        var isAuthorSelfDelete = string.Equals(post.DeletedBySub, post.AuthorSubId, StringComparison.Ordinal);
+        if (!isAuthorSelfDelete || !string.Equals(post.AuthorSubId, sub, StringComparison.Ordinal))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<string>.Fail("无权永久删除", "FORBIDDEN"));
+
+        // 检查 engagement
+        if (post.LikeCount > 0 || post.CommentCount > 0)
+            return BadRequest(ApiResult<string>.Fail("帖子已有互动，无法永久删除", "HAS_ENGAGEMENT"));
+
+        var favCount = await _favorites.CountDocumentsAsync(f => f.PostId == postId);
+        if (favCount > 0)
+            return BadRequest(ApiResult<string>.Fail("帖子已有互动，无法永久删除", "HAS_ENGAGEMENT"));
+
+        // 物理删除：级联清理
+        await _replies.DeleteManyAsync(x => x.PostId == postId);
+        await _notifications.DeleteManyAsync(x => x.PostId == postId);
+        await _likes.DeleteManyAsync(x => x.PostId == postId);
+        await _favorites.DeleteManyAsync(x => x.PostId == postId);
+        await _posts.DeleteOneAsync(x => x.Id == postId);
+
+        return Ok(ApiResult<string>.Ok("已永久删除"));
+    }
+
+    [HttpPut("{postId}")]
+    [Authorize]
+    public async Task<ActionResult<ApiResult<PostListItemDto>>> UpdatePost(string postId, [FromBody] UpdatePostRequest request)
+    {
+        var authorId = TryGetAuthorId();
+        if (authorId is null)
+            return Unauthorized(ApiResult<PostListItemDto>.Fail("未授权", "UNAUTHORIZED"));
+
+        var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
+        if (post is null || post.State == "deleted")
+            return NotFound(ApiResult<PostListItemDto>.Fail("未找到", "NOT_FOUND"));
+
+        if (!string.Equals(post.AuthorSubId, authorId, StringComparison.Ordinal))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResult<PostListItemDto>.Fail("无权编辑", "FORBIDDEN"));
+
+        // Tags normalization & validation
+        List<string>? newTags = null;
+        if (request.Tags is not null)
+        {
+            var tagsResult = NormalizeCreateTags(request.Tags);
+            if (tagsResult.Error is not null)
+                return BadRequest(ApiResult<PostListItemDto>.Fail(tagsResult.Error, tagsResult.Code));
+            newTags = tagsResult.Tags;
+        }
+
+        var now = DateTime.UtcNow;
+        var updateDef = Builders<ForumPostRecord>.Update.Set(x => x.UpdatedAtUtc, now);
+
+        if (!string.IsNullOrWhiteSpace(request.Title))
+            updateDef = updateDef.Set(x => x.Title, request.Title.Trim());
+
+        if (!string.IsNullOrWhiteSpace(request.Body))
+        {
+            var newBody = request.Body.Trim();
+            updateDef = updateDef
+                .Set(x => x.Body, newBody)
+                .Set(x => x.Excerpt, MakeExcerpt(newBody));
+        }
+
+        if (newTags is not null)
+            updateDef = updateDef.Set(x => x.Tags, newTags);
+
+        await _posts.UpdateOneAsync(x => x.Id == postId, updateDef);
+
+        // Tags UseCount delta update
+        if (newTags is not null)
+            await ApplyTagsDeltaAsync(post.Tags, newTags);
+
+        // Reload for response
+        var updated = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
+        var names = await _authorNames.ResolveAsync(new[] { updated!.AuthorSubId });
+        return Ok(ApiResult<PostListItemDto>.Ok(ForumDtoMapping.ToListItem(updated, names)));
+    }
+
+    private async Task ApplyTagsDeltaAsync(List<string> oldTags, List<string> newTags)
+    {
+        var oldSet = new HashSet<string>(oldTags, StringComparer.OrdinalIgnoreCase);
+        var newSet = new HashSet<string>(newTags, StringComparer.OrdinalIgnoreCase);
+
+        var removed = oldTags.Where(t => !newSet.Contains(t)).ToList();
+        var added = newTags.Where(t => !oldSet.Contains(t)).ToList();
+
+        if (removed.Count > 0)
+            await _tags.UpdateManyAsync(
+                Builders<ForumTagRecord>.Filter.And(
+                    Builders<ForumTagRecord>.Filter.In(x => x.Name, removed),
+                    Builders<ForumTagRecord>.Filter.Gt(x => x.UseCount, 0)),
+                Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, -1));
+
+        if (added.Count > 0)
+            await _tags.UpdateManyAsync(
+                Builders<ForumTagRecord>.Filter.In(x => x.Name, added),
+                Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, 1));
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<ApiResult<CreatePostResultDto>>> Create([FromBody] CreatePostRequest request)
@@ -340,6 +578,13 @@ public class ForumPostsController : ControllerBase
             CreatedAtUtc = now,
         };
         await _posts.InsertOneAsync(doc);
+
+        // 对已在注册表中的标签同步 UseCount（混合模式：非强制校验，仅跟踪已注册标签）
+        if (tagsResult.Tags!.Count > 0)
+            await _tags.UpdateManyAsync(
+                Builders<ForumTagRecord>.Filter.In(x => x.Name, tagsResult.Tags!),
+                Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, 1));
+
         return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto { Id = doc.Id }));
     }
 
@@ -441,6 +686,19 @@ public class ForumPostsController : ControllerBase
         }
     }
 
+    private bool IsModeratorOrAdmin()
+    {
+        try
+        {
+            var role = User.GetForumPrincipalRole();
+            return role == ForumPrincipalRole.Moderator || role == ForumPrincipalRole.Admin;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private string? TryResolveBoardTitle(string? boardId) =>
         ForumBoardIdLookup.ResolveConfiguredBoardTitle(_boardOptions.Value, boardId);
 
@@ -527,6 +785,10 @@ public class PostListItemDto
     public int Views { get; set; }
     public bool LikedByMe { get; set; }
     public bool FavoritedByMe { get; set; }
+    public DateTime? UpdatedAtUtc { get; set; }
+    public string State { get; set; } = "published";
+    public DateTime? DeletedAtUtc { get; set; }
+    public string? DeletedBySub { get; set; }
 }
 
 public class PostEngagementStateDto
@@ -562,6 +824,18 @@ public class CreateReplyRequest
     public string? Body { get; set; }
 }
 
+public class UpdatePostRequest
+{
+    public string? Title { get; set; }
+    public string? Body { get; set; }
+    public List<string>? Tags { get; set; }
+}
+
+public class UpdateReplyRequest
+{
+    public string? Body { get; set; }
+}
+
 public class ReplyDto
 {
     public string Id { get; set; } = "";
@@ -570,4 +844,5 @@ public class ReplyDto
     public string AuthorDisplayName { get; set; } = "";
     public string Body { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; }
+    public DateTime? UpdatedAtUtc { get; set; }
 }

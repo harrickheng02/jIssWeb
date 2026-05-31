@@ -7,13 +7,19 @@ import { ElMessage } from 'element-plus'
 import {
   createForumReply,
   deleteModerationForumReply,
+  deleteForumPost,
+  deleteForumReply,
+  permanentDeleteForumPost,
   getForumPost,
   listForumReplies,
   submitForumReport,
+  updateForumReply,
   type ForumPostDetail,
   type ForumReply,
 } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
+import { useForumBoards } from '@/composables/useForumBoards'
+import { useForumComposeForm } from '@/composables/useForumComposeForm'
 import { confirmDeleteModerationForumReply } from '@/utils/moderationForumConfirm'
 
 const route = useRoute()
@@ -35,9 +41,50 @@ const reportTargetId = ref('')
 const reportReason = ref('')
 const reportSubmitting = ref(false)
 
+// ── Post / Reply self-delete ──────────────────────────────────────────────────
+const deletingPost = ref(false)
+const permanentDeletingPost = ref(false)
+const deletingReplyId = ref<string | null>(null)
+
+// ── Reply inline edit ─────────────────────────────────────────────────────────
+const editingReplyId = ref<string | null>(null)
+const editReplyBody = ref('')
+const editReplyBusy = ref(false)
+
+// ── Post edit compose dialog ──────────────────────────────────────────────────
+const { forumBoards, loadForumBoards } = useForumBoards()
+
+const {
+  composeOpen,
+  composeTitle,
+  composeBody,
+  composeBoardId,
+  composeTags,
+  composeSubmitting,
+  tagSuggestions,
+  tagSuggestionsLoading,
+  onTagSearch,
+  onComposeTagsChange,
+  openComposeDialogForEdit,
+  submitCompose,
+} = useForumComposeForm({
+  getDefaultBoardId: () => forumBoards.value[0]?.id ?? 'general',
+  onEditSuccess(updated) {
+    if (!post.value) return
+    post.value = {
+      ...post.value,
+      title: updated.title,
+      tags: updated.tags,
+      updatedAtUtc: updated.updatedAtUtc,
+    }
+  },
+})
+
 const postId = computed(() => String(route.params.id ?? ''))
 const isAuthed = computed(() => Boolean(auth.token))
 const canModerate = computed(() => auth.canModerate)
+const isPostAuthor = computed(() => Boolean(auth.sub && post.value && auth.sub === post.value.authorId))
+
 const targetReplyId = computed(() => {
   const q = route.query.reply
   const raw = Array.isArray(q) ? q[0] : q
@@ -92,7 +139,7 @@ async function scrollToReplyQueryAnchor() {
   ElMessage.info('未找到目标回复，已为你定位到帖子内容')
 }
 
-function formatPublishedUtc(iso: string) {
+function formatRelativeTime(iso: string) {
   const d = new Date(iso)
   const diff = Date.now() - d.getTime()
   const m = Math.floor(diff / 60000)
@@ -245,7 +292,117 @@ function resetReportDialog() {
   reportTargetId.value = ''
 }
 
+async function handleDeletePost() {
+  const ok = await ElMessageBox.confirm('确定要删除这篇帖子吗？删除后你仍可查看，也可在保留期内申请恢复。', '删除帖子', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).catch(() => false)
+  if (!ok) return
+  deletingPost.value = true
+  try {
+    const res = await deleteForumPost(postId.value)
+    if (!res.success) { ElMessage.error(res.message ?? '删除失败'); return }
+    ElMessage.success('帖子已删除')
+    // 刷新：作者可继续查看，触发 load 即可
+    await load()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  } finally {
+    deletingPost.value = false
+  }
+}
+
+async function handlePermanentDeletePost() {
+  const ok = await ElMessageBox.confirm('永久删除后无法恢复，确定继续吗？', '永久删除', {
+    confirmButtonText: '永久删除',
+    cancelButtonText: '取消',
+    type: 'error',
+  }).catch(() => false)
+  if (!ok) return
+  permanentDeletingPost.value = true
+  try {
+    const res = await permanentDeleteForumPost(postId.value)
+    if (!res.success) { ElMessage.error(res.message ?? '操作失败'); return }
+    ElMessage.success('帖子已永久删除')
+    void router.push('/')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+  } finally {
+    permanentDeletingPost.value = false
+  }
+}
+
+async function handleDeleteReply(reply: ForumReply) {
+  const ok = await ElMessageBox.confirm('确定要删除这条回复吗？', '删除回复', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).catch(() => false)
+  if (!ok) return
+  deletingReplyId.value = reply.id
+  try {
+    const res = await deleteForumReply(postId.value, reply.id)
+    if (!res.success) { ElMessage.error(res.message ?? '删除失败'); return }
+    replies.value = replies.value.filter((r) => r.id !== reply.id)
+    if (post.value) post.value = { ...post.value, comments: Math.max(0, post.value.comments - 1) }
+    ElMessage.success('回复已删除')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  } finally {
+    deletingReplyId.value = null
+  }
+}
+
+function handleEditPost() {
+  if (!post.value) return
+  const boardId = forumBoards.value.find((b) => b.title === post.value!.board)?.id
+  openComposeDialogForEdit({
+    id: post.value.id,
+    title: post.value.title,
+    body: post.value.body,
+    tags: post.value.tags,
+    boardId,
+  })
+}
+
+function startEditReply(reply: ForumReply) {
+  editingReplyId.value = reply.id
+  editReplyBody.value = reply.body
+}
+
+function cancelEditReply() {
+  editingReplyId.value = null
+  editReplyBody.value = ''
+}
+
+async function saveEditReply(reply: ForumReply) {
+  const newBody = editReplyBody.value.trim()
+  if (!newBody) {
+    ElMessage.warning('回复内容不能为空')
+    return
+  }
+  editReplyBusy.value = true
+  try {
+    const res = await updateForumReply(postId.value, reply.id, { body: newBody })
+    if (!res.success || !res.data) {
+      ElMessage.error(res.message ?? '编辑失败')
+      return
+    }
+    const idx = replies.value.findIndex((r) => r.id === reply.id)
+    if (idx !== -1) replies.value[idx] = res.data
+    editingReplyId.value = null
+    editReplyBody.value = ''
+    ElMessage.success('回复已更新')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '编辑失败')
+  } finally {
+    editReplyBusy.value = false
+  }
+}
+
 onMounted(() => {
+  void loadForumBoards()
   void load()
 })
 watch(
@@ -285,14 +442,36 @@ watch(
               <el-tag v-if="post.isFeatured" size="small" type="success" effect="plain">精华</el-tag>
               <ForumRepliesLockedMark v-if="post.repliesLocked" :size="18" />
             </div>
-            <span class="post-time">{{ formatPublishedUtc(post.publishedAtUtc) }}</span>
+            <div class="post-topline-right">
+              <span class="post-time">{{ formatRelativeTime(post.publishedAtUtc) }}</span>
+              <template v-if="isPostAuthor && post.state !== 'deleted'">
+                <el-button type="primary" link size="small" @click="handleEditPost">编辑</el-button>
+                <el-button type="danger" link size="small" :loading="deletingPost" @click="handleDeletePost">删除</el-button>
+              </template>
+            </div>
           </div>
           <h1 class="post-title">{{ post.title }}</h1>
           <div class="post-meta">
             <span class="author">{{ forumAuthorLabel(post.authorDisplayName, post.authorId) }}</span>
-            <div class="tag-list">
-              <el-tag v-for="tag in post.tags" :key="tag" size="small">{{ tag }}</el-tag>
+            <div class="post-meta-right">
+              <span v-if="post.updatedAtUtc" class="post-edited">已编辑 {{ formatRelativeTime(post.updatedAtUtc) }}</span>
+              <div class="tag-list">
+                <el-tag v-for="tag in post.tags" :key="tag" size="small">{{ tag }}</el-tag>
+              </div>
             </div>
+          </div>
+          <div v-if="post.state === 'deleted' && post.deletedBySub === auth.sub" class="post-deleted-banner">
+            <span>该帖子已被你删除</span>
+            <el-button
+              v-if="post.likes === 0 && post.comments === 0 && (post.favoriteCount ?? 0) === 0"
+              type="danger"
+              size="small"
+              plain
+              :loading="permanentDeletingPost"
+              @click="handlePermanentDeletePost"
+            >
+              永久删除
+            </el-button>
           </div>
           <div class="post-body">{{ post.body }}</div>
           <div class="post-stats">
@@ -325,10 +504,32 @@ watch(
           >
             <div class="reply-meta">
               <span class="reply-author">{{ forumAuthorLabel(r.authorDisplayName, r.authorId) }}</span>
-              <span class="reply-time">{{ formatPublishedUtc(r.createdAtUtc) }}</span>
+              <div class="reply-meta-right">
+                <span v-if="r.updatedAtUtc" class="reply-edited">已编辑</span>
+                <span class="reply-time">{{ formatRelativeTime(r.createdAtUtc) }}</span>
+              </div>
             </div>
-            <p class="reply-body">{{ r.body }}</p>
+
+            <template v-if="editingReplyId === r.id">
+              <el-input
+                v-model="editReplyBody"
+                type="textarea"
+                :rows="4"
+                placeholder="编辑回复内容…"
+                class="reply-edit-input"
+              />
+              <div class="reply-edit-actions">
+                <el-button type="primary" size="small" :loading="editReplyBusy" @click="saveEditReply(r)">保存</el-button>
+                <el-button size="small" @click="cancelEditReply">取消</el-button>
+              </div>
+            </template>
+            <p v-else class="reply-body">{{ r.body }}</p>
+
             <div class="reply-actions" role="group" aria-label="本条回复的操作">
+              <div v-if="auth.sub && auth.sub === r.authorId && editingReplyId !== r.id" class="reply-self-actions">
+                <el-button type="primary" link size="small" @click="startEditReply(r)">编辑</el-button>
+                <el-button type="danger" link size="small" :loading="deletingReplyId === r.id" @click="handleDeleteReply(r)">删除</el-button>
+              </div>
               <div v-if="canModerate" class="reply-mod">
                 <el-button
                   type="danger"
@@ -362,6 +563,45 @@ watch(
         </div>
       </template>
     </div>
+
+    <!-- 帖子编辑对话框 -->
+    <el-dialog v-model="composeOpen" title="编辑帖子" width="520px" destroy-on-close>
+      <el-form label-position="top">
+        <el-form-item label="标题">
+          <el-input v-model="composeTitle" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-form-item label="正文">
+          <el-input v-model="composeBody" type="textarea" :rows="8" maxlength="20000" show-word-limit />
+        </el-form-item>
+        <el-form-item label="板块">
+          <el-select v-model="composeBoardId" class="compose-board-select">
+            <el-option v-for="b in forumBoards" :key="b.id" :label="b.title" :value="b.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-select
+            v-model="composeTags"
+            class="compose-board-select compose-tags-select"
+            multiple
+            remote
+            filterable
+            allow-create
+            default-first-option
+            :remote-method="onTagSearch"
+            :loading="tagSuggestionsLoading"
+            :reserve-keyword="false"
+            placeholder="可选，最多 10 个"
+            @change="onComposeTagsChange"
+          >
+            <el-option v-for="t in tagSuggestions" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="composeOpen = false">取消</el-button>
+        <el-button type="primary" :loading="composeSubmitting" @click="submitCompose">保存</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="reportOpen"
@@ -432,6 +672,12 @@ watch(
   min-width: 0;
 }
 
+.post-topline-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .post-time {
   color: var(--text-secondary);
   font-size: var(--font-xs);
@@ -452,9 +698,21 @@ watch(
   align-items: center;
 }
 
+.post-meta-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
 .author {
   color: var(--color-primary);
   font-size: var(--font-sm);
+}
+
+.post-edited {
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
 }
 
 .tag-list {
@@ -478,6 +736,18 @@ watch(
 
 .stat-text {
   color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.post-deleted-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-danger, #f56c6c) 10%, transparent);
+  color: var(--color-danger, #f56c6c);
   font-size: var(--font-sm);
 }
 
@@ -516,10 +786,21 @@ watch(
   color: var(--text-secondary);
 }
 
+.reply-meta-right {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
 .reply-author {
   color: var(--color-primary);
   font-weight: 500;
   font-size: var(--font-sm);
+}
+
+.reply-edited {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
 }
 
 .reply-row--highlight {
@@ -533,6 +814,16 @@ watch(
   font-size: var(--font-sm);
   line-height: var(--line-height);
   white-space: pre-wrap;
+}
+
+.reply-edit-input {
+  margin-top: var(--space-sm);
+}
+
+.reply-edit-actions {
+  margin-top: var(--space-sm);
+  display: flex;
+  gap: var(--space-sm);
 }
 
 .reply-actions {
@@ -577,5 +868,13 @@ watch(
 
 .reply-submit {
   align-self: flex-start;
+}
+
+.compose-board-select {
+  width: 100%;
+}
+
+.compose-tags-select {
+  width: 100%;
 }
 </style>
