@@ -107,6 +107,22 @@ export const useAuthStore = defineStore('auth', () => {
   const canModerate = computed(() => forumRole.value === 'moderator' || forumRole.value === 'admin')
   const canAdmin = computed(() => forumRole.value === 'admin')
 
+  /** Parsed from JWT `forumBoardIds` JSON array; empty when claim missing or invalid. */
+  const forumBoardIds = computed<string[]>(() => {
+    const t = token.value?.trim()
+    if (!t) return []
+    const payload = decodeJwtPayload(t)
+    const raw = payload?.forumBoardIds
+    if (typeof raw !== 'string' || !raw.trim()) return []
+    try {
+      const parsed = JSON.parse(raw) as unknown
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((x) => x.trim())
+    } catch {
+      return []
+    }
+  })
+
   return {
     token,
     refreshToken,
@@ -116,6 +132,7 @@ export const useAuthStore = defineStore('auth', () => {
     forumRole,
     canModerate,
     canAdmin,
+    forumBoardIds,
     setToken,
     setRefreshToken,
     applyAuthSession,

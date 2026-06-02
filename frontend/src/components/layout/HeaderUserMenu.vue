@@ -72,7 +72,7 @@ function logout() {
 }
 
 function goModeration() {
-  void router.push('/moderation')
+  void router.push({ name: 'moderation-audit' })
 }
 </script>
 

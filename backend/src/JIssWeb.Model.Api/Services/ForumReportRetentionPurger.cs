@@ -40,4 +40,24 @@ public static class ForumReportRetentionPurger
         var res = await reports.DeleteManyAsync(filter, cancellationToken);
         return res.DeletedCount;
     }
+
+    /// <summary>
+    /// Deletes evidence snapshots whose <see cref="ForumReportEvidenceSnapshotRecord.HandledAtUtc"/> is strictly before the cutoff.
+    /// </summary>
+    public static async Task<long> PurgeStaleEvidenceSnapshotsAsync(
+        IMongoCollection<ForumReportEvidenceSnapshotRecord> snapshots,
+        int closedRetentionDays,
+        DateTime utcNow,
+        CancellationToken cancellationToken = default)
+    {
+        if (closedRetentionDays < 1)
+            closedRetentionDays = 1;
+
+        var cutoff = utcNow.AddDays(-closedRetentionDays);
+        FilterDefinitionBuilder<ForumReportEvidenceSnapshotRecord> fb = Builders<ForumReportEvidenceSnapshotRecord>.Filter;
+        var filter = fb.Lt(x => x.HandledAtUtc, cutoff);
+
+        var res = await snapshots.DeleteManyAsync(filter, cancellationToken);
+        return res.DeletedCount;
+    }
 }

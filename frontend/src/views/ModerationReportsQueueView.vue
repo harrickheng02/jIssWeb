@@ -4,8 +4,6 @@ import { useModerationReportsQueue } from '@/composables/useModerationReportsQue
 import { CaretBottom, CaretRight } from '@element-plus/icons-vue'
 
 const {
-  router,
-  canModerate,
   loading,
   items,
   totalCount,
@@ -13,6 +11,7 @@ const {
   pageSize,
   statusFilter,
   busyId,
+  exportBusyId,
   expandedReportId,
   previewByReportId,
   statusOptions,
@@ -25,6 +24,8 @@ const {
   onFilterChange,
   applyStatus,
   acknowledgeReport,
+  exportReportEvidence,
+  isClosedReport,
   statusRowLabel,
   reportPreviewIdleList,
   reportContextForRow,
@@ -47,40 +48,27 @@ const {
 
 <template>
   <div class="mod-reports">
-    <div class="mod-reports__inner">
-      <el-button class="back" text type="primary" @click="router.push({ name: 'moderation' })">
-        ← 返回治理说明
-      </el-button>
-
-      <el-card v-if="!canModerate" shadow="never" class="mod-reports__card">
-        <p class="mod-reports__hint">仅版主或管理员可查看举报队列。</p>
-      </el-card>
-
-      <template v-else>
-        <el-card shadow="never" class="mod-reports__card">
-          <template #header>
-            <div class="mod-reports__header">
-              <div>
-                <span class="mod-reports__title">举报队列</span>
-                <p class="mod-reports__subtitle">
-                  <strong>举报工单</strong>三类状态在此维护。点击<strong>整条条目</strong>展开或收起，同区展示上下文摘要与内容治理；链接「<strong>查看详情</strong>」在新标签打开帖子。结案超保留期从库移除时审计可查。
-                </p>
-              </div>
-              <el-select
-                v-model="statusFilter"
-                class="mod-reports__filter"
-                placeholder="状态"
-                @change="onFilterChange"
-              >
-                <el-option
-                  v-for="opt in statusOptions"
-                  :key="opt.value === '' ? 'all' : opt.value"
-                  :label="opt.label"
-                  :value="opt.value"
-                />
-              </el-select>
-            </div>
-          </template>
+    <el-card shadow="never" class="mod-reports__card">
+      <template #header>
+        <div class="mod-reports__header">
+          <p class="mod-reports__lead">
+            <strong>举报工单</strong>三类状态在此维护。点击<strong>整条条目</strong>展开或收起，同区展示上下文摘要与内容治理；链接「<strong>查看详情</strong>」在新标签打开帖子。已结案条目可<strong>导出证据包</strong>离线存档；待处理/已受理未结案时不可导出。结案超保留期从库移除时审计可查。
+          </p>
+          <el-select
+            v-model="statusFilter"
+            class="mod-reports__filter"
+            placeholder="状态"
+            @change="onFilterChange"
+          >
+            <el-option
+              v-for="opt in statusOptions"
+              :key="opt.value === '' ? 'all' : opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </div>
+      </template>
 
             <el-skeleton v-if="loading" :rows="6" animated />
           <div v-else-if="!items.length" class="mod-reports__empty">暂无举报</div>
@@ -267,6 +255,17 @@ const {
                     已处置
                   </el-button>
                 </el-button-group>
+                <el-button
+                  v-if="isClosedReport(row)"
+                  size="small"
+                  type="primary"
+                  class="mod-reports__export-btn"
+                  :loading="exportBusyId === row.id"
+                  :disabled="exportBusyId === row.id"
+                  @click="exportReportEvidence(row)"
+                >
+                  导出证据包
+                </el-button>
               </div>
             </div>
           </div>
@@ -279,9 +278,7 @@ const {
               :total="totalCount"
             />
           </div>
-        </el-card>
-      </template>
-    </div>
+    </el-card>
 
     <el-dialog
       v-model="sanctionDialogOpen"
@@ -328,15 +325,6 @@ const {
 
 <style scoped>
 .mod-reports {
-  min-height: 100%;
-  background: var(--bg-main);
-  color: var(--text-primary);
-}
-
-.mod-reports__inner {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: var(--space-lg) var(--space-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
@@ -358,17 +346,13 @@ const {
   flex-wrap: wrap;
 }
 
-.mod-reports__subtitle {
-  margin: var(--space-xs) 0 0;
-  font-size: var(--font-xs);
-  color: var(--text-secondary);
+.mod-reports__lead {
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+  font-size: var(--font-sm);
   line-height: var(--line-height);
-  max-width: 36rem;
-}
-
-.mod-reports__title {
-  font-weight: 700;
-  font-size: var(--font-md);
+  color: var(--text-secondary);
 }
 
 .mod-reports__filter {

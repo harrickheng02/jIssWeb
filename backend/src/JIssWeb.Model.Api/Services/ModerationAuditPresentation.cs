@@ -10,7 +10,9 @@ internal static class ModerationAuditPresentation
             "post.setSticky" => "置顶帖子",
             "post.unsetSticky" => "取消置顶",
             "report.updateStatus" => "处理举报",
-            "report.resolve" => "结案举报（历史）",
+            "report.resolve" => "结案举报",
+            "report.reject" => "驳回举报",
+            "report.acknowledge" => "标记举报已受理",
             "report.statusChange" => "举报状态变更",
             "post.lockReplies" => "锁定回复",
             "post.unlockReplies" => "解除锁定回复",
@@ -21,6 +23,7 @@ internal static class ModerationAuditPresentation
             "user.warn" => "账号警告",
             "user.mute" => "账号禁言",
             "user.unmute" => "解除禁言",
+            "audit.export" => "导出审计记录",
             _ => "操作",
         };
     }

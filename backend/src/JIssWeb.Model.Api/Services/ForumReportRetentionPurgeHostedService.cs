@@ -66,14 +66,18 @@ public sealed class ForumReportRetentionPurgeHostedService : BackgroundService
         var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
         var dbName = scope.ServiceProvider.GetRequiredService<IOptions<MongoSettings>>().Value.DatabaseName;
 
-        var coll = mongo.GetDatabase(dbName).GetCollection<ForumReportRecord>(ForumMongoSetup.ReportsCollectionName);
+        var db = mongo.GetDatabase(dbName);
+        var coll = db.GetCollection<ForumReportRecord>(ForumMongoSetup.ReportsCollectionName);
+        var snapshots = db.GetCollection<ForumReportEvidenceSnapshotRecord>(ForumMongoSetup.ReportEvidenceSnapshotsCollectionName);
         var utcNow = DateTime.UtcNow;
         var days = opts.ClosedRetentionDays;
         var deleted = await ForumReportRetentionPurger.PurgeStaleClosedAsync(coll, days, utcNow, ct).ConfigureAwait(false);
+        var snapshotsDeleted = await ForumReportRetentionPurger.PurgeStaleEvidenceSnapshotsAsync(snapshots, days, utcNow, ct).ConfigureAwait(false);
 
         _logger.LogInformation(
-            "Forum report retention purge removed {Deleted} closed report(s) with HandledAtUtc older than {Days} days (UTC now {UtcNow:O}).",
+            "Forum report retention purge removed {Deleted} closed report(s) and {SnapshotsDeleted} evidence snapshot(s) with HandledAtUtc older than {Days} days (UTC now {UtcNow:O}).",
             deleted,
+            snapshotsDeleted,
             days < 1 ? 1 : days,
             utcNow);
     }

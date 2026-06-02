@@ -450,4 +450,165 @@ public class ForumReportNotificationTests
         Assert.Equal("系统", notifEl.GetProperty("actorDisplayName").GetString());
         Assert.Equal("", notifEl.GetProperty("actorId").GetString());
     }
+
+    // ── report workflow audit (Issue #22) ────────────────────────────────────
+
+    private IMongoCollection<ForumModerationAuditRecord> Audit()
+    {
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var db = mongo.GetDatabase(_fx.DatabaseName);
+        return db.GetCollection<ForumModerationAuditRecord>(ForumMongoSetup.ModerationAuditCollectionName);
+    }
+
+    [Fact]
+    public async Task Patch_resolved_writes_report_resolve_audit_with_postId()
+    {
+        var reporterSub = "reporter-audit-res-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var req = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"resolved\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(req)).StatusCode);
+
+        var row = await Audit().Find(x => x.TargetId == reportId && x.Action == "report.resolve").FirstOrDefaultAsync();
+        Assert.NotNull(row);
+        Assert.Equal("report", row!.TargetType);
+        Assert.Equal("rn-post-1", row.Metadata!["postId"]?.ToString());
+        Assert.Equal("general", row.Metadata["boardId"]?.ToString());
+    }
+
+    [Fact]
+    public async Task Patch_rejected_writes_report_reject_audit()
+    {
+        var reporterSub = "reporter-audit-rej-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var req = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"rejected\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(req)).StatusCode);
+
+        var count = await Audit().CountDocumentsAsync(x => x.TargetId == reportId && x.Action == "report.reject");
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public async Task Patch_reopen_does_not_write_close_audit()
+    {
+        var reporterSub = "reporter-audit-reopen-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var close = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"resolved\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(close)).StatusCode);
+
+        var reopen = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"pending\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(reopen)).StatusCode);
+
+        var count = await Audit().CountDocumentsAsync(x => x.TargetId == reportId && x.Action == "report.resolve");
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public async Task Patch_repeat_close_to_same_terminal_skips_duplicate_audit()
+    {
+        var reporterSub = "reporter-audit-idem-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var req = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"resolved\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(req)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"resolved\"}",
+            "user-admin", ForumRoleClaim.Admin))).StatusCode);
+
+        var count = await Audit().CountDocumentsAsync(x => x.TargetId == reportId && x.Action == "report.resolve");
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public async Task Acknowledge_writes_report_acknowledge_audit()
+    {
+        var reporterSub = "reporter-audit-ack-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var req = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(req)).StatusCode);
+
+        var row = await Audit().Find(x => x.TargetId == reportId && x.Action == "report.acknowledge").FirstOrDefaultAsync();
+        Assert.NotNull(row);
+        Assert.Equal("rn-post-1", row!.Metadata!["postId"]?.ToString());
+    }
+
+    [Fact]
+    public async Task Acknowledge_audit_is_idempotent_on_repeat()
+    {
+        var reporterSub = "reporter-audit-ack2-" + Guid.NewGuid().ToString("N");
+        var reportId = await SeedReportAsync(reporterSub);
+
+        var req = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(req)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin))).StatusCode);
+
+        var count = await Audit().CountDocumentsAsync(x => x.TargetId == reportId && x.Action == "report.acknowledge");
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public async Task Post_audit_lists_report_acknowledge_after_acknowledge()
+    {
+        var reporterSub = "reporter-audit-post-" + Guid.NewGuid().ToString("N");
+        var postId = "rn-post-1";
+        var reportId = await SeedReportAsync(reporterSub, postId);
+
+        var ack = AuthPost($"/api/mod/reports/{reportId}/acknowledge", "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(ack)).StatusCode);
+
+        var auditReq = new HttpRequestMessage(HttpMethod.Get, $"/api/mod/audit?targetType=post&targetId={postId}&action=report.acknowledge")
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-admin", ForumRoleClaim.Admin)) },
+        };
+        var r = await _fx.Client.SendAsync(auditReq);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+
+        using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
+        var items = doc.RootElement.GetProperty("data").GetProperty("items");
+        Assert.True(items.GetArrayLength() >= 1);
+        Assert.Equal("标记举报已受理", items[0].GetProperty("actionLabel").GetString());
+    }
+
+    [Fact]
+    public async Task Terminal_transition_rejected_then_resolved_writes_two_audit_rows_on_post()
+    {
+        var reporterSub = "reporter-audit-dual-" + Guid.NewGuid().ToString("N");
+        var postId = "rn-post-1";
+        var reportId = await SeedReportAsync(reporterSub, postId);
+
+        var reject = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"rejected\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(reject)).StatusCode);
+
+        var resolve = AuthReq(HttpMethod.Patch, $"/api/mod/reports/{reportId}", "{\"status\":\"resolved\"}",
+            "user-admin", ForumRoleClaim.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(resolve)).StatusCode);
+
+        var rejectCount = await Audit().CountDocumentsAsync(x => x.TargetId == reportId && x.Action == "report.reject");
+        var resolveCount = await Audit().CountDocumentsAsync(x => x.TargetId == reportId && x.Action == "report.resolve");
+        Assert.Equal(1, rejectCount);
+        Assert.Equal(1, resolveCount);
+
+        var auditReq = new HttpRequestMessage(HttpMethod.Get, $"/api/mod/audit?targetType=post&targetId={postId}&page=1&pageSize=20")
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-admin", ForumRoleClaim.Admin)) },
+        };
+        var r = await _fx.Client.SendAsync(auditReq);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
+        var labels = doc.RootElement.GetProperty("data").GetProperty("items")
+            .EnumerateArray()
+            .Select(x => x.GetProperty("actionLabel").GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("驳回举报", labels);
+        Assert.Contains("结案举报", labels);
+    }
 }

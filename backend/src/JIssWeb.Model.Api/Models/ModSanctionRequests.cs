@@ -24,6 +24,8 @@ public class ModReportSanctionRequest
 public class ModRevokeSanctionRequest
 {
     public string RevokeReason { get; set; } = "";
+    /// <summary>可选；与举报上下文解封时传入，用于审计 metadata 关联帖线程。</summary>
+    public string? ReportId { get; set; }
 }
 
 public class ModUserSanctionResultDto

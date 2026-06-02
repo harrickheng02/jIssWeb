@@ -2,6 +2,7 @@ import {
   listModerationForumReports,
   patchModerationForumReportStatus,
   postModReportAcknowledge,
+  downloadModReportEvidence,
   getForumPost,
   getModForumReply,
   postModReportSanction,
@@ -47,6 +48,7 @@ export function useModerationReportsQueue() {
   const pageSize = ref(20)
   const statusFilter = ref<string>('pending')
   const busyId = ref<string | null>(null)
+  const exportBusyId = ref<string | null>(null)
 
   const expandedReportId = ref<string | null>(null)
   const previewByReportId = ref<Record<string, ReportPreviewEntry>>({})
@@ -220,6 +222,38 @@ export function useModerationReportsQueue() {
     }
   }
 
+  function isClosedReport(row: ForumReportQueueItem) {
+    return row.status === 'resolved' || row.status === 'rejected'
+  }
+
+  function exportEvidenceErrorMessage(code?: string, fallback?: string) {
+        if (code === 'REPORT_NOT_CLOSED') return '仅已结案举报可导出证据包'
+        if (code === 'EVIDENCE_EXPIRED') return '证据已过期或不存在，无法导出'
+        if (code === 'REPORT_NOT_FOUND') return '举报不存在，无法导出'
+    return fallback ?? '导出失败'
+  }
+
+  async function exportReportEvidence(row: ForumReportQueueItem) {
+    if (!isClosedReport(row)) return
+    exportBusyId.value = row.id
+    try {
+      const res = await downloadModReportEvidence(row.id)
+      if (!res.success || !res.data) {
+        ElMessage.error(exportEvidenceErrorMessage(res.code, res.message))
+        return
+      }
+      const url = URL.createObjectURL(res.data)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `report-${row.id}-evidence.zip`
+      anchor.click()
+      URL.revokeObjectURL(url)
+      ElMessage.success('证据包已开始下载')
+    } finally {
+      exportBusyId.value = null
+    }
+  }
+
   async function acknowledgeReport(row: ForumReportQueueItem) {
     if (row.status !== 'pending' || row.acknowledgedAtUtc) return
     busyId.value = row.id
@@ -352,6 +386,7 @@ export function useModerationReportsQueue() {
     pageSize,
     statusFilter,
     busyId,
+    exportBusyId,
     expandedReportId,
     previewByReportId,
     statusOptions,
@@ -364,6 +399,8 @@ export function useModerationReportsQueue() {
     onFilterChange,
     applyStatus,
     acknowledgeReport,
+    exportReportEvidence,
+    isClosedReport,
     statusRowLabel,
     reportPreviewIdleList,
     reportContextForRow,

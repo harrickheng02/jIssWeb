@@ -5,6 +5,7 @@ import './styles/forum-tokens.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import App from './App.vue'
 import router from './router'
 import { refresh } from './api/clients'
@@ -16,7 +17,7 @@ const pinia = createPinia()
 app.use(pinia)
 useThemeStore(pinia)
 app.use(router)
-app.use(ElementPlus)
+app.use(ElementPlus, { locale: zhCn })
 
 const auth = useAuthStore(pinia)
 

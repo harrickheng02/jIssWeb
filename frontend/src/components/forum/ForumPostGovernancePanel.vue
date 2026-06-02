@@ -14,6 +14,12 @@ import {
   setForumPostSticky,
   type ForumPostDetail,
 } from '@/api/clients'
+import {
+  ALL_MODERATION_AUDIT_ACTIONS,
+  MODERATION_AUDIT_ACTION_FILTER_OPTIONS,
+  moderationAuditActionQueryValue,
+  type ModerationAuditActionFilterValue,
+} from '@/constants/moderationAuditActions'
 import { useAuthStore } from '@/stores/auth'
 import { confirmDeleteAuthorForumPost, confirmDeleteModerationForumPost, confirmDeleteModerationForumReply } from '@/utils/moderationForumConfirm'
 
@@ -60,6 +66,13 @@ const auditError = ref<string | null>(null)
 const auditItems = ref<
   Array<{ id: string; actionLabel: string; operatorDisplayName: string; occurredAtUtc: string }>
 >([])
+const auditPage = ref(1)
+const auditPageSize = ref(10)
+const auditTotal = ref(0)
+const auditActionFilter = ref<ModerationAuditActionFilterValue>(ALL_MODERATION_AUDIT_ACTIONS)
+const auditTimeRange = ref<[Date, Date] | null>(null)
+
+const auditActionOptions = MODERATION_AUDIT_ACTION_FILTER_OPTIONS
 
 const rootClasses = computed(() => ({
   'forum-governance-panel': true,
@@ -121,16 +134,28 @@ function formatUtc(iso: string) {
   return d.toLocaleString('zh-CN')
 }
 
+function toUtcIso(d: Date) {
+  return d.toISOString()
+}
+
 async function loadAudit() {
   auditLoading.value = true
   auditError.value = null
   auditItems.value = []
   try {
-    const res = await listModerationAuditByPost(props.postId, 1, 20)
+    const res = await listModerationAuditByPost(props.postId, {
+      page: auditPage.value,
+      pageSize: auditPageSize.value,
+      action: moderationAuditActionQueryValue(auditActionFilter.value),
+      fromUtc: auditTimeRange.value?.[0] ? toUtcIso(auditTimeRange.value[0]) : undefined,
+      toUtc: auditTimeRange.value?.[1] ? toUtcIso(auditTimeRange.value[1]) : undefined,
+    })
     if (!res.success || !res.data) {
       auditError.value = res.message ?? '加载失败'
+      auditTotal.value = 0
       return
     }
+    auditTotal.value = res.data.totalCount
     auditItems.value = res.data.items.map((x) => ({
       id: x.id,
       actionLabel: x.actionLabel?.trim() || '操作',
@@ -139,12 +164,26 @@ async function loadAudit() {
     }))
   } catch (e) {
     auditError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
+    auditTotal.value = 0
   } finally {
     auditLoading.value = false
   }
 }
 
+function onAuditFilterChange() {
+  auditPage.value = 1
+  if (auditOpen.value) void loadAudit()
+}
+
+function onAuditPageChange(page: number) {
+  auditPage.value = page
+  void loadAudit()
+}
+
 function openAudit() {
+  auditActionFilter.value = ALL_MODERATION_AUDIT_ACTIONS
+  auditTimeRange.value = null
+  auditPage.value = 1
   auditOpen.value = true
   void loadAudit()
 }
@@ -361,9 +400,36 @@ defineExpose({ refreshAuditIfOpen })
     </template>
 
     <el-drawer v-if="!showReplyDeleteOnly" v-model="auditOpen" title="操作记录" size="420px" destroy-on-close>
+      <div class="audit-toolbar">
+        <el-select
+          v-model="auditActionFilter"
+          class="audit-toolbar__select"
+          @change="onAuditFilterChange"
+        >
+          <el-option
+            v-for="opt in auditActionOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-date-picker
+          v-model="auditTimeRange"
+          class="audit-toolbar__range"
+          type="datetimerange"
+          range-separator="至"
+          start-placeholder="开始时间"
+          end-placeholder="结束时间"
+          @change="onAuditFilterChange"
+        />
+      </div>
+
       <el-skeleton v-if="auditLoading" :rows="6" animated />
-      <div v-else-if="auditError" class="audit-state audit-state--error">{{ auditError }}</div>
-      <div v-else-if="!auditItems.length" class="audit-state">暂无记录</div>
+      <div v-else-if="auditError" class="audit-state audit-state--error">
+        <p>{{ auditError }}</p>
+        <el-button type="primary" plain size="small" @click="loadAudit">重试</el-button>
+      </div>
+      <div v-else-if="!auditItems.length" class="audit-state">暂无匹配记录</div>
       <div v-else class="audit-list">
         <div v-for="item in auditItems" :key="item.id" class="audit-row">
           <div class="audit-row__top">
@@ -372,6 +438,16 @@ defineExpose({ refreshAuditIfOpen })
           </div>
           <div class="audit-operator">操作者：{{ item.operatorDisplayName }}</div>
         </div>
+      </div>
+
+      <div v-if="auditTotal > auditPageSize" class="audit-pagination">
+        <el-pagination
+          layout="prev, pager, next"
+          :current-page="auditPage"
+          :page-size="auditPageSize"
+          :total="auditTotal"
+          @current-change="onAuditPageChange"
+        />
       </div>
     </el-drawer>
   </div>
@@ -446,6 +522,32 @@ defineExpose({ refreshAuditIfOpen })
 
 .audit-state--error {
   color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.audit-state--error p {
+  margin: 0;
+}
+
+.audit-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.audit-toolbar__select,
+.audit-toolbar__range {
+  width: 100%;
+}
+
+.audit-pagination {
+  margin-top: var(--space-md);
+  display: flex;
+  justify-content: center;
 }
 
 .audit-list {

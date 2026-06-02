@@ -25,6 +25,7 @@ builder.Services.Configure<ForumModerationOptions>(builder.Configuration.GetSect
 builder.Services.PostConfigure<ForumModerationOptions>(o => o.Moderators ??= new());
 builder.Services.Configure<ForumSearchRateLimitOptions>(builder.Configuration.GetSection(ForumSearchRateLimitOptions.SectionName));
 builder.Services.Configure<ForumReportRetentionOptions>(builder.Configuration.GetSection(ForumReportRetentionOptions.SectionName));
+builder.Services.Configure<ForumModerationAuditOptions>(builder.Configuration.GetSection(ForumModerationAuditOptions.SectionName));
 builder.Services.Configure<InternalServiceOptions>(builder.Configuration.GetSection(InternalServiceOptions.SectionName));
 builder.Services.Configure<UserServiceOptions>(builder.Configuration.GetSection(UserServiceOptions.SectionName));
 builder.Services.AddMemoryCache();

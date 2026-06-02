@@ -81,6 +81,18 @@ meta:
         - 举报人查询处理进度的 API
         - SLA 承诺
         - 处理详情对举报人公开
+    - issue_number: 22
+      related_title: 帖子操作记录筛选深化与举报审计补齐
+      out_of_scope:
+        - 不绑定帖子的全局审计 feed 独立页（后续按运营反馈单开）
+        - 审计 CSV/zip 批量导出（Issue #18 后续；单 report 证据 zip 已由 Issue #19 change-C 交付）
+        - 版区维度跨帖筛选（本 change 仅在帖上下文抽屉内筛选）
+    - issue_number: 19
+      related_title: 举报后续：账号处罚、工单 SLA、举报人通知与证据导出
+      out_of_scope:
+        - 举报工单 SLA 与超时升级提醒
+        - 版主指派或升级队列
+        - 举报人处理进度查询 API
     - issue_number: 23
       related_title: 帖子与回复自编辑及草稿最小集
       out_of_scope:
@@ -111,7 +123,7 @@ modules:
   - name: 个人中心
     description: 我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；个人资料能力并入个人中心，与现有 Profile 能力合并演进
   - name: 治理与审核
-    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、`openspec/specs/token-identity-consistency`）；版主版区范围由 `forumBoardIds` 签发；举报最小闭环（Issue #4 closed）；锁帖与加精（Issue #20 closed）；操作台持续建设见 Issue #18；举报结案通知（Issue #21 closed）；举报后续见 Issue #19。
+    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、`openspec/specs/token-identity-consistency`）；版主版区范围由 `forumBoardIds` 签发；举报最小闭环（Issue #4 closed）；锁帖与加精（Issue #20 closed）；帖操作记录筛选与举报审计（Issue #22 closed）；操作台持续建设见 Issue #18；举报进阶首期（Issue #19 closed，含处罚/通知/审计/证据 zip）；举报 SLA / 指派 defer 见 `meta.deferred_scope` issue_number 19。
   - name: 运营与公告
     description: 公告位、活动 Banner（与首页右侧公告模块衔接）
   - name: 平台与基础设施
@@ -221,14 +233,12 @@ issues:
   - title: 版主治理与帖子操作后台持续建设
     body: |
       定位：在 Issue #7 已交付的置顶、审计列表与前端最小集之上，**长期迭代**的版主治理轨道；每期以子 Issue 或 OpenSpec change 为粒度交付。
-      已交付子 Issue：
+      已交付子 Issue / change：
       - Issue #20 版主锁帖与加精操作（closed）
-      当前阶段（下一 OpenSpec change，未单开子 Issue）：
-      - 审计列表筛选分页深化（按操作类型、版区、时间范围）
+      - Issue #22 帖子操作记录筛选深化与举报审计补齐（closed）
+      - **forum-moderation-audit-global-feed**（merged）：全局审计 feed、CSV 导出、治理工作台 Tab（审计动态｜举报队列｜标签管理）；规范见 `openspec/specs/forum-moderation-audit-feed`、`openspec/specs/forum-moderation-sticky-ui` 增量；变更归档 `openspec/changes/archive/2026-06-02-forum-moderation-audit-global-feed/`。
       后续方向（时序待定）：
-      - 审计导出或运营视图（格式与权限边界待设计）
-      - 与 Issue #19 举报进阶链路的衔接占位（如「由举报触发的处置」在审计中可查）
-      - 前端版主操作台信息架构随动作增加持续迭代
+      - 前端版主操作台信息架构随动作增加持续迭代（完整 layout 仍 defer）
       验收标准（方向性，逐项子 Issue 收紧）：
       - 扩展帖子治理动作与现有 JWT、`Forum:Moderation:Moderators` 版区范围一致；状态在列表与详情可反映；审计与列表查询可联调。
       - 审计与操作台能力深化：筛选分页、导出或运营视图（择一或多）、与举报进阶（**Issue #19**）链路的衔接说明或占位。
@@ -248,19 +258,16 @@ issues:
       - Issue #21 举报人结案站内通知（closed）
       - **change-A** `forum-user-sanctions-minimal`（merged）：警告 + 限时禁言；User.Api `user_sanctions` 与内网 status；Model.Api 写操作禁言拦截与版主下发/解封；举报队列 **处罚 reason 必填**、删内容 **reportId 强制且静默**；fail-closed（status 不可用 → 503 `SANCTION_SERVICE_UNAVAILABLE`）；规范见 `openspec/specs/forum-user-sanctions` 等；变更归档 `openspec/changes/archive/2026-05-31-forum-user-sanctions-minimal/`。
       - **change-B** `forum-report-acknowledged-notification`（merged）：`POST /api/mod/reports/{id}/acknowledge` 写 `ReportAcknowledged` 通知；pending 工单保留 status 并记录 acknowledge 字段；与 `ReportResolved` 双节点幂等共存；前端队列「标记已受理」与通知文案；规范见 `openspec/specs/report-acknowledged-notification` 等；变更归档 `openspec/changes/archive/2026-05-31-forum-report-acknowledged-notification/`。
-      当前阶段（change-C，时序待定）：
-      - change-C：`forum-report-evidence-export-operational`（运营复盘级 zip 导出；法务级哈希链/WORM 后续迭代）
-      - SLA / 指派或升级队列（账号处罚 + 证据导出稳定后再接入；与 Issue #18 审计深化并行规划边界）
-      验收标准（方向性，逐项 change 收紧）：
-      - **change-B**（已交付）：已受理站内通知（幂等）；结案见 Issue #21。
-      - **change-C**：运营复盘级证据导出（快照 + zip）；与 `Forum:ReportRetention` purge 策略协调。
-      - **SLA / 指派**：移出 M3 首期，独立 change 交付。
+      - Issue #22 举报结案/已受理**写审计**（closed）：`PATCH` 结案写 `report.resolve`/`report.reject`，`Acknowledge` 写 `report.acknowledge`；帖线程审计纳入同帖 `user.*` 与 `report.*`（`metadata.postId`）；规范见 `openspec/specs/forum-report-api`、`forum-moderation-post-ops`、`forum-moderation-sticky-ui`、`forum-user-sanctions` 增量；变更归档 `openspec/changes/archive/2026-06-01-forum-moderation-audit-post-filters/`。
+      - **change-C** `forum-report-evidence-export-operational`（merged）：结案写 `forum_report_evidence_snapshots`；`GET /api/mod/reports/{id}/evidence` 运营复盘级 zip（仅 closed；`REPORT_NOT_CLOSED`/`EVIDENCE_EXPIRED`/`REPORT_NOT_FOUND`）；`EvidenceZipBuilder`；snapshot 与 `Forum:ReportRetention:ClosedRetentionDays` 同期 purge；导出时缺失 snapshot 补写；`sanctions-summary` 按 `reportId` 过滤；前端举报队列「导出证据包」；规范见 `openspec/specs/forum-report-evidence-export` 等；变更归档 `openspec/changes/archive/2026-06-01-forum-report-evidence-export-operational/`。
+      后续 defer（排期时单开 Issue / OpenSpec change）：SLA / 指派或升级队列，见 `pm-plan.yaml` → `meta.deferred_scope` issue_number 19（与 Issue #18 审计深化并行规划边界）。
       依赖：Issue #4 closed；Issue #21 closed；`openspec/specs/forum-report-api`、`forum-moderation-delete-content`；可与 Issue #18 并行（共享 `audit.metadata.reportId` 契约）。
       非目标：全量封禁（ban）；永久禁言（首期）；JWT claim 携带处罚状态；法务级证据链；单条 Issue 一次性打包全部能力；举报人进度查询 API；处理结论对举报人公开；**版主删帖/删回复向作者发送通知或披露删除原因**。
+      交付确认：change-A/B/C 及子 Issue #21/#22 均已 merged/closed；Issue #19 首期治理能力闭环；SLA / 指派移出 M3 首期并登记 defer。
     milestone: M3 — 治理与增长
     issue_number: 19
     priority: 主要
-    state: open
+    state: closed
     module: 治理与审核
     classification: feature
   - title: 版主锁帖与加精操作
@@ -290,6 +297,24 @@ issues:
       交付确认：`InAppNotificationTypes.ReportResolved`；`ModReportsController.PatchStatus` 结案副作用；`ForumNotificationsController` ReportResolved 映射；规范见 `openspec/specs/report-resolved-notification` 及 `forum-report-api`、`in-app-notifications` 增量；变更归档 `openspec/changes/archive/2026-05-15-m3-report-resolved-notification/`。
     milestone: M3 — 治理与增长
     issue_number: 21
+    priority: 主要
+    state: closed
+    module: 治理与审核
+    classification: feature
+  - title: 帖子操作记录筛选深化与举报审计补齐
+    body: |
+      父 Issue #18 已交付子项。OpenSpec change `forum-moderation-audit-post-filters`。
+      验收标准：
+      - **按帖审计 API 扩展**：`GET /api/mod/audit?targetType=post&targetId=` 在现有分页基础上支持可选 `action`（单值或多值，与 `ModerationAuditPresentation` 动作码一致）、`fromUtc` / `toUtc`；非法组合返回统一错误合同；版主鉴权与现有一致。
+      - **帖线程审计范围扩展**：除帖/回复治理动作外，纳入与该帖关联的 `user.warn` / `user.mute` / `user.unmute`（经 `metadata.reportId` 关联到该帖举报，或 `metadata.postId` 等于帖 id）；排序仍按 `occurredAtUtc` 降序。
+      - **举报 workflow 写审计**：`ModReportsController.PatchStatus` 在 `resolved` / `rejected` 结案时写审计（含 `metadata.reportId`、`metadata.postId` 当 target 为帖/回复时）；`Acknowledge` 写 `report.acknowledge`（或等价动作码）审计；幂等重试不产生重复审计行（以业务键或 upsert 策略在规范中定义）。
+      - **前端帖详情抽屉**：`ForumPostGovernancePanel` 操作记录区增加操作类型筛选、时间范围筛选与分页控件；筛选变更重置页码；空结果与错误态可辨。
+      - 集成测试：筛选组合、分页边界、举报结案/受理审计写入、帖上下文展示作者处罚记录；回归现有按帖审计与 #20 治理动作。
+      依赖：Issue #7 closed；Issue #17 closed；Issue #20 closed；Issue #19 change-A/B merged（`reportId` 审计契约、`ModReportsController`）；`openspec/specs/forum-moderation-post-ops`、`forum-moderation-sticky-ui`、`forum-report-api`、`forum-user-sanctions`。
+      非目标：不绑定帖子的全局审计 feed 页；版区跨帖筛选；审计 CSV/zip 导出；新帖子治理动作（沉帖等）。
+      交付确认：`ModAuditController` action/fromUtc/toUtc 筛选；`PostThreadAuditQuery` 帖线程 user/report 分支；`ForumReportModerationAuditWriter` 结案/受理写审计；`ModUserSanctionsController` 处罚/unmute `metadata.postId`；`ForumPostGovernancePanel` 筛选/分页/重试；`listModerationAuditByPost` Axios query 序列化（`paramsSerializer: { indexes: null }`）；测试 `ForumModerationAuditFilterTests`、`clients.moderation-audit.test.ts` 等；规范见上述四份 spec 增量；变更归档 `openspec/changes/archive/2026-06-01-forum-moderation-audit-post-filters/`。
+    milestone: M3 — 治理与增长
+    issue_number: 22
     priority: 主要
     state: closed
     module: 治理与审核

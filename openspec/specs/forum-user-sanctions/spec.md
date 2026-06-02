@@ -44,14 +44,19 @@ The User service SHALL expose `GET /api/internal/users/{sub}/forum-sanction-stat
 
 ### Requirement: Moderators and admins issue warnings and mutes from Model API
 
-The Model service SHALL expose `POST /api/mod/users/{sub}/sanctions` and `POST /api/mod/reports/{reportId}/sanctions` for authenticated moderators and administrators. The body SHALL include `type` (`warning` or `mute`), non-empty `reason`, mandatory `reportId` when invoked from the report-queue governance flow, and for mutes `durationPreset` (`24h`, `7d`, or `30d`; default `24h` when omitted). Administrators MAY act on any user tied to a report in scope. Moderators SHALL succeed only when the linked report's `boardId` is within their moderator scope. On success the handler SHALL call the User service internal create API, append a moderation audit record with action `user.warn` or `user.mute` and metadata including `reportId`, `reason`, and sanction identifiers, and for warnings SHALL write a `ForumWarning` in-app notification to the target user.
+The Model service SHALL expose `POST /api/mod/users/{sub}/sanctions` and `POST /api/mod/reports/{reportId}/sanctions` for authenticated moderators and administrators. The body SHALL include `type` (`warning` or `mute`), non-empty `reason`, mandatory `reportId` when invoked from the report-queue governance flow, and for mutes `durationPreset` (`24h`, `7d`, or `30d`; default `24h` when omitted). Administrators MAY act on any user tied to a report in scope. Moderators SHALL succeed only when the linked report's `boardId` is within their moderator scope. On success the handler SHALL call the User service internal create API, append a moderation audit record with action `user.warn` or `user.mute` and metadata including `reportId`, `postId` (from the linked report's post context), `boardId`, `reason`, and sanction identifiers, and for warnings SHALL write a `ForumWarning` in-app notification to the target user.
 
 #### Scenario: Moderator mutes author from report queue
 
 - **WHEN** a moderator posts `{ "type": "mute", "durationPreset": "24h", "reason": "重复灌水", "reportId": "r1" }` for a report in their board scope
 - **THEN** the response SHALL succeed
 - **AND** a mute sanction SHALL exist for the target user
-- **AND** an audit row with action `user.mute` and `metadata.reportId=r1` SHALL exist
+- **AND** an audit row with action `user.mute` and `metadata.reportId=r1` and `metadata.postId` equal to the report's post context SHALL exist
+
+#### Scenario: Warning from report includes post linkage metadata
+
+- **WHEN** a warning is issued from a report targeting a post
+- **THEN** the audit metadata SHALL include `postId` identifying that post for post-thread audit queries
 
 #### Scenario: Empty reason rejected
 
@@ -66,12 +71,17 @@ The Model service SHALL expose `POST /api/mod/users/{sub}/sanctions` and `POST /
 
 ### Requirement: Moderators and admins may revoke mutes early
 
-The Model service SHALL expose `POST /api/mod/users/{sub}/sanctions/{sanctionId}/revoke` with non-empty `revokeReason` in the body. On success the User service record SHALL set `revokedAtUtc` and revocation operator fields, and a moderation audit row with action `user.unmute` SHALL be appended with metadata including `revokeReason` and optional `reportId`.
+The Model service SHALL expose `POST /api/mod/users/{sub}/sanctions/{sanctionId}/revoke` with non-empty `revokeReason` in the body. On success the User service record SHALL set `revokedAtUtc` and revocation operator fields, and a moderation audit row with action `user.unmute` SHALL be appended with metadata including `revokeReason`, optional `reportId`, and when `reportId` is present also `postId` and `boardId` from the linked report.
 
 #### Scenario: Early revoke clears active mute
 
 - **WHEN** an authorized caller revokes an active mute with a non-empty reason
 - **THEN** subsequent internal status queries for that user SHALL return `isMuted=false`
+
+#### Scenario: Revoke after mute from report retains post linkage
+
+- **WHEN** a mute created from report `r1` tied to post `P1` is revoked
+- **THEN** the `user.unmute` audit row SHALL include `metadata.postId=P1`
 
 #### Scenario: Revoke without reason rejected
 

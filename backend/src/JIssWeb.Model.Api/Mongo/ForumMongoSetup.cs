@@ -19,6 +19,7 @@ public static class ForumMongoSetup
     public const string AnnouncementsCollectionName = "forum_announcements";
     public const string ModerationAuditCollectionName = "forum_moderation_audit";
     public const string ReportsCollectionName = "forum_reports";
+    public const string ReportEvidenceSnapshotsCollectionName = "forum_report_evidence_snapshots";
     public const string TagsCollectionName = "forum_tags";
 
     private static readonly Lazy<(string Title, string AuthorSubId)> PostSearchBsonFields = new(() =>
@@ -44,6 +45,8 @@ public static class ForumMongoSetup
                 BsonClassMap.RegisterClassMap<ForumAnnouncementRecord>(cm => cm.AutoMap());
             if (!BsonClassMap.IsClassMapRegistered(typeof(ForumReportRecord)))
                 BsonClassMap.RegisterClassMap<ForumReportRecord>(cm => cm.AutoMap());
+            if (!BsonClassMap.IsClassMapRegistered(typeof(ForumReportEvidenceSnapshotRecord)))
+                BsonClassMap.RegisterClassMap<ForumReportEvidenceSnapshotRecord>(cm => cm.AutoMap());
         }
 
         using var scope = services.CreateScope();
@@ -109,6 +112,10 @@ public static class ForumMongoSetup
             .Ascending(x => x.TargetId)
             .Descending(x => x.OccurredAtUtc);
         moderationAudit.Indexes.CreateOne(new CreateIndexModel<ForumModerationAuditRecord>(auditKeys));
+        var auditFeedKeys = Builders<ForumModerationAuditRecord>.IndexKeys
+            .Descending(x => x.OccurredAtUtc)
+            .Ascending("Metadata.boardId");
+        moderationAudit.Indexes.CreateOne(new CreateIndexModel<ForumModerationAuditRecord>(auditFeedKeys));
 
         var reports = db.GetCollection<ForumReportRecord>(ReportsCollectionName);
         var reportListKeys = Builders<ForumReportRecord>.IndexKeys.Ascending(x => x.Status).Descending(x => x.CreatedAtUtc);
@@ -128,6 +135,22 @@ public static class ForumMongoSetup
         reports.Indexes.CreateOne(new CreateIndexModel<ForumReportRecord>(reportDupKeys, reportDupOpts));
         var reportsClosedHandled = Builders<ForumReportRecord>.IndexKeys.Ascending(x => x.Status).Ascending(x => x.HandledAtUtc);
         reports.Indexes.CreateOne(new CreateIndexModel<ForumReportRecord>(reportsClosedHandled));
+
+        var evidenceSnapshots = db.GetCollection<ForumReportEvidenceSnapshotRecord>(ReportEvidenceSnapshotsCollectionName);
+        var evidenceReportHandled = Builders<ForumReportEvidenceSnapshotRecord>.IndexKeys
+            .Ascending(x => x.ReportId)
+            .Ascending(x => x.HandledAtUtc);
+        evidenceSnapshots.Indexes.CreateOne(new CreateIndexModel<ForumReportEvidenceSnapshotRecord>(
+            evidenceReportHandled,
+            new CreateIndexOptions<ForumReportEvidenceSnapshotRecord>
+            {
+                Unique = true,
+                Name = "uniq_report_handled",
+            }));
+        var evidenceHandledPurge = Builders<ForumReportEvidenceSnapshotRecord>.IndexKeys.Ascending(x => x.HandledAtUtc);
+        evidenceSnapshots.Indexes.CreateOne(new CreateIndexModel<ForumReportEvidenceSnapshotRecord>(
+            evidenceHandledPurge,
+            new CreateIndexOptions { Name = "handled_at_purge" }));
 
         lock (BsonRegistrationLock)
         {

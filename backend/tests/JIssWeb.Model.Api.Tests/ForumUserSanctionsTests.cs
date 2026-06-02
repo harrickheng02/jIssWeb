@@ -260,4 +260,84 @@ public sealed class ForumUserSanctionsTests
         var note = await notes.Find(x => x.RecipientSubId == "user-reply-author" && x.Type == InAppNotificationTypes.ForumWarning).FirstOrDefaultAsync();
         Assert.NotNull(note);
     }
+
+    [Fact]
+    public async Task Sanction_from_report_writes_audit_postId_metadata()
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, "/api/mod/reports/san-report-1/sanctions")
+        {
+            Content = JsonContent.Create(new { type = "warning", reason = "违规提醒" }),
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator, new[] { "general" })) },
+        };
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(req)).StatusCode);
+
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var db = mongo.GetDatabase(_fx.DatabaseName);
+        var audit = db.GetCollection<ForumModerationAuditRecord>(ForumMongoSetup.ModerationAuditCollectionName);
+        var row = await audit.Find(x => x.Action == "user.warn").SortByDescending(x => x.OccurredAtUtc).FirstOrDefaultAsync();
+        Assert.NotNull(row);
+        Assert.Equal("san-post-1", row!.Metadata!["postId"]?.ToString());
+        Assert.Equal("general", row.Metadata["boardId"]?.ToString());
+    }
+
+    [Fact]
+    public async Task Post_thread_audit_lists_user_warn_after_sanction()
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, "/api/mod/reports/san-report-1/sanctions")
+        {
+            Content = JsonContent.Create(new { type = "warning", reason = "帖上下文审计" }),
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator, new[] { "general" })) },
+        };
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(req)).StatusCode);
+
+        var auditReq = new HttpRequestMessage(HttpMethod.Get, "/api/mod/audit?targetType=post&targetId=san-post-1&action=user.warn")
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator, new[] { "general" })) },
+        };
+        var r = await _fx.Client.SendAsync(auditReq);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+
+        var body = await r.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        Assert.True(doc.RootElement.GetProperty("data").GetProperty("totalCount").GetInt32() >= 1);
+    }
+
+    [Fact]
+    public async Task Unmute_after_report_mute_writes_audit_postId_via_prior_mute_row()
+    {
+        var muteReq = new HttpRequestMessage(HttpMethod.Post, "/api/mod/reports/san-report-1/sanctions")
+        {
+            Content = JsonContent.Create(new { type = "mute", reason = "重复灌水", durationPreset = "24h" }),
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator, new[] { "general" })) },
+        };
+        var muteRes = await _fx.Client.SendAsync(muteReq);
+        Assert.Equal(HttpStatusCode.OK, muteRes.StatusCode);
+        var muteBody = await muteRes.Content.ReadAsStringAsync();
+        using var muteDoc = JsonDocument.Parse(muteBody);
+        var sanctionId = muteDoc.RootElement.GetProperty("data").GetProperty("sanctionId").GetString();
+        Assert.False(string.IsNullOrEmpty(sanctionId));
+
+        var revokeReq = new HttpRequestMessage(HttpMethod.Post, $"/api/mod/users/user-author/sanctions/{sanctionId}/revoke")
+        {
+            Content = JsonContent.Create(new { revokeReason = "已改正" }),
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator, new[] { "general" })) },
+        };
+        Assert.Equal(HttpStatusCode.OK, (await _fx.Client.SendAsync(revokeReq)).StatusCode);
+
+        using var scope = _fx.Factory.Services.CreateScope();
+        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        var db = mongo.GetDatabase(_fx.DatabaseName);
+        var audit = db.GetCollection<ForumModerationAuditRecord>(ForumMongoSetup.ModerationAuditCollectionName);
+        var row = await audit.Find(x => x.Action == "user.unmute").SortByDescending(x => x.OccurredAtUtc).FirstOrDefaultAsync();
+        Assert.NotNull(row);
+        Assert.Equal("san-post-1", row!.Metadata!["postId"]?.ToString());
+
+        var auditReq = new HttpRequestMessage(HttpMethod.Get, "/api/mod/audit?targetType=post&targetId=san-post-1&action=user.unmute")
+        {
+            Headers = { Authorization = new AuthenticationHeaderValue("Bearer", JwtTestTokens.CreateAccessToken("user-mod", ForumRoleClaim.Moderator, new[] { "general" })) },
+        };
+        var auditList = await _fx.Client.SendAsync(auditReq);
+        Assert.Equal(HttpStatusCode.OK, auditList.StatusCode);
+    }
 }

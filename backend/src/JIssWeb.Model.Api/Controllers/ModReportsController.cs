@@ -18,26 +18,35 @@ namespace JIssWeb.Model.Api.Controllers;
 public sealed class ModReportsController : ControllerBase
 {
     private readonly IMongoCollection<ForumReportRecord> _reports;
+    private readonly IMongoCollection<ForumReportEvidenceSnapshotRecord> _evidenceSnapshots;
+    private readonly IMongoCollection<ForumReplyRecord> _replies;
     private readonly IMongoCollection<InAppNotificationRecord> _notifications;
     private readonly IMongoCollection<ForumPostRecord> _posts;
+    private readonly IMongoCollection<ForumModerationAuditRecord> _audit;
     private readonly ForumModerationAccessService _access;
     private readonly ForumAuthorDisplayResolver _displayNames;
     private readonly ForumReportTargetResolver _targetResolver;
+    private readonly ILogger<ModReportsController> _logger;
 
     public ModReportsController(
         IMongoClient mongoClient,
         IOptions<MongoSettings> mongoOptions,
         ForumModerationAccessService access,
         ForumAuthorDisplayResolver displayNames,
-        ForumReportTargetResolver targetResolver)
+        ForumReportTargetResolver targetResolver,
+        ILogger<ModReportsController> logger)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _reports = db.GetCollection<ForumReportRecord>(ForumMongoSetup.ReportsCollectionName);
+        _evidenceSnapshots = db.GetCollection<ForumReportEvidenceSnapshotRecord>(ForumMongoSetup.ReportEvidenceSnapshotsCollectionName);
+        _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
         _notifications = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
+        _audit = db.GetCollection<ForumModerationAuditRecord>(ForumMongoSetup.ModerationAuditCollectionName);
         _access = access;
         _displayNames = displayNames;
         _targetResolver = targetResolver;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -155,6 +164,7 @@ public sealed class ModReportsController : ControllerBase
                 return StatusCode(StatusCodes.Status403Forbidden, ApiResult<ForumReportListItemDto>.Fail("无权处理该举报", "FORBIDDEN"));
         }
 
+        var priorCanonical = CanonicalStatus(report.Status);
         var now = DateTime.UtcNow;
         UpdateDefinition<ForumReportRecord> update;
         if (string.Equals(storedStatus, ForumReportStatuses.Pending, StringComparison.Ordinal))
@@ -190,6 +200,14 @@ public sealed class ModReportsController : ControllerBase
         if (storedStatus == ForumReportStatuses.Resolved || storedStatus == ForumReportStatuses.Rejected)
         {
             await TryWriteReportNotificationAsync(report, InAppNotificationTypes.ReportResolved, now, ct);
+            if (updated.HandledAtUtc.HasValue
+                && !string.Equals(priorCanonical, storedStatus, StringComparison.Ordinal))
+            {
+                await ForumReportModerationAuditWriter.TryWriteStatusCloseAsync(
+                    _audit, _logger, updated, sub, storedStatus, updated.HandledAtUtc.Value, ct);
+                await ForumReportEvidenceSnapshotWriter.TryWriteOnCloseAsync(
+                    _evidenceSnapshots, _posts, _replies, _logger, updated, ct);
+            }
         }
 
         var targetAuthorSub = await _targetResolver.ResolveTargetAuthorSubAsync(updated, ct);
@@ -198,6 +216,69 @@ public sealed class ModReportsController : ControllerBase
                 .Concat(string.IsNullOrWhiteSpace(targetAuthorSub) ? Array.Empty<string>() : new[] { targetAuthorSub! }),
             ct);
         return Ok(ApiResult<ForumReportListItemDto>.Ok(ToListItemDto(updated, patchNames, targetAuthorSub)));
+    }
+
+    [HttpGet("{reportId}/evidence")]
+    [Authorize]
+    [RequireForumModerator]
+    public async Task<IActionResult> ExportEvidence(string reportId, CancellationToken ct = default)
+    {
+        var rid = (reportId ?? "").Trim();
+        if (rid.Length == 0)
+            return BadRequest(ApiResult<object>.Fail("举报无效", "INVALID_REPORT_ID"));
+
+        string sub;
+        try
+        {
+            sub = User.GetUserId();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(ApiResult<object>.Fail("未授权", "UNAUTHORIZED"));
+        }
+
+        var report = await _reports.Find(x => x.Id == rid).FirstOrDefaultAsync(ct);
+        var snapshot = await ForumReportEvidenceExporter.FindSnapshotAsync(_evidenceSnapshots, rid, report?.HandledAtUtc, ct);
+
+        if (report is null && snapshot is null)
+        {
+            var hadTrace = await ForumReportEvidenceExporter.HasHistoricalEvidenceTraceAsync(_audit, rid, ct);
+            return NotFound(ApiResult<object>.Fail(
+                hadTrace ? "证据已过期或不存在" : "举报不存在",
+                hadTrace ? "EVIDENCE_EXPIRED" : "REPORT_NOT_FOUND"));
+        }
+
+        var boardId = report?.BoardId ?? snapshot?.BoardId ?? "";
+        var role = User.GetForumPrincipalRole();
+        if (role == ForumPrincipalRole.Moderator)
+        {
+            if (string.IsNullOrWhiteSpace(boardId)
+                || !_access.CanModerateBoardIdAsModerator(User, sub, boardId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResult<object>.Fail("无权导出该举报证据", "FORBIDDEN"));
+            }
+        }
+
+        if (report is not null && CanonicalStatus(report.Status) == ForumReportStatuses.Pending)
+            return BadRequest(ApiResult<object>.Fail("仅已结案举报可导出证据", "REPORT_NOT_CLOSED"));
+
+        if (report is not null
+            && CanonicalStatus(report.Status) != ForumReportStatuses.Pending
+            && snapshot is null
+            && report.HandledAtUtc.HasValue)
+        {
+            await ForumReportEvidenceSnapshotWriter.TryWriteOnCloseAsync(
+                _evidenceSnapshots, _posts, _replies, _logger, report, ct);
+            snapshot = await ForumReportEvidenceExporter.FindSnapshotAsync(
+                _evidenceSnapshots, rid, report.HandledAtUtc, ct);
+        }
+
+        var zip = await ForumReportEvidenceExporter.TryBuildZipAsync(
+            _evidenceSnapshots, _audit, _posts, _replies, report, snapshot, sub, ct);
+        if (zip is null)
+            return NotFound(ApiResult<object>.Fail("证据已过期或不存在", "EVIDENCE_EXPIRED"));
+
+        return File(zip, "application/zip", $"report-{rid}-evidence.zip");
     }
 
     [HttpPost("{reportId}/acknowledge")]
@@ -244,6 +325,7 @@ public sealed class ModReportsController : ControllerBase
             return NotFound(ApiResult<ForumReportListItemDto>.Fail("举报不存在", "NOT_FOUND"));
 
         await TryWriteReportNotificationAsync(report, InAppNotificationTypes.ReportAcknowledged, now, ct);
+        await ForumReportModerationAuditWriter.TryWriteAcknowledgeAsync(_audit, _logger, report, sub, ct);
 
         var updated = await _reports.Find(x => x.Id == rid).FirstOrDefaultAsync(ct);
         if (updated is null)

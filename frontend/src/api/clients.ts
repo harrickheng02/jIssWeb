@@ -307,6 +307,30 @@ export interface PagedModerationAudit {
   pageSize: number
 }
 
+export type ModerationAuditActionFilter =
+  | 'post.setSticky'
+  | 'post.unsetSticky'
+  | 'post.lockReplies'
+  | 'post.unlockReplies'
+  | 'post.setFeatured'
+  | 'post.unsetFeatured'
+  | 'post.modDelete'
+  | 'reply.modDelete'
+  | 'user.warn'
+  | 'user.mute'
+  | 'user.unmute'
+  | 'report.acknowledge'
+  | 'report.resolve'
+  | 'report.reject'
+
+export interface ListModerationAuditOptions {
+  page?: number
+  pageSize?: number
+  action?: ModerationAuditActionFilter | ModerationAuditActionFilter[]
+  fromUtc?: string
+  toUtc?: string
+}
+
 function mapModerationError(error: unknown): ApiErrorResult {
   const e = error as AxiosError<ApiResult<unknown>> | undefined
   const status = e?.response?.status
@@ -458,10 +482,120 @@ export async function getModForumReply(replyId: string) {
   }
 }
 
-export async function listModerationAuditByPost(postId: string, page = 1, pageSize = 20) {
+export interface ModerationAuditFeedItem extends ModerationAuditItem {
+  boardId: string
+  boardLabel: string
+  postId: string
+  reportId: string
+}
+
+export interface PagedModerationAuditFeed {
+  items: ModerationAuditFeedItem[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+export interface ListModerationAuditFeedOptions {
+  page?: number
+  pageSize?: number
+  action?: ModerationAuditActionFilter | ModerationAuditActionFilter[]
+  fromUtc?: string
+  toUtc?: string
+  boardId?: string
+}
+
+function buildModerationAuditFeedFilterParams(
+  opts: ListModerationAuditFeedOptions,
+): Record<string, string | number | string[] | undefined> {
+  const params: Record<string, string | number | string[] | undefined> = {}
+  if (opts.fromUtc) params.fromUtc = opts.fromUtc
+  if (opts.toUtc) params.toUtc = opts.toUtc
+  if (opts.boardId) params.boardId = opts.boardId
+  if (opts.action) {
+    const actions = Array.isArray(opts.action) ? opts.action : [opts.action]
+    params.action = actions.length === 1 ? actions[0]! : actions
+  }
+  return params
+}
+
+function buildModerationAuditFeedParams(opts: ListModerationAuditFeedOptions): Record<string, string | number | string[] | undefined> {
+  return {
+    page: opts.page ?? 1,
+    pageSize: opts.pageSize ?? 20,
+    ...buildModerationAuditFeedFilterParams(opts),
+  }
+}
+
+export async function listModerationAuditFeed(options: ListModerationAuditFeedOptions = {}) {
+  try {
+    const { data } = await modelApi.get<ApiResult<PagedModerationAuditFeed>>('/mod/audit/feed', {
+      params: buildModerationAuditFeedParams(options),
+      paramsSerializer: { indexes: null },
+    })
+    return data
+  } catch (e) {
+    return mapModerationError(e)
+  }
+}
+
+export async function exportModerationAuditCsv(options: ListModerationAuditFeedOptions = {}) {
+  try {
+    const response = await modelApi.get<Blob>('/mod/audit/export', {
+      params: buildModerationAuditFeedFilterParams(options),
+      paramsSerializer: { indexes: null },
+      responseType: 'blob',
+    })
+    return { success: true as const, blob: response.data, filename: parseContentDispositionFilename(response.headers['content-disposition']) }
+  } catch (e) {
+    const axiosErr = e as { response?: { data?: Blob; status?: number } }
+    if (axiosErr.response?.data instanceof Blob && axiosErr.response.status === 400) {
+      const text = await axiosErr.response.data.text()
+      try {
+        const parsed = JSON.parse(text) as ApiResult<unknown>
+        if (parsed.success === false) {
+          return { success: false as const, message: parsed.message, code: parsed.code }
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return mapModerationError(e)
+  }
+}
+
+function parseContentDispositionFilename(header: string | undefined): string {
+  if (!header) return `moderation-audit-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`
+  const match = /filename="?([^";\n]+)"?/i.exec(header)
+  return match?.[1]?.trim() || `moderation-audit-${Date.now()}.csv`
+}
+
+export async function listModerationAuditByPost(
+  postId: string,
+  pageOrOptions: number | ListModerationAuditOptions = 1,
+  pageSize = 20,
+) {
+  const opts: ListModerationAuditOptions =
+    typeof pageOrOptions === 'number' ? { page: pageOrOptions, pageSize } : pageOrOptions
+  const page = opts.page ?? 1
+  const size = opts.pageSize ?? 20
+  const params: Record<string, string | number | string[] | undefined> = {
+    targetType: 'post',
+    targetId: postId,
+    page,
+    pageSize: size,
+  }
+  if (opts.fromUtc) params.fromUtc = opts.fromUtc
+  if (opts.toUtc) params.toUtc = opts.toUtc
+  if (opts.action) {
+    const actions = Array.isArray(opts.action) ? opts.action : [opts.action]
+    params.action = actions.length === 1 ? actions[0]! : actions
+  }
   try {
     const { data } = await modelApi.get<ApiResult<PagedModerationAudit>>('/mod/audit', {
-      params: { targetType: 'post', targetId: postId, page, pageSize },
+      params,
+      // ASP.NET [FromQuery] string[] expects action=a&action=b, not action[]=a
+      paramsSerializer: { indexes: null },
     })
     return data
   } catch (e) {
@@ -737,6 +871,31 @@ export async function postModReportAcknowledge(reportId: string) {
       `/mod/reports/${encodeURIComponent(reportId)}/acknowledge`,
     )
     return data
+  } catch (e) {
+    return mapModerationReportsError(e)
+  }
+}
+
+export async function downloadModReportEvidence(reportId: string): Promise<ApiResult<Blob>> {
+  try {
+    const response = await modelApi.get<Blob>(
+      `/mod/reports/${encodeURIComponent(reportId)}/evidence`,
+      { responseType: 'blob', validateStatus: () => true },
+    )
+    if (response.status >= 400) {
+      const text = await response.data.text()
+      try {
+        const parsed = JSON.parse(text) as ApiResult<unknown>
+        return {
+          success: false,
+          message: parsed.message ?? '导出失败',
+          code: parsed.code ?? 'REQUEST_FAILED',
+        }
+      } catch {
+        return { success: false, message: '导出失败', code: 'REQUEST_FAILED' }
+      }
+    }
+    return { success: true, data: response.data }
   } catch (e) {
     return mapModerationReportsError(e)
   }

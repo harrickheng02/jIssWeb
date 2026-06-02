@@ -113,6 +113,8 @@ public sealed class ModUserSanctionsController : ControllerBase
         if (!ok)
             return NotFound(ApiResult<object>.Fail("禁言记录不存在或已解除", "NOT_FOUND"));
 
+        var auditMeta = await BuildUnmuteAuditMetadataAsync(targetSub, sid, body.RevokeReason.Trim(), body.ReportId, ct);
+
         await _audit.InsertOneAsync(new ForumModerationAuditRecord
         {
             Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
@@ -121,11 +123,7 @@ public sealed class ModUserSanctionsController : ControllerBase
             Action = "user.unmute",
             OperatorSub = operatorSub,
             OccurredAtUtc = DateTime.UtcNow,
-            Metadata = new Dictionary<string, object>
-            {
-                ["sanctionId"] = sid,
-                ["revokeReason"] = body.RevokeReason.Trim(),
-            },
+            Metadata = auditMeta,
         }, cancellationToken: ct);
 
         return Ok(ApiResult<object>.Ok(new { sanctionId = sid }));
@@ -192,6 +190,8 @@ public sealed class ModUserSanctionsController : ControllerBase
         var meta = new Dictionary<string, object>
         {
             ["reportId"] = report.Id,
+            ["postId"] = report.PostId,
+            ["boardId"] = report.BoardId,
             ["reason"] = body.Reason.Trim(),
             ["sanctionId"] = created.SanctionId,
         };
@@ -241,5 +241,64 @@ public sealed class ModUserSanctionsController : ControllerBase
             DurationPreset = created.DurationPreset,
             ExpiresAtUtc = created.ExpiresAtUtc,
         }));
+    }
+
+    private async Task<Dictionary<string, object>> BuildUnmuteAuditMetadataAsync(
+        string targetSub,
+        string sanctionId,
+        string revokeReason,
+        string? reportIdFromRequest,
+        CancellationToken ct)
+    {
+        var meta = new Dictionary<string, object>
+        {
+            ["sanctionId"] = sanctionId,
+            ["revokeReason"] = revokeReason,
+        };
+
+        var reportId = reportIdFromRequest?.Trim();
+        if (string.IsNullOrEmpty(reportId))
+        {
+            var fb = Builders<ForumModerationAuditRecord>.Filter;
+            var priorMute = await _audit.Find(fb.And(
+                    fb.Eq(x => x.TargetType, "user"),
+                    fb.Eq(x => x.TargetId, targetSub),
+                    fb.Eq(x => x.Action, "user.mute"),
+                    fb.Eq("Metadata.sanctionId", sanctionId)))
+                .SortByDescending(x => x.OccurredAtUtc)
+                .FirstOrDefaultAsync(ct);
+            if (priorMute?.Metadata is not null
+                && priorMute.Metadata.TryGetValue("reportId", out var ridRaw)
+                && ridRaw is not null)
+            {
+                reportId = ridRaw.ToString()?.Trim();
+                CopyAuditMetadataKeys(priorMute.Metadata, meta, "postId", "boardId");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(reportId))
+        {
+            meta["reportId"] = reportId;
+            var report = await _reports.Find(x => x.Id == reportId).FirstOrDefaultAsync(ct);
+            if (report is not null)
+            {
+                meta["postId"] = report.PostId;
+                meta["boardId"] = report.BoardId;
+            }
+        }
+
+        return meta;
+    }
+
+    private static void CopyAuditMetadataKeys(
+        Dictionary<string, object> source,
+        Dictionary<string, object> target,
+        params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (source.TryGetValue(key, out var val) && val is not null)
+                target[key] = val;
+        }
     }
 }

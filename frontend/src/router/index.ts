@@ -16,15 +16,29 @@ const router = createRouter({
     },
     {
       path: '/moderation',
-      name: 'moderation',
-      meta: { requiresAuth: true },
-      component: () => import('../views/ModerationGuideView.vue'),
-    },
-    {
-      path: '/moderation/reports',
-      name: 'moderation-reports',
+      component: () => import('../views/moderation/ModerationLayout.vue'),
       meta: { requiresAuth: true, requiresModerate: true },
-      component: () => import('../views/ModerationReportsQueueView.vue'),
+      redirect: { name: 'moderation-audit' },
+      children: [
+        {
+          path: 'audit',
+          name: 'moderation-audit',
+          meta: { requiresAuth: true, requiresModerate: true },
+          component: () => import('../views/ModerationAuditFeedView.vue'),
+        },
+        {
+          path: 'reports',
+          name: 'moderation-reports',
+          meta: { requiresAuth: true, requiresModerate: true },
+          component: () => import('../views/ModerationReportsQueueView.vue'),
+        },
+        {
+          path: 'tags',
+          name: 'moderation-tags',
+          meta: { requiresAuth: true, requiresModerate: true },
+          component: () => import('../views/AdminTagsView.vue'),
+        },
+      ],
     },
     {
       path: '/auth',
@@ -118,9 +132,7 @@ const router = createRouter({
     },
     {
       path: '/admin/tags',
-      name: 'admin-tags',
-      component: () => import('../views/AdminTagsView.vue'),
-      meta: { requiresAuth: true, requiresModerate: true },
+      redirect: { name: 'moderation-tags' },
     },
   ],
 })
