@@ -59,9 +59,13 @@ internal static class ForumDtoMapping
         AuthorId = r.AuthorSubId,
         AuthorDisplayName = Display(r.AuthorSubId, names),
         Body = r.Body,
+        State = r.State,
         CreatedAtUtc = r.CreatedAtUtc,
         UpdatedAtUtc = r.UpdatedAtUtc,
     };
+
+    internal static string DisplayNameFor(IReadOnlyDictionary<string, string> names, string sub) =>
+        Display(sub, names);
 
     private static string Display(string? sub, IReadOnlyDictionary<string, string> names)
     {

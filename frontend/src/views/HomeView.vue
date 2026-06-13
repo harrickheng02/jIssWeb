@@ -39,6 +39,11 @@ function boardIdQueryParam() {
 const { popularTags, popularTagsLoading, popularTagsError, loadPopularTags } =
   useForumPopularTags(boardIdQueryParam)
 
+function resolveBoardTitle(boardId?: string) {
+  if (!boardId) return undefined
+  return forumBoards.value.find((b) => b.id === boardId)?.title
+}
+
 const {
   postList,
   listLoading,
@@ -53,7 +58,10 @@ const {
   prevPage,
   nextPage,
   applyPostListPatch,
-} = useForumHomeFeed(activeSidebar, activeFilter, { onActiveSidebarChange: () => void loadPopularTags() })
+} = useForumHomeFeed(activeSidebar, activeFilter, {
+  onActiveSidebarChange: () => void loadPopularTags(),
+  resolveBoardTitle,
+})
 
 function getDefaultComposeBoardId() {
   if (forumBoards.value.some((b) => b.id === 'general')) return 'general'
@@ -77,6 +85,7 @@ const {
   saveDraft,
 } = useForumComposeForm({
   getDefaultBoardId: getDefaultComposeBoardId,
+  getBoardTitle: (boardId) => resolveBoardTitle(boardId) ?? boardId,
   fetchPosts,
 })
 

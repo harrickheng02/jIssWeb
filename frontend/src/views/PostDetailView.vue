@@ -19,6 +19,19 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { useForumBoards } from '@/composables/useForumBoards'
 import { useForumComposeForm } from '@/composables/useForumComposeForm'
+import {
+  appendLocalReply,
+  deleteLocalPost,
+  deleteLocalReply,
+  getLocalPost,
+  isLocalContentId,
+  isLocalPostId,
+  listLocalRepliesForPost,
+  localPostToDetail,
+  localReplyToForumReply,
+  mergeLocalRepliesIntoServerReplies,
+  updateLocalReply,
+} from '@/utils/forumLocalContent'
 import { confirmDeleteModerationForumReply } from '@/utils/moderationForumConfirm'
 
 const route = useRoute()
@@ -161,11 +174,29 @@ function forumAuthorLabel(displayName: string | undefined, authorId: string) {
   return shortAuthor(authorId)
 }
 
+const isLocalPost = computed(() => isLocalPostId(postId.value))
+
 async function load() {
   loading.value = true
   post.value = null
   replies.value = []
   try {
+    if (isLocalPostId(postId.value)) {
+      const sub = auth.sub
+      if (!sub) {
+        ElMessage.error('请先登录')
+        return
+      }
+      const local = getLocalPost(sub, postId.value)
+      if (!local) {
+        ElMessage.error('加载失败')
+        return
+      }
+      post.value = localPostToDetail(sub, local)
+      replies.value = listLocalRepliesForPost(sub, postId.value).map((r) => localReplyToForumReply(r))
+      return
+    }
+
     const res = await getForumPost(postId.value)
     if (!res.success || !res.data) {
       ElMessage.error(res.message ?? '加载失败')
@@ -174,7 +205,11 @@ async function load() {
     post.value = res.data
     try {
       const rr = await listForumReplies(postId.value)
-      if (rr.success && rr.data) replies.value = rr.data
+      if (rr.success && rr.data) {
+        replies.value = auth.sub
+          ? mergeLocalRepliesIntoServerReplies(auth.sub, postId.value, rr.data)
+          : rr.data
+      }
     } catch {
       replies.value = []
       ElMessage.warning('回复列表加载失败')
@@ -204,19 +239,46 @@ async function submitReply() {
   }
   submitting.value = true
   try {
+    const sub = auth.sub
+    if (!sub) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    if (isLocalPostId(postId.value)) {
+      appendLocalReply(sub, { postId: postId.value, body: text, authorId: sub })
+      replyBody.value = ''
+      replies.value = listLocalRepliesForPost(sub, postId.value).map((r) => localReplyToForumReply(r))
+      if (post.value) post.value = { ...post.value, comments: replies.value.length }
+      return
+    }
+
     const res = await createForumReply(postId.value, text)
     if (!res.success) {
       ElMessage.error(res.code === 'FORUM_MUTED' ? formatForumMutedMessage(res) : (res.message ?? '回复失败'))
       return
     }
     replyBody.value = ''
+    if (res.data?.localOnly) {
+      appendLocalReply(sub, {
+        id: res.data.id,
+        postId: postId.value,
+        body: text,
+        authorId: sub,
+        authorDisplayName: res.data.authorDisplayName,
+      })
+    }
     try {
       const rr = await listForumReplies(postId.value)
-      if (rr.success && rr.data) replies.value = rr.data
+      if (rr.success && rr.data) {
+        replies.value = mergeLocalRepliesIntoServerReplies(sub, postId.value, rr.data)
+      }
     } catch {
       replies.value = []
     }
-    if (post.value) post.value = { ...post.value, comments: post.value.comments + 1 }
+    if (post.value && !res.data?.localOnly) {
+      post.value = { ...post.value, comments: post.value.comments + 1 }
+    }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '回复失败')
   } finally {
@@ -244,6 +306,11 @@ async function submitReport() {
   }
   reportSubmitting.value = true
   try {
+    if (isLocalContentId(tid)) {
+      ElMessage.success('已提交举报，感谢你的反馈')
+      reportOpen.value = false
+      return
+    }
     const res = await submitForumReport({
       targetType: reportTargetType.value,
       targetId: tid,
@@ -301,6 +368,17 @@ async function handleDeletePost() {
   if (!ok) return
   deletingPost.value = true
   try {
+    if (isLocalPostId(postId.value)) {
+      const sub = auth.sub
+      if (!sub) {
+        ElMessage.error('请先登录')
+        return
+      }
+      deleteLocalPost(sub, postId.value)
+      ElMessage.success('帖子已删除')
+      await router.push('/')
+      return
+    }
     const res = await deleteForumPost(postId.value)
     if (!res.success) { ElMessage.error(res.message ?? '删除失败'); return }
     ElMessage.success('帖子已删除')
@@ -321,6 +399,18 @@ async function handleDeleteReply(reply: ForumReply) {
   if (!ok) return
   deletingReplyId.value = reply.id
   try {
+    if (isLocalContentId(reply.id)) {
+      const sub = auth.sub
+      if (!sub) {
+        ElMessage.error('请先登录')
+        return
+      }
+      deleteLocalReply(sub, reply.id)
+      replies.value = replies.value.filter((r) => r.id !== reply.id)
+      if (post.value) post.value = { ...post.value, comments: Math.max(0, post.value.comments - 1) }
+      ElMessage.success('回复已删除')
+      return
+    }
     const res = await deleteForumReply(postId.value, reply.id)
     if (!res.success) { ElMessage.error(res.message ?? '删除失败'); return }
     replies.value = replies.value.filter((r) => r.id !== reply.id)
@@ -361,6 +451,24 @@ async function saveEditReply(reply: ForumReply) {
   }
   editReplyBusy.value = true
   try {
+    if (isLocalContentId(reply.id)) {
+      const sub = auth.sub
+      if (!sub) {
+        ElMessage.error('请先登录')
+        return
+      }
+      const updated = updateLocalReply(sub, reply.id, newBody)
+      if (!updated) {
+        ElMessage.error('编辑失败')
+        return
+      }
+      const idx = replies.value.findIndex((r) => r.id === reply.id)
+      if (idx !== -1) replies.value[idx] = localReplyToForumReply(updated)
+      editingReplyId.value = null
+      editReplyBody.value = ''
+      ElMessage.success('回复已更新')
+      return
+    }
     const res = await updateForumReply(postId.value, reply.id, { body: newBody })
     if (!res.success || !res.data) {
       ElMessage.error(res.message ?? '编辑失败')
@@ -460,6 +568,7 @@ watch(
           </div>
 
           <ForumPostGovernancePanel
+            v-if="!isLocalPost"
             ref="governancePanelRef"
             :post-id="post.id"
             :post-snapshot="post"

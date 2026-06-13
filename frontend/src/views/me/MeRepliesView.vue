@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { listMyForumReplies, type ForumReply } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 import { forumAuthorLabel, formatPublishedUtc } from '@/utils/forumPostDisplay'
+import { mergeLocalRepliesIntoMeList } from '@/utils/forumLocalContent'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -32,7 +33,7 @@ async function load() {
   try {
     const res = await listMyForumReplies(page.value, pageSize)
     if (res.success && res.data) {
-      items.value = res.data.items
+      items.value = auth.sub ? mergeLocalRepliesIntoMeList(auth.sub, res.data.items) : res.data.items
       totalCount.value = res.data.totalCount
     } else {
       error.value = res.message ?? '加载失败'

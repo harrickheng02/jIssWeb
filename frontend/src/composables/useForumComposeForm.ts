@@ -11,7 +11,9 @@ import {
   type ForumPostListItem,
 } from '@/api/clients'
 import { formatForumMutedMessage } from '@/utils/forumMutedMessage'
+import { persistLocalPostFromCreate, isLocalPostId, updateLocalPost } from '@/utils/forumLocalContent'
 import { useDraftUiStore } from '@/stores/draftUi'
+import { useAuthStore } from '@/stores/auth'
 
 const maxComposeTags = 10
 
@@ -19,6 +21,7 @@ type ComposeMode = 'create' | 'edit' | 'draft-edit'
 
 export function useForumComposeForm(opts: {
   getDefaultBoardId: () => string
+  getBoardTitle?: (boardId: string) => string
   fetchPosts?: () => Promise<void>
   onEditSuccess?: (updated: ForumPostListItem) => void
   onDraftSaved?: (draftId: string) => void
@@ -26,6 +29,7 @@ export function useForumComposeForm(opts: {
   const router = useRouter()
   const route = useRoute()
   const draftUi = useDraftUiStore()
+  const auth = useAuthStore()
   const composeOpen = ref(false)
   const composeTitle = ref('')
   const composeBody = ref('')
@@ -122,6 +126,34 @@ export function useForumComposeForm(opts: {
       composeSubmitting.value = true
       try {
         const tags = composeTags.value.length ? [...composeTags.value] : []
+        if (isLocalPostId(targetId)) {
+          const sub = auth.sub
+          if (!sub) {
+            ElMessage.error('请先登录')
+            return
+          }
+          const updated = updateLocalPost(sub, targetId, { title, body, tags })
+          if (!updated) {
+            ElMessage.error('编辑失败')
+            return
+          }
+          composeOpen.value = false
+          ElMessage.success('帖子已更新')
+          opts.onEditSuccess?.({
+            id: updated.id,
+            title: updated.title,
+            excerpt: updated.excerpt,
+            authorId: updated.authorId,
+            publishedAtUtc: updated.createdAtUtc,
+            board: updated.board,
+            tags: updated.tags,
+            likes: 0,
+            comments: 0,
+            views: 0,
+            state: 'published',
+          })
+          return
+        }
         const res = await updateForumPost(targetId, { title, body, tags })
         if (!res.success || !res.data) {
           ElMessage.error(res.message ?? '编辑失败')
@@ -191,6 +223,23 @@ export function useForumComposeForm(opts: {
       if (!res.success || !res.data?.id) {
         ElMessage.error(res.code === 'FORUM_MUTED' ? formatForumMutedMessage(res) : (res.message ?? '发帖失败'))
         return
+      }
+      if (res.data.localOnly) {
+        const sub = auth.sub
+        if (!sub) {
+          ElMessage.error('请先登录')
+          return
+        }
+        const boardTitle = opts.getBoardTitle?.(composeBoardId.value) ?? composeBoardId.value
+        persistLocalPostFromCreate(sub, {
+          id: res.data.id,
+          title,
+          body,
+          boardId: composeBoardId.value,
+          board: boardTitle,
+          tags: composeTags.value,
+          authorId: sub,
+        })
       }
       composeOpen.value = false
       ElMessage.success('已发布')

@@ -611,6 +611,8 @@ export interface ForumReply {
   body: string
   createdAtUtc: string
   updatedAtUtc?: string | null
+  state?: string
+  localOnly?: boolean
 }
 
 export interface PagedForumReplies {
@@ -723,7 +725,7 @@ export async function createForumPost(payload: {
   board?: string
   tags?: string[]
 }) {
-  const { data } = await modelApi.post<ApiResult<{ id: string }>>('/forum/posts', payload)
+  const { data } = await modelApi.post<ApiResult<{ id: string; state?: string; localOnly?: boolean }>>('/forum/posts', payload)
   return data
 }
 

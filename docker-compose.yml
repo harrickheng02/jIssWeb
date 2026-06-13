@@ -147,6 +147,8 @@ services:
       Jwt__Key: ${JWT_KEY}
       UserService__BaseUrl: ${MODEL_USER_API_URL:-http://user-api:5097}
       InternalService__ApiKey: ${INTERNAL_SERVICE_API_KEY:-dev-internal-service-key-change-me}
+    volumes:
+      - ./backend/src/JIssWeb.Model.Api/appsettings.Local.json:/app/appsettings.Local.json:ro
     depends_on:
       mongo:
         condition: service_healthy

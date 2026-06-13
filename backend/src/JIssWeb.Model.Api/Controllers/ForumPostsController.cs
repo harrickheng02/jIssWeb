@@ -5,6 +5,7 @@ using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
 using JIssWeb.Common.Security;
 using JIssWeb.Model.Api.Authorization;
+using JIssWeb.Model.Api.Middleware;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
@@ -32,6 +33,8 @@ public class ForumPostsController : ControllerBase
     private readonly ForumAuthorDisplayResolver _authorNames;
     private readonly ForumEngagementService _engagement;
     private readonly ForumModerationDeleteService _moderationDelete;
+    private readonly IForumBlockedWordFilter _blockedWords;
+    private readonly IForumPostRateLimitService _postRateLimit;
     private readonly ILogger<ForumPostsController> _logger;
 
     public ForumPostsController(
@@ -41,6 +44,8 @@ public class ForumPostsController : ControllerBase
         ForumAuthorDisplayResolver authorNames,
         ForumEngagementService engagement,
         ForumModerationDeleteService moderationDelete,
+        IForumBlockedWordFilter blockedWords,
+        IForumPostRateLimitService postRateLimit,
         ILogger<ForumPostsController> logger)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
@@ -54,6 +59,8 @@ public class ForumPostsController : ControllerBase
         _authorNames = authorNames;
         _engagement = engagement;
         _moderationDelete = moderationDelete;
+        _blockedWords = blockedWords;
+        _postRateLimit = postRateLimit;
         _logger = logger;
     }
 
@@ -197,6 +204,10 @@ public class ForumPostsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Body))
             return BadRequest(ApiResult<ReplyDto>.Fail("内容不能为空", "INVALID_INPUT"));
 
+        var blockedEvaluation = _blockedWords.Evaluate(null, request.Body);
+        if (blockedEvaluation == BlockedWordEvaluation.Reject)
+            return BadRequest(ApiResult<ReplyDto>.Fail("内容包含不允许的词汇", "BLOCKED_CONTENT"));
+
         var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
         if (post is null)
             return NotFound(ApiResult<ReplyDto>.Fail("未找到", "NOT_FOUND"));
@@ -204,17 +215,37 @@ public class ForumPostsController : ControllerBase
         if (post.RepliesLocked)
             return StatusCode(StatusCodes.Status403Forbidden, ApiResult<ReplyDto>.Fail("本帖已禁止回复", "REPLIES_LOCKED"));
 
-        var now = DateTime.UtcNow;
+        if (blockedEvaluation == BlockedWordEvaluation.Local)
+        {
+            var now = DateTime.UtcNow;
+            var localNames = await _authorNames.ResolveAsync(new[] { authorId });
+            return Ok(ApiResult<ReplyDto>.Ok(new ReplyDto
+            {
+                Id = CreateLocalId(),
+                PostId = postId,
+                AuthorId = authorId,
+                AuthorDisplayName = ForumDtoMapping.DisplayNameFor(localNames, authorId),
+                Body = request.Body.Trim(),
+                State = ForumContentStates.Local,
+                LocalOnly = true,
+                CreatedAtUtc = now,
+            }));
+        }
+
+        if (_postRateLimit.IsReplyCreateRateLimited(authorId, GetClientIp()))
+            return StatusCode(StatusCodes.Status429TooManyRequests, ApiResult<ReplyDto>.Fail("请求过于频繁", "RATE_LIMITED"));
+
         var reply = new ForumReplyRecord
         {
             Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
             PostId = postId,
             AuthorSubId = authorId,
             Body = request.Body.Trim(),
-            State = "published",
-            CreatedAtUtc = now,
+            State = ForumContentStates.Published,
+            CreatedAtUtc = DateTime.UtcNow,
         };
         await _replies.InsertOneAsync(reply);
+        _postRateLimit.RecordSuccessfulReplyCreate(authorId, GetClientIp());
         await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, 1));
 
         if (!string.Equals(post.AuthorSubId, authorId, StringComparison.Ordinal))
@@ -229,7 +260,7 @@ public class ForumPostsController : ControllerBase
                 ActorSubId = authorId,
                 PostTitle = post.Title,
                 ReadAtUtc = null,
-                CreatedAtUtc = now,
+                CreatedAtUtc = reply.CreatedAtUtc,
             };
             try
             {
@@ -603,6 +634,10 @@ public class ForumPostsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Body))
             return BadRequest(ApiResult<CreatePostResultDto>.Fail("正文不能为空", "INVALID_INPUT"));
 
+        var blockedEvaluation = _blockedWords.Evaluate(request.Title, request.Body);
+        if (blockedEvaluation == BlockedWordEvaluation.Reject)
+            return BadRequest(ApiResult<CreatePostResultDto>.Fail("内容包含不允许的词汇", "BLOCKED_CONTENT"));
+
         var boardResolved = TryResolveBoardForCreate(request);
         if (boardResolved.Error is not null)
             return BadRequest(ApiResult<CreatePostResultDto>.Fail(boardResolved.Error, boardResolved.Code));
@@ -610,6 +645,19 @@ public class ForumPostsController : ControllerBase
         var tagsResult = NormalizeCreateTags(request.Tags);
         if (tagsResult.Error is not null)
             return BadRequest(ApiResult<CreatePostResultDto>.Fail(tagsResult.Error, tagsResult.Code));
+
+        if (blockedEvaluation == BlockedWordEvaluation.Local)
+        {
+            return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto
+            {
+                Id = CreateLocalId(),
+                State = ForumContentStates.Local,
+                LocalOnly = true,
+            }));
+        }
+
+        if (_postRateLimit.IsPostCreateRateLimited(authorId, GetClientIp()))
+            return StatusCode(StatusCodes.Status429TooManyRequests, ApiResult<CreatePostResultDto>.Fail("请求过于频繁", "RATE_LIMITED"));
 
         var body = request.Body.Trim();
         var now = DateTime.UtcNow;
@@ -625,6 +673,7 @@ public class ForumPostsController : ControllerBase
             CreatedAtUtc = now,
         };
         await _posts.InsertOneAsync(doc);
+        _postRateLimit.RecordSuccessfulPostCreate(authorId, GetClientIp());
 
         // 对已在注册表中的标签同步 UseCount（混合模式：非强制校验，仅跟踪已注册标签）
         if (tagsResult.Tags!.Count > 0)
@@ -632,7 +681,7 @@ public class ForumPostsController : ControllerBase
                 Builders<ForumTagRecord>.Filter.In(x => x.Name, tagsResult.Tags!),
                 Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, 1));
 
-        return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto { Id = doc.Id }));
+        return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto { Id = doc.Id, State = ForumContentStates.Published }));
     }
 
     private static FilterDefinition<ForumPostRecord> BuildKeywordFilter(string keyword)
@@ -732,6 +781,10 @@ public class ForumPostsController : ControllerBase
             return null;
         }
     }
+
+    private string GetClientIp() => ForumRateLimitHttpHelpers.GetClientIp(HttpContext);
+
+    private static string CreateLocalId() => $"local:{Guid.NewGuid():N}";
 
     private bool IsModeratorOrAdmin()
     {
@@ -864,6 +917,8 @@ public class CreatePostRequest
 public class CreatePostResultDto
 {
     public string Id { get; set; } = "";
+    public string State { get; set; } = ForumContentStates.Published;
+    public bool LocalOnly { get; set; }
 }
 
 public class CreateReplyRequest
@@ -892,6 +947,8 @@ public class ReplyDto
     public string AuthorId { get; set; } = "";
     public string AuthorDisplayName { get; set; } = "";
     public string Body { get; set; } = "";
+    public string State { get; set; } = ForumContentStates.Published;
+    public bool LocalOnly { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }
 }

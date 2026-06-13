@@ -13,7 +13,11 @@ using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+if (!AppDomain.CurrentDomain.GetAssemblies().Any(static a =>
+        a.GetName().Name?.EndsWith(".Tests", StringComparison.Ordinal) == true))
+{
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+}
 builder.UseJIssWebHttpPort(5099);
 
 builder.Services.AddOptions<ForumBoardsOptions>()
@@ -24,6 +28,9 @@ builder.Services.AddSingleton<IValidateOptions<ForumBoardsOptions>, ForumBoardsD
 builder.Services.Configure<ForumModerationOptions>(builder.Configuration.GetSection(ForumModerationOptions.SectionName));
 builder.Services.PostConfigure<ForumModerationOptions>(o => o.Moderators ??= new());
 builder.Services.Configure<ForumSearchRateLimitOptions>(builder.Configuration.GetSection(ForumSearchRateLimitOptions.SectionName));
+builder.Services.Configure<ForumBlockedWordsOptions>(builder.Configuration.GetSection(ForumBlockedWordsOptions.SectionName));
+builder.Services.PostConfigure<ForumBlockedWordsOptions>(o => o.Words ??= new());
+builder.Services.Configure<ForumPostRateLimitOptions>(builder.Configuration.GetSection(ForumPostRateLimitOptions.SectionName));
 builder.Services.Configure<ForumReportRetentionOptions>(builder.Configuration.GetSection(ForumReportRetentionOptions.SectionName));
 builder.Services.Configure<ForumModerationAuditOptions>(builder.Configuration.GetSection(ForumModerationAuditOptions.SectionName));
 builder.Services.Configure<InternalServiceOptions>(builder.Configuration.GetSection(InternalServiceOptions.SectionName));
@@ -40,7 +47,9 @@ builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
 builder.Services.Configure<ForumSoftDeleteOptions>(builder.Configuration.GetSection(ForumSoftDeleteOptions.SectionName));
 builder.Services.AddHostedService<DraftCleanupBackgroundService>();
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection(RedisSettings.SectionName));
-builder.Services.AddSingleton<ForumSearchIpRateLimiter>();
+builder.Services.AddSingleton<InProcessSlidingWindowRateLimiter>();
+builder.Services.AddSingleton<IForumBlockedWordFilter, ForumBlockedWordFilter>();
+builder.Services.AddSingleton<IForumPostRateLimitService, ForumPostRateLimitService>();
 builder.Services.AddScoped<ForumAuthorDisplayResolver>();
 builder.Services.AddSingleton<ForumReportTargetResolver>();
 builder.Services.AddSingleton<ForumModerationAccessService>();

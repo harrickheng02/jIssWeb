@@ -3,10 +3,13 @@ import { computed, ref, watch, type Ref } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { listForumPosts, type ForumPostListItem, type ForumPostListPatch } from '@/api/clients'
 import { applyForumPostListPatch } from '@/utils/applyForumPostListPatch'
+import { mergeLocalPostsIntoFeed } from '@/utils/forumLocalContent'
 import { firstQueryString } from '@/utils/routeQuery'
+import { useAuthStore } from '@/stores/auth'
 
 export type ForumHomeFeedOptions = {
   onActiveSidebarChange?: () => void
+  resolveBoardTitle?: (boardId?: string) => string | undefined
 }
 
 export function useForumHomeFeed(
@@ -16,6 +19,7 @@ export function useForumHomeFeed(
 ) {
   const router = useRouter()
   const route = useRoute()
+  const auth = useAuthStore()
   const postList = ref<ForumPostListItem[]>([])
   const listLoading = ref(false)
   const listError = ref<string | null>(null)
@@ -57,7 +61,14 @@ export function useForumHomeFeed(
         postList.value = []
         return
       }
-      postList.value = res.data.items
+      let items = res.data.items
+      if (auth.sub && !qResolved) {
+        items = mergeLocalPostsIntoFeed(auth.sub, items, {
+          boardTitle: options?.resolveBoardTitle?.(listBoardIdParam()),
+          tag: tagFilterValue.value,
+        })
+      }
+      postList.value = items
       totalCount.value = res.data.totalCount
     } catch (e) {
       if (axios.isAxiosError(e) && e.response?.status === 429) {

@@ -16,12 +16,12 @@ public sealed class ForumSearchRateLimitMiddleware
     };
 
     private readonly RequestDelegate _next;
-    private readonly ForumSearchIpRateLimiter _limiter;
+    private readonly InProcessSlidingWindowRateLimiter _limiter;
     private readonly IOptions<ForumSearchRateLimitOptions> _options;
 
     public ForumSearchRateLimitMiddleware(
         RequestDelegate next,
-        ForumSearchIpRateLimiter limiter,
+        InProcessSlidingWindowRateLimiter limiter,
         IOptions<ForumSearchRateLimitOptions> options)
     {
         _next = next;
@@ -40,7 +40,7 @@ public sealed class ForumSearchRateLimitMiddleware
             if (q.Length > 0)
             {
                 var opt = _options.Value;
-                var ip = GetClientIp(context);
+                var ip = ForumRateLimitHttpHelpers.GetClientIp(context);
                 if (!_limiter.TryConsume(ip, opt.MaxRequests, opt.WindowSeconds))
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
@@ -53,18 +53,5 @@ public sealed class ForumSearchRateLimitMiddleware
         }
 
         await _next(context);
-    }
-
-    private static string GetClientIp(HttpContext context)
-    {
-        var fwd = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(fwd))
-        {
-            var first = fwd.Split(',')[0].Trim();
-            if (first.Length > 0)
-                return first;
-        }
-
-        return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 }

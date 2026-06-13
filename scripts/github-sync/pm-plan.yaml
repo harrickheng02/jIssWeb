@@ -3,6 +3,7 @@ meta:
   scope_note: |
     Issue 正文只写验收标准与依赖；不在本条内写「非目标」清单（已拆到 `meta.deferred_scope`）。
     `deferred_scope` 仅作范围索引，不作验收缺口；若要交付其中任一项，单开 Issue。
+    `npm run pm:pull` 仅回填 open/progressing 到 `issues:`；closed 条目以 git 提交为准，pull 后勿覆盖本地 closed 归档段。
   deferred_scope:
     - issue_number: 2
       related_title: 个人中心与内容管理最小集
@@ -28,6 +29,9 @@ meta:
       out_of_scope:
         - 自建大模型审核管线
         - 全站实时风控中台
+        - 分布式限流与 CAPTCHA（见 open Issue「论坛反机器人灌水与分布式风控增强」）
+        - 草稿 publish / 自编辑 PUT 绕过补齐（同上）
+        - Mongo 屏蔽词与运营 CRUD（同上 change-E，可与 Issue #8 标签后台并列）
     - issue_number: 6
       related_title: 推荐排序与运营报表出口占位
       out_of_scope:
@@ -84,9 +88,8 @@ meta:
     - issue_number: 22
       related_title: 帖子操作记录筛选深化与举报审计补齐
       out_of_scope:
-        - 不绑定帖子的全局审计 feed 独立页（后续按运营反馈单开）
-        - 审计 CSV/zip 批量导出（Issue #18 后续；单 report 证据 zip 已由 Issue #19 change-C 交付）
-        - 版区维度跨帖筛选（本 change 仅在帖上下文抽屉内筛选）
+        - 版区维度跨帖筛选（本 change 仅在帖上下文抽屉内筛选；全局版区筛选见 Issue #18 `forum-moderation-audit-global-feed`）
+        - 多份 report evidence 批量 zip 打包（单条 zip 已由 Issue #19 change-C 交付）
     - issue_number: 19
       related_title: 举报后续：账号处罚、工单 SLA、举报人通知与证据导出
       out_of_scope:
@@ -123,7 +126,7 @@ modules:
   - name: 个人中心
     description: 我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；个人资料能力并入个人中心，与现有 Profile 能力合并演进
   - name: 治理与审核
-    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、`openspec/specs/token-identity-consistency`）；版主版区范围由 `forumBoardIds` 签发；举报最小闭环（Issue #4 closed）；锁帖与加精（Issue #20 closed）；帖操作记录筛选与举报审计（Issue #22 closed）；操作台持续建设见 Issue #18；举报进阶首期（Issue #19 closed，含处罚/通知/审计/证据 zip）；举报 SLA / 指派 defer 见 `meta.deferred_scope` issue_number 19。
+    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、`openspec/specs/token-identity-consistency`）；版主版区范围由 `forumBoardIds` 签发；举报最小闭环（Issue #4 closed）；锁帖与加精（Issue #20 closed）；帖操作记录筛选与举报审计（Issue #22 closed）；操作台持续建设见 Issue #18；举报进阶首期（Issue #19 closed，含处罚/通知/审计/证据 zip）；反垃圾占位（Issue #5，`forum-anti-spam-placeholder`）；机器人灌水增强见 open Issue「论坛反机器人灌水与分布式风控增强」；举报 SLA / 指派 defer 见 `meta.deferred_scope` issue_number 19。
   - name: 运营与公告
     description: 公告位、活动 Banner（与首页右侧公告模块衔接）
   - name: 平台与基础设施
@@ -176,13 +179,41 @@ issues:
 
       依赖：Issue #15 closed（限流基础设施）；`JIssWeb.Model.Api` 帖子与回复控制器。
 
-      非目标：自建大模型审核、全站实时风控中台；CAPTCHA/人机挑战集成；分布式限流（见 Issue #15 后续治理项）；屏蔽词管理 UI（可在 Issue #8 标签后台后续扩展）。
+      非目标：自建大模型审核、全站实时风控中台；CAPTCHA/人机挑战集成；分布式限流；屏蔽词管理 UI；草稿 publish / 自编辑 PUT 治理（见 open Issue「论坛反机器人灌水与分布式风控增强」）。
+
+      交付确认：OpenSpec change `forum-anti-spam-placeholder`（`ForumBlockedWordFilter`、`ForumPostRateLimitMiddleware`、`InProcessSlidingWindowRateLimiter`；规范 `openspec/specs/forum-anti-spam-placeholder`）；集成测试 `ForumBlockedWordTests`、`ForumPostRateLimitTests`。
     milestone: M3 — 治理与增长
     issue_number: 5
     priority: 次要
-    state: open
+    state: closed
     module: 治理与审核
     classification: enhancement
+  - title: 论坛反机器人灌水与分布式风控增强
+    body: |
+      承接 Issue #5 占位交付后的**机器人脚本 / 多账号分布式灌水**场景；以可拆 OpenSpec change（A–E）交付，不要求单 PR 一次性完成。
+
+      验收标准（分 change，逐项 merged 即算本条子项 closed）：
+
+      - **change-A 写操作路径补齐**：`POST /api/forum/posts/drafts/{id}/publish` 与作者 `PUT` 自编辑（帖 title/body/tags、回复 body）纳入与 create 同级的屏蔽词校验；publish 纳入发帖频率限流（或与 create 共用配额，策略在规范中二选一并写清）。集成测试覆盖 publish/PUT 绕路回归。
+
+      - **change-B 分布式限流**：发帖/回复/搜索（含 `q`）限流计数迁移至 Redis（或 Gateway 层等价方案，须在 design 中二选一）；多 Model.Api 实例共享配额；配置与进程内 limiter 行为对齐；fail-open/fail-closed 策略写清。
+
+      - **change-C 人机验证**：注册和/或首次发帖接入 CAPTCHA（Cloudflare Turnstile 或等价，密钥走 `.env` / `appsettings.Local`）；验证失败统一错误码；User.Api 与 Model.Api 职责边界在规范中写清；前端发帖/注册表单接线。
+
+      - **change-D 行为信号降速**：新注册账号（如注册后 24h 内）可配置更严发帖/回复配额；同一 `sub` 或 IP 在滑动窗口内重复相同正文哈希（normalized body）拒绝或降速；错误码与阈值可配置。
+
+      - **change-E 屏蔽词运营化**：`forum_blocked_words` Mongo 集合（或复用治理配置集合）；版主/管理员 CRUD；`POST` create 与 change-A 路径统一读注册表；治理工作台 Tab 或 Issue #8 标签管理并列入口（UI 遵循 `forum-tokens.css`）。
+
+      依赖：Issue #5 closed（`openspec/specs/forum-anti-spam-placeholder`）；Issue #15 closed；Issue #17 closed；Redis（docker-compose 已有）；Issue #8 closed（标签后台 IA 可复用）；User.Api 注册链路。
+
+      非目标：自建大模型审核、全站实时风控中台、商业级设备指纹 SDK、法务级证据链、自动封禁（ban）策略引擎。
+
+      建议实施顺序：A → B → D → C → E（B 与 D 可并行；C 依赖 User.Api；E 可与 D 并行）。
+    milestone: M3 — 治理与增长
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
   - title: 推荐排序与运营报表出口占位
     body: >
       验收标准：
@@ -241,7 +272,7 @@ issues:
       - 前端版主操作台信息架构随动作增加持续迭代（完整 layout 仍 defer）
       验收标准（方向性，逐项子 Issue 收紧）：
       - 扩展帖子治理动作与现有 JWT、`Forum:Moderation:Moderators` 版区范围一致；状态在列表与详情可反映；审计与列表查询可联调。
-      - 审计与操作台能力深化：筛选分页、导出或运营视图（择一或多）、与举报进阶（**Issue #19**）链路的衔接说明或占位。
+      - **M3 治理台首期已交付**：帖内/全局审计筛选分页、CSV 导出、治理 Tab 工作台、与 Issue #19 举报链路衔接；后续仅随新动作扩展 IA。
       - 前端：版主操作台随动作增加持续迭代（`forum-moderation-sticky-ui` / `forum-moderation-post-ops` 规范增补）。
       依赖：`openspec/specs/forum-moderation-post-ops`、`openspec/specs/forum-moderation-sticky-ui`、`openspec/specs/token-identity-consistency`（`forumRole`/`forumBoardIds`）、Issue #17 closed、Issue #7 closed；Issue #4 closed；与 **Issue #19** 可并行规划接口边界。
       非目标：完整 RBAC/权限中台、跨租户隔离、工单流引擎。
@@ -311,7 +342,7 @@ issues:
       - **前端帖详情抽屉**：`ForumPostGovernancePanel` 操作记录区增加操作类型筛选、时间范围筛选与分页控件；筛选变更重置页码；空结果与错误态可辨。
       - 集成测试：筛选组合、分页边界、举报结案/受理审计写入、帖上下文展示作者处罚记录；回归现有按帖审计与 #20 治理动作。
       依赖：Issue #7 closed；Issue #17 closed；Issue #20 closed；Issue #19 change-A/B merged（`reportId` 审计契约、`ModReportsController`）；`openspec/specs/forum-moderation-post-ops`、`forum-moderation-sticky-ui`、`forum-report-api`、`forum-user-sanctions`。
-      非目标：不绑定帖子的全局审计 feed 页；版区跨帖筛选；审计 CSV/zip 导出；新帖子治理动作（沉帖等）。
+      非目标：帖上下文内的版区跨帖筛选；新帖子治理动作（沉帖等）。全局审计 feed 与 CSV 已由 Issue #18 `forum-moderation-audit-global-feed` 交付。
       交付确认：`ModAuditController` action/fromUtc/toUtc 筛选；`PostThreadAuditQuery` 帖线程 user/report 分支；`ForumReportModerationAuditWriter` 结案/受理写审计；`ModUserSanctionsController` 处罚/unmute `metadata.postId`；`ForumPostGovernancePanel` 筛选/分页/重试；`listModerationAuditByPost` Axios query 序列化（`paramsSerializer: { indexes: null }`）；测试 `ForumModerationAuditFilterTests`、`clients.moderation-audit.test.ts` 等；规范见上述四份 spec 增量；变更归档 `openspec/changes/archive/2026-06-01-forum-moderation-audit-post-filters/`。
     milestone: M3 — 治理与增长
     issue_number: 22

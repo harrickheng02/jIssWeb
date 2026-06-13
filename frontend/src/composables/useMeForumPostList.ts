@@ -2,6 +2,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import type { ApiResult, ForumPostListItem, ForumPostListPatch, PagedForumPosts } from '@/api/clients'
 import { applyForumPostListPatch } from '@/utils/applyForumPostListPatch'
+import { mergeLocalPostsIntoMeList } from '@/utils/forumLocalContent'
 
 const defaultPageSize = 20
 
@@ -28,7 +29,7 @@ export function useMeForumPostList(
     try {
       const res = await loadFn(page.value, defaultPageSize)
       if (res.success && res.data) {
-        items.value = res.data.items
+        items.value = auth.sub ? mergeLocalPostsIntoMeList(auth.sub, res.data.items) : res.data.items
         totalCount.value = res.data.totalCount
       } else {
         error.value = res.message ?? '加载失败'

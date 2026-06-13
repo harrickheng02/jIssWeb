@@ -9,6 +9,7 @@ import {
   unfavoriteForumPost,
   unlikeForumPost,
 } from '@/api/clients'
+import { isLocalPostId } from '@/utils/forumLocalContent'
 
 const DEFAULT_COOLDOWN_MS = 250
 
@@ -140,6 +141,11 @@ export function useForumPostEngagement(
 
     emitPatch(optimisticLikeToggle(p))
 
+    if (isLocalPostId(p.id)) {
+      armLikeCooldown()
+      return
+    }
+
     likePending.value = true
     try {
       const wasLiked = Boolean(snap.likedByMe)
@@ -169,6 +175,11 @@ export function useForumPostEngagement(
     const snap = captureEngagement(p)
 
     emitPatch(optimisticFavoriteToggle(p))
+
+    if (isLocalPostId(p.id)) {
+      armFavCooldown()
+      return
+    }
 
     favPending.value = true
     try {
