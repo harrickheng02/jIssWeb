@@ -21,8 +21,8 @@
 
 - [x] 3.1 `dotnet test --filter "FullyQualifiedName~ForumBlockedWord"`
 - [x] 3.2 `cd frontend && npx vitest run`（ touched specs）
-- [ ] 3.3 浏览器：发敏感帖 → 首页最新可见 → 清 localStorage 后消失
+- [x] 3.3 浏览器：发敏感帖 → 首页最新可见 → 清 localStorage 后消失
 
 ## 4. 归档准备
 
-- [ ] 4.1 change-review 对照 `forum-blocked-word-local-only` 与 `forum-anti-spam-placeholder` delta；合并后 `/opsx:archive`
+- [x] 4.1 change-review 对照 `forum-blocked-word-local-only` 与 `forum-anti-spam-placeholder` delta；合并后 `/opsx:archive`
