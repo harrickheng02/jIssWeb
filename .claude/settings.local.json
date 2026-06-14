@@ -1,7 +1,27 @@
 {
   "permissions": {
     "allow": [
-      "Bash(*)"
+      "*",
+      "Bash(openspec status *)",
+      "Bash(Get-ChildItem \"C:\\\\Code\\\\jIssWeb\\\\openspec\\\\specs\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(npm run *)",
+      "Bash(npx openspec *)",
+      "Bash(git checkout *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(git stash *)",
+      "Bash(npx vitest *)",
+      "Bash(npx vue-tsc *)",
+      "Bash(Get-ChildItem \"C:\\\\Code\\\\jIssWeb\\\\openspec\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(Get-ChildItem \"C:\\\\Code\\\\jIssWeb\" -Directory -Name -Depth 2 | Where-Object { $_ -notmatch \"\\\\.claude|worktrees|node_modules|\\\\.git\" })",
+      "Bash(awk '{print $2}')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git pull *)",
+      "Bash(git merge *)",
+      "Bash(git branch *)"
     ]
   }
 }
