@@ -725,7 +725,7 @@ export async function createForumPost(payload: {
   board?: string
   tags?: string[]
 }) {
-  const { data } = await modelApi.post<ApiResult<{ id: string; state?: string; localOnly?: boolean }>>('/forum/posts', payload)
+  const { data } = await modelApi.post<ApiResult<{ id: string; state?: string; localOnly?: boolean; authorDisplayName?: string }>>('/forum/posts', payload)
   return data
 }
 

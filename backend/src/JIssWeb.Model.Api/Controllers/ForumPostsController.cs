@@ -659,11 +659,13 @@ public class ForumPostsController : ControllerBase
 
         if (blockedEvaluation == BlockedWordEvaluation.Local)
         {
+            var localNames = await _authorNames.ResolveAsync(new[] { authorId });
             return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto
             {
                 Id = CreateLocalId(),
                 State = ForumContentStates.Local,
                 LocalOnly = true,
+                AuthorDisplayName = ForumDtoMapping.DisplayNameFor(localNames, authorId),
             }));
         }
 
@@ -930,6 +932,7 @@ public class CreatePostResultDto
     public string Id { get; set; } = "";
     public string State { get; set; } = ForumContentStates.Published;
     public bool LocalOnly { get; set; }
+    public string? AuthorDisplayName { get; set; }
 }
 
 public class CreateReplyRequest

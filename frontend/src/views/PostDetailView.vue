@@ -246,7 +246,12 @@ async function submitReply() {
     }
 
     if (isLocalPostId(postId.value)) {
-      appendLocalReply(sub, { postId: postId.value, body: text, authorId: sub })
+      appendLocalReply(sub, {
+        postId: postId.value,
+        body: text,
+        authorId: sub,
+        authorDisplayName: post.value?.authorDisplayName,
+      })
       replyBody.value = ''
       replies.value = listLocalRepliesForPost(sub, postId.value).map((r) => localReplyToForumReply(r))
       if (post.value) post.value = { ...post.value, comments: replies.value.length }

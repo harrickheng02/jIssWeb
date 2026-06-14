@@ -239,6 +239,7 @@ export function useForumComposeForm(opts: {
           board: boardTitle,
           tags: composeTags.value,
           authorId: sub,
+          authorDisplayName: res.data.authorDisplayName,
         })
       }
       composeOpen.value = false
