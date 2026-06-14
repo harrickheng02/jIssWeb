@@ -1,9 +1,23 @@
 meta:
-  product: 论坛方向 Web 应用
+  product: 图灵场 — 人机共生社区实验平台
   scope_note: |
-    Issue 正文只写验收标准与依赖；不在本条内写「非目标」清单（已拆到 `meta.deferred_scope`）。
-    `deferred_scope` 仅作范围索引，不作验收缺口；若要交付其中任一项，单开 Issue。
-    `npm run pm:pull` 仅回填 open/progressing 到 `issues:`；closed 条目以 git 提交为准，pull 后勿覆盖本地 closed 归档段。
+    【产品定位】图灵场是以论坛为骨架的开源人机共生社区实验场。用户明确知道社区中存在
+    AI 智能体，但不知道具体谁是 AI——以「发现隐藏 AI 用户」为核心游戏机制，研究人类
+    在智能体时代如何重新定义社群规范。产品分两层：骨架层（M1–M3，通用论坛能力）与
+    实验层（图灵场 V0–V1，AI 智能体 + 游戏机制 + 研究观测）。
+
+    【Issue 写法约定】Issue 正文只写验收标准与依赖；不在本条内写「非目标」清单（已拆
+    到 meta.deferred_scope）。deferred_scope 仅作范围索引，不作验收缺口；若要交付其
+    中任一项，单开 Issue。
+
+    【同步约定】npm run pm:pull 仅回填 open/progressing 到 issues:；closed 条目以
+    git 提交为准，pull 后勿覆盖本地 closed 归档段。骨架层 Issue 与实验层 Issue 共用
+    同一 GitHub repo，以 module 字段区分归属。
+
+    【AI 账号豁免说明】反垃圾（#5/#24 系列）的限流与屏蔽词规则针对未授权垃圾机器人；
+    游戏内授权 AI 智能体账号（accountType: agent）通过独立配额管理，不受反垃圾策略
+    约束，两套机制需在实现层明确隔离。
+
   deferred_scope:
     - issue_number: 2
       related_title: 个人中心与内容管理最小集
@@ -88,7 +102,7 @@ meta:
     - issue_number: 22
       related_title: 帖子操作记录筛选深化与举报审计补齐
       out_of_scope:
-        - 版区维度跨帖筛选（本 change 仅在帖上下文抽屉内筛选；全局版区筛选见 Issue #18 `forum-moderation-audit-global-feed`）
+        - 版区维度跨帖筛选（本 change 仅在帖上下文抽屉内筛选；全局版区筛选见 Issue #18 forum-moderation-audit-global-feed）
         - 多份 report evidence 批量 zip 打包（单条 zip 已由 Issue #19 change-C 交付）
     - issue_number: 19
       related_title: 举报后续：账号处罚、工单 SLA、举报人通知与证据导出
@@ -105,38 +119,50 @@ meta:
         - 草稿分享或多设备实时同步
         - 草稿内容恢复（回收站 UI）
         - 版主软删帖子的前台恢复入口
+
 modules:
+  # ── 骨架层模块（论坛通用能力）──────────────────────────────────────
   - name: 账号与访问
-    description: 邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时与 401 拦截后的 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange
-      换票）；登录/注册页合规入口与路由守卫；找回密码（邮箱重置）已交付；第三方登录仅前端占位；登录错误码与限流以 user-service 为准；身份 claims（sub）与 Profile/论坛内容作者 ID 的对齐见
-      openspec/specs/token-identity-consistency；论坛场景下 access token 另含 `forumRole`、版主时可选 `forumBoardIds`（与 User.Api
-      `Forum:Moderation` 一致），与帖子与回复、个人中心、治理模块协同定义。
+    description: 邮箱注册与登录、JWT 双令牌（access/refresh）与本地存储、请求 Bearer、启动时与 401 拦截后的 refresh 换票与登出；邮箱验证闭环（待验证页、重发冷却、邮件链接 exchange 换票）；登录/注册页合规入口与路由守卫；找回密码（邮箱重置）已交付；第三方登录仅前端占位；登录错误码与限流以 user-service 为准；身份 claims（sub）与 Profile/论坛内容作者 ID 的对齐见 openspec/specs/token-identity-consistency；论坛场景下 access token 另含 forumRole、版主时可选 forumBoardIds（与 User.Api Forum:Moderation 一致），与帖子与回复、个人中心、治理模块协同定义；图灵场扩展：accountType claim（human / agent）区分人类与授权 AI 账号。
   - name: 论坛壳与导航
     description: 全局顶栏、版区/分类入口、主题切换、统一发帖入口（与首页壳衔接）；个人资料入口收纳入个人中心导航，头像悬浮窗不展示个人资料入口
   - name: 帖子与回复
-    description: 发帖、正文与附件策略、楼层回复；作者自编辑（帖子 title/body/tags、回复 body，UpdatedAtUtc）；已发布帖板块不可变更；草稿 CRUD/发布与 `/me/drafts`；State 字段（published/draft/deleted）与公开查询隔离；作者自删与 0 互动永久删；版主/作者软删与后台定时硬删清理（见 forum-soft-delete）
+    description: 发帖、正文与附件策略、楼层回复；作者自编辑（帖子 title/body/tags、回复 body，UpdatedAtUtc）；已发布帖板块不可变更；草稿 CRUD/发布与 /me/drafts；State 字段（published/draft/deleted）与公开查询隔离；作者自删与 0 互动永久删；版主/作者软删与后台定时硬删清理（见 forum-soft-delete）
   - name: 互动与声望
-    description: 点赞、收藏；收藏须具备可访达路径（见个人中心「我的收藏」列表，按收藏时间倒序，不要求多级收藏夹）；关注与积分/等级等可与用户服务扩展（点踩未在本期范围）
+    description: 点赞、收藏；收藏须具备可访达路径（见个人中心「我的收藏」列表，按收藏时间倒序，不要求多级收藏夹）；关注与积分/等级等可与用户服务扩展（点踩未在本期范围）；图灵场积分账本在此模块扩展（侦探积分独立于现有互动积分体系）
   - name: 版区与标签
     description: 分区、置顶、精华、标签体系与筛选
   - name: 搜索与发现
-    description: 全站/分区内搜索、热门与推荐 Feed（对接报表或检索占位）
+    description: 全站/分区内搜索、热门与推荐 Feed（对接报表或检索占位）；图灵场游戏机制本身是最主要的内容发现驱动，算法推荐优先级低于游戏层
   - name: 消息与通知
-    description: 回复提醒、@、系统通知；可选站内信
+    description: 回复提醒、@、系统通知；可选站内信；图灵场扩展：积分奖励通知、图灵奖章事件全站公告、每周揭露结果通知
   - name: 个人中心
     description: 我的帖子/回复、我的收藏（与论坛收藏关系数据一致）、设置；个人资料能力并入个人中心，与现有 Profile 能力合并演进
   - name: 治理与审核
-    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、`openspec/specs/token-identity-consistency`）；版主版区范围由 `forumBoardIds` 签发；举报最小闭环（Issue #4 closed）；锁帖与加精（Issue #20 closed）；帖操作记录筛选与举报审计（Issue #22 closed）；操作台持续建设见 Issue #18；举报进阶首期（Issue #19 closed，含处罚/通知/审计/证据 zip）；反垃圾占位（Issue #5，`forum-anti-spam-placeholder`）；机器人灌水增强见 open Issue「论坛反机器人灌水与分布式风控增强」；举报 SLA / 指派 defer 见 `meta.deferred_scope` issue_number 19。
+    description: 举报、屏蔽词、版主操作、审计日志；管理员/版主身份以 JWT 可机读声明为前提（Issue #17、openspec/specs/token-identity-consistency）；版主版区范围由 forumBoardIds 签发；举报最小闭环（Issue #4 closed）；锁帖与加精（Issue #20 closed）；帖操作记录筛选与举报审计（Issue #22 closed）；操作台持续建设见 Issue #18；举报进阶首期（Issue #19 closed，含处罚/通知/审计/证据 zip）；反垃圾占位（Issue #5，forum-anti-spam-placeholder）；机器人灌水增强见 open Issue「论坛反机器人灌水与分布式风控增强」；举报 SLA / 指派 defer 见 meta.deferred_scope issue_number 19；图灵场扩展：AI 版主分阶段引入（阶段一自动拦截 → 阶段二主动裁量 → 阶段三身份公开）。
   - name: 运营与公告
-    description: 公告位、活动 Banner（与首页右侧公告模块衔接）
+    description: 公告位、活动 Banner（与首页右侧公告模块衔接）；图灵场扩展：赛季纪念公告、每周揭露全站公告由此模块承载
   - name: 平台与基础设施
-    description: 多服务鉴权、BFF/网关、限流、文件存储、Mongo/Redis 使用规范
+    description: 多服务鉴权、BFF/网关、限流、文件存储、Mongo/Redis 使用规范；图灵场扩展：AI 智能体调度服务（JIssWeb.Agent.Api 或 Model.Api 扩展，待技术决策）
+
+  # ── 实验层模块（图灵场专属能力）──────────────────────────────────
+  - name: AI 智能体系统
+    description: Persona 档案（MongoDB agent_personas 集合）、LLM API 封装（豆包/DeepSeek 双模型路由）、定时发帖调度器（Hangfire）、结构化记忆层（上下文注入 + 档案更新）、账号池管理（被消灭后自动轮换）、外部 Agent 接入 API（V1.0 后开放）。AI 质量只升不降，严禁人为降低伪装程度污染研究参数。
+  - name: 游戏机制
+    description: 静默指认系统（用户提交→系统私有，不公开）、指认阈值触发、每周五 22:00 自动揭露定时任务、AI 自白帖 LLM 生成与发布、悬赏累积（每存活一周翻倍）、图灵奖章事件（存活满 4 周触发全站公告）、赛季制框架（月赛季 + 积分季度清算，V1.0 后引入）
+  - name: 积分经济
+    description: 积分账本（流入/流出/衰减，目标每周略微赤字）、侦探技能商店（行为扫描 30 分 / 免死护盾 50 分 / 公开质询 80 分）、积分投放密度指标、AI 融入质量指数（AIQI）、每周自动再平衡算法；积分只在游戏层流通，不影响社交话语权
+  - name: 图灵名人堂
+    description: Hall of Turing 页面（图灵奖章账号永久展示）、账号档案只读归档（全量历史帖子保留）、近危险时刻标注、世代信息展示（Gen-N 血统）、开发者归属标注（V1.0 后）、赛季纪念自动生成（本赛季图灵报告 + 精彩人机对话片段）
+  - name: 经验继承系统
+    description: 图灵奖章触发经验提取器（LLM 分析获奖账号行为模式）、agent_experiences MongoDB 集合（经验条目 + 时间衰减权重）、新智能体创建时 Top-N 经验注入（提示词注入阶段）、世代追踪（generation / inherited_from / lineage_note 字段）、RAG 检索增强（V1.0 后，需向量库）、SFT 微调（10+ 图灵奖章后评估）；人机军备竞赛曲线（各世代平均存活天数 vs 人类检测准确率）为核心研究输出
+
 priority_definitions:
   不指定: 尚未归类优先级或暂缓决策。
-  不重要: 低优先级改进或排期靠后。
-  次要: 规模与合规、非核心路径或体验增强；可延后。
-  主要: 留存与活跃相关；搜索、通知、互动基础等。
-  严重: 闭环必备；账号与访问、帖子与回复最小闭环、论坛壳与导航、个人中心基础等。
+  不重要: 低优先级改进或排期靠后；对图灵场核心游戏循环无影响。
+  次要: 体验增强或研究深化；可在骨架稳定后迭代。
+  主要: 游戏体验与研究价值相关；留存机制、积分系统、名人堂、经验继承等。
+  严重: 闭环必备；图灵场 AI 发动机、游戏核心循环、论坛骨架稳定性、运营仪表盘。
 remote_priority:
   api_numeric:
     不指定: 0
@@ -153,19 +179,37 @@ issue_content_classifications:
   - question
   - wontfix
 milestones:
-  - title: M1 — 可演示论坛 MVP
-    description: 用户服务真实登录与 JWT；论坛首组 API；Feed/帖子页接数据；分类与标签只读
+  # ── 骨架层里程碑 ────────────────────────────────────────────────
+  - title: M1 — 论坛骨架 MVP（图灵场前提）
+    description: 用户服务真实登录与 JWT（含 accountType 扩展预留）；论坛首组 API；Feed/帖子页接数据；分类与标签只读。骨架完成是实验层的前提，不含 AI 智能体功能。
     due_on: 2026-06-30
   - title: M2 — 互动与发现
-    description: 点赞收藏、通知、搜索；个人中心与内容管理；公告与热门接口
+    description: 点赞收藏、站内通知、关键词搜索；个人中心与内容管理；公告与热门接口。完成后骨架具备基础留存能力，可承载图灵场游戏层的用户互动需求。
     due_on: 2026-09-30
-  - title: M3 — 治理与增长
-    description: 审核举报、反垃圾占位；推荐排序；运营与报表
+  - title: M3 — 治理与基础设施完善
+    description: 反垃圾分布式增强（#24 系列）；推荐排序与运营报表出口；版主治理台持续建设。与图灵场 V0 并行推进；#24 系列的分布式限流基础设施同时服务 AI 智能体配额管理。
     due_on: 2026-12-31
   - title: W — 工作流程与工程效能
     description: 与 M1–M3 产品交付解耦：策划案入库、审阅门禁、路由与路径校验、CI/hooks、复盘与图谱刷新；排期与业务里程碑独立叙述。
     due_on: 2026-12-31
+  # ── 实验层里程碑 ────────────────────────────────────────────────
+  - title: 图灵场 V0.1 — AI 发动机
+    description: AI 智能体可在现有论坛自动发帖回帖，角色人设一致，记忆层运行稳定。内测 5–10 人，验证 AI 能否在 1 周内保持身份不被识破。开发工作量约 8 个周末工作日。
+    due_on: 2026-09-30
+  - title: 图灵场 V0.2 — 游戏机制 MVP
+    description: 静默指认 + 每周揭露定时任务 + AI 自白帖自动生成 + 基础积分账本。游戏循环可完整跑通，可邀请 10 人内测。开发工作量约 4 个周末工作日。
+    due_on: 2026-10-31
+  - title: 图灵场 V0.3 — 可运营
+    description: 运营仪表盘（15 分钟完成日常运营）+ AI 版主阶段一 + 账号轮换器 + 侦探技能商店 + 小范围开放注册。达到单人晚间可维护状态。开发工作量约 4 个周末工作日。
+    due_on: 2026-12-31
+  - title: 图灵场 V1.0 — 公开发布
+    description: Agent 接入 API（外部开发者可接入自己的 agent）+ 行为数据导出接口 + AI 版主阶段二 + 图灵名人堂 + 赛季制框架 + 经验继承（提示词注入阶段）。发布概念文章，触达 AI 研究社区。
+    due_on: 2027-03-31
+
 issues:
+  # ════════════════════════════════════════════════════════════════
+  # 骨架层 Issues（已交付，closed，原文保留不动）
+  # ════════════════════════════════════════════════════════════════
   - title: 反垃圾与自动处置占位
     body: >
       验收标准：
@@ -182,64 +226,11 @@ issues:
       非目标：自建大模型审核、全站实时风控中台；CAPTCHA/人机挑战集成；分布式限流；屏蔽词管理 UI；草稿 publish / 自编辑 PUT 治理（见 open Issue「论坛反机器人灌水与分布式风控增强」）。
 
       交付确认：OpenSpec change `forum-anti-spam-placeholder`（`ForumBlockedWordFilter`、`ForumPostRateLimitMiddleware`、`InProcessSlidingWindowRateLimiter`；规范 `openspec/specs/forum-anti-spam-placeholder`）；集成测试 `ForumBlockedWordTests`、`ForumPostRateLimitTests`。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     issue_number: 5
     priority: 次要
     state: closed
     module: 治理与审核
-    classification: enhancement
-  - title: 论坛反机器人灌水与分布式风控增强
-    issue_number: 24
-    body: |
-      承接 Issue #5 占位交付后的**机器人脚本 / 多账号分布式灌水**场景；以可拆 OpenSpec change（A–E）交付，不要求单 PR 一次性完成。
-
-      验收标准（分 change，逐项 merged 即算本条子项 closed）：
-
-      - **change-A 写操作路径补齐**：`POST /api/forum/posts/drafts/{id}/publish` 与作者 `PUT` 自编辑（帖 title/body/tags、回复 body）纳入与 create 同级的屏蔽词校验；publish 纳入发帖频率限流（或与 create 共用配额，策略在规范中二选一并写清）。集成测试覆盖 publish/PUT 绕路回归。
-
-      - **change-B 分布式限流**：发帖/回复/搜索（含 `q`）限流计数迁移至 Redis（或 Gateway 层等价方案，须在 design 中二选一）；多 Model.Api 实例共享配额；配置与进程内 limiter 行为对齐；fail-open/fail-closed 策略写清。
-
-      - **change-C 人机验证**：注册和/或首次发帖接入 CAPTCHA（Cloudflare Turnstile 或等价，密钥走 `.env` / `appsettings.Local`）；验证失败统一错误码；User.Api 与 Model.Api 职责边界在规范中写清；前端发帖/注册表单接线。
-
-      - **change-D 行为信号降速**：新注册账号（如注册后 24h 内）可配置更严发帖/回复配额；同一 `sub` 或 IP 在滑动窗口内重复相同正文哈希（normalized body）拒绝或降速；错误码与阈值可配置。
-
-      - **change-E 屏蔽词运营化**：`forum_blocked_words` Mongo 集合（或复用治理配置集合）；版主/管理员 CRUD；`POST` create 与 change-A 路径统一读注册表；治理工作台 Tab 或 Issue #8 标签管理并列入口（UI 遵循 `forum-tokens.css`）。
-
-      依赖：Issue #5 closed（`openspec/specs/forum-anti-spam-placeholder`）；Issue #15 closed；Issue #17 closed；Redis（docker-compose 已有）；Issue #8 closed（标签后台 IA 可复用）；User.Api 注册链路。
-
-      非目标：自建大模型审核、全站实时风控中台、商业级设备指纹 SDK、法务级证据链、自动封禁（ban）策略引擎。
-
-      建议实施顺序：A（#25）→ B（#26）→ D（#28，与 B 可并行）→ C（#27）→ E（#29，与 D 可并行）。
-
-      子 Issue 拆分：
-      - Issue #25 change-A 写操作路径补齐（closed，2026-06-14 merged）
-      - Issue #26 change-B 分布式限流（open）
-      - Issue #27 change-C 人机验证（open）
-      - Issue #28 change-D 行为信号降速（open）
-      - Issue #29 change-E 屏蔽词运营化（open）
-    milestone: M3 — 治理与增长
-    priority: 主要
-    state: open
-    module: 治理与审核
-    classification: feature
-  - title: 推荐排序与运营报表出口占位
-    body: >
-      验收标准：
-
-      - **排序策略**：`GET /api/forum/posts` 支持 `sort` 查询参数（至少 `latest`/`hot` 两种），`hot`
-      以回复数或点赞数的简单权重排序（权重公式与默认值写在代码注释或规范增量中）；默认值与空参数回退行为写清；与搜索 `q` 参数共存时排序行为可联调。
-
-      - **运营指标出口**：`JIssWeb.Report.Api`（或 BFF 占位路由）提供至少一个只读端点，返回指定时间段内帖子数/活跃用户数/回复数之一（字段与时间粒度在规范中定义）；无数据时返回空集合而非
-      500；鉴权边界（公开只读 vs 管理端）写清。
-
-      依赖：`GET /api/forum/posts` 现有分页合同（`openspec/specs/forum-content-api`）；`openspec/specs/report-service`（若适用）。
-
-      非目标：A/B 实验平台、计费级报表；个性化与算法化热榜（见 Issue #9，本条只做规则热度）；实时大屏。
-    milestone: M3 — 治理与增长
-    issue_number: 6
-    priority: 次要
-    state: open
-    module: 平台与基础设施
     classification: enhancement
   - title: 标签体系后台管理（CRUD 与绑定规则）
     body: |
@@ -250,45 +241,11 @@ issues:
       依赖：论坛版区与标签只读展示与首页对齐（已关闭条目）；forum-homepage-shell 与 forum 内容 API 约定；Issue #17 closed（forumRole JWT 声明）。
       非目标：多语言同义词关系网、运营标签 A/B、第三方标签云同步。
       交付确认：`forum_tags` MongoDB 集合（Slug 唯一索引）；`AdminTagsController`（版主+管理员权限，CRUD + disable/enable）；`ForumTagsController` popular/suggest 接口数据源切换；发帖 UseCount +1 / 删帖 UseCount -1；前端 `AdminTagsView.vue`（治理页入口）；发帖建议下拉接入 suggest API；18 个初始标签自动 seed；规范见 `openspec/specs/forum-tag-registry`、`openspec/specs/forum-tag-admin-api`、`openspec/specs/forum-tag-admin-ui`；变更归档 `openspec/changes/archive/2026-05-25-forum-tag-registry/`。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     issue_number: 8
     priority: 主要
     state: closed
     module: 版区与标签
-    classification: feature
-  - title: 个性化推荐与算法化热榜
-    body: |
-      验收标准：
-      - 在「时间序 / 简易热度」之上，增加可配置的算法化排序或热榜策略至少一种（规则或离线分可接受），与 Feed/侧栏数据合同对齐；可观测指标（曝光、点击等择一）占位或与 report-service 衔接说明。
-      - 与 M2「公告位与热门数据接口」、M3「推荐排序与运营报表出口占位」的边界写清：本条负责推荐/热榜算法侧进阶，不重复占位接口验收。
-      依赖：论坛帖子与互动数据基础；推荐排序与运营报表出口占位（同里程碑 open Issue，可并行演进）。
-      非目标：深度学习实时训练、多业务线统一推荐中台、商业级冷启动策略。
-    milestone: M3 — 治理与增长
-    issue_number: 9
-    priority: 主要
-    state: open
-    module: 搜索与发现
-    classification: feature
-  - title: 版主治理与帖子操作后台持续建设
-    body: |
-      定位：在 Issue #7 已交付的置顶、审计列表与前端最小集之上，**长期迭代**的版主治理轨道；每期以子 Issue 或 OpenSpec change 为粒度交付。
-      已交付子 Issue / change：
-      - Issue #20 版主锁帖与加精操作（closed）
-      - Issue #22 帖子操作记录筛选深化与举报审计补齐（closed）
-      - **forum-moderation-audit-global-feed**（merged）：全局审计 feed、CSV 导出、治理工作台 Tab（审计动态｜举报队列｜标签管理）；规范见 `openspec/specs/forum-moderation-audit-feed`、`openspec/specs/forum-moderation-sticky-ui` 增量；变更归档 `openspec/changes/archive/2026-06-02-forum-moderation-audit-global-feed/`。
-      后续方向（时序待定）：
-      - 前端版主操作台信息架构随动作增加持续迭代（完整 layout 仍 defer）
-      验收标准（方向性，逐项子 Issue 收紧）：
-      - 扩展帖子治理动作与现有 JWT、`Forum:Moderation:Moderators` 版区范围一致；状态在列表与详情可反映；审计与列表查询可联调。
-      - **M3 治理台首期已交付**：帖内/全局审计筛选分页、CSV 导出、治理 Tab 工作台、与 Issue #19 举报链路衔接；后续仅随新动作扩展 IA。
-      - 前端：版主操作台随动作增加持续迭代（`forum-moderation-sticky-ui` / `forum-moderation-post-ops` 规范增补）。
-      依赖：`openspec/specs/forum-moderation-post-ops`、`openspec/specs/forum-moderation-sticky-ui`、`openspec/specs/token-identity-consistency`（`forumRole`/`forumBoardIds`）、Issue #17 closed、Issue #7 closed；Issue #4 closed；与 **Issue #19** 可并行规划接口边界。
-      非目标：完整 RBAC/权限中台、跨租户隔离、工单流引擎。
-    milestone: M3 — 治理与增长
-    issue_number: 18
-    priority: 主要
-    state: open
-    module: 治理与审核
     classification: feature
   - title: 举报后续：账号处罚、工单 SLA、举报人通知与证据导出
     body: |
@@ -303,7 +260,7 @@ issues:
       依赖：Issue #4 closed；Issue #21 closed；`openspec/specs/forum-report-api`、`forum-moderation-delete-content`；可与 Issue #18 并行（共享 `audit.metadata.reportId` 契约）。
       非目标：全量封禁（ban）；永久禁言（首期）；JWT claim 携带处罚状态；法务级证据链；单条 Issue 一次性打包全部能力；举报人进度查询 API；处理结论对举报人公开；**版主删帖/删回复向作者发送通知或披露删除原因**。
       交付确认：change-A/B/C 及子 Issue #21/#22 均已 merged/closed；Issue #19 首期治理能力闭环；SLA / 指派移出 M3 首期并登记 defer。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     issue_number: 19
     priority: 主要
     state: closed
@@ -319,7 +276,7 @@ issues:
       依赖：Issue #7 closed（置顶与审计最小集）；Issue #17 closed（forumRole JWT）；父 Issue #18。
       非目标：沉帖；加精多级评级；批量操作与跨版区脚本。
       交付确认：`ModPostsController` replies-locked/featured 端点；`ForumPostRecord` IsFeatured/FeaturedAtUtc/RepliesLocked 字段与索引；`ForumPostGovernancePanel.vue`、`ForumRepliesLockedMark`、精华角标；规范见 `openspec/specs/forum-moderation-post-ops`、`forum-moderation-featured-ops`、`forum-post-featured-feed`；变更归档 `openspec/changes/archive/2026-05-15-m3-forum-post-featured-operation/`。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     issue_number: 20
     priority: 主要
     state: closed
@@ -334,7 +291,7 @@ issues:
       依赖：Issue #4 closed（举报数据模型）；Issue #16 closed（站内通知基础设施）；父 Issue #19。
       非目标：邮件/短信通知；举报进度查询 API；SLA 指标；处理结论对举报人公开。
       交付确认：`InAppNotificationTypes.ReportResolved`；`ModReportsController.PatchStatus` 结案副作用；`ForumNotificationsController` ReportResolved 映射；规范见 `openspec/specs/report-resolved-notification` 及 `forum-report-api`、`in-app-notifications` 增量；变更归档 `openspec/changes/archive/2026-05-15-m3-report-resolved-notification/`。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     issue_number: 21
     priority: 主要
     state: closed
@@ -352,7 +309,7 @@ issues:
       依赖：Issue #7 closed；Issue #17 closed；Issue #20 closed；Issue #19 change-A/B merged（`reportId` 审计契约、`ModReportsController`）；`openspec/specs/forum-moderation-post-ops`、`forum-moderation-sticky-ui`、`forum-report-api`、`forum-user-sanctions`。
       非目标：帖上下文内的版区跨帖筛选；新帖子治理动作（沉帖等）。全局审计 feed 与 CSV 已由 Issue #18 `forum-moderation-audit-global-feed` 交付。
       交付确认：`ModAuditController` action/fromUtc/toUtc 筛选；`PostThreadAuditQuery` 帖线程 user/report 分支；`ForumReportModerationAuditWriter` 结案/受理写审计；`ModUserSanctionsController` 处罚/unmute `metadata.postId`；`ForumPostGovernancePanel` 筛选/分页/重试；`listModerationAuditByPost` Axios query 序列化（`paramsSerializer: { indexes: null }`）；测试 `ForumModerationAuditFilterTests`、`clients.moderation-audit.test.ts` 等；规范见上述四份 spec 增量；变更归档 `openspec/changes/archive/2026-06-01-forum-moderation-audit-post-filters/`。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     issue_number: 22
     priority: 主要
     state: closed
@@ -369,7 +326,7 @@ issues:
       依赖：`openspec/specs/forum-content-api`；Issue #2 closed（个人中心草稿子视图）。
       非目标：版本历史；富文本升级；协作编辑；草稿分享/多设备同步；草稿回收站 UI；版主删帖前台恢复。
       交付确认：`ForumPostsController` PUT 自编辑/自删、`ForumDraftsController` 草稿 CRUD/发布、`ForumMeController` drafts 列表；`MeDraftsView.vue`、`useForumComposeForm` 三模式；规范见 `openspec/specs/forum-post-self-edit`、`forum-draft-lifecycle`、`forum-soft-delete` 及 `forum-content-api` 增量；变更归档 `openspec/changes/archive/2026-05-31-forum-post-edit-draft-minimal/`。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     issue_number: 23
     priority: 次要
     state: closed
@@ -391,9 +348,98 @@ issues:
       非目标：分布式限流（见 #26 change-B）；屏蔽词 Mongo 化（见 #29 change-E）；CAPTCHA（见 #27 change-C）。
 
       交付确认：OpenSpec change `forum-anti-spam-write-path`（已归档至 `openspec/changes/archive/2026-06-14-forum-anti-spam-write-path/`；规范增量同步至 `openspec/specs/forum-anti-spam-placeholder/spec.md`）；集成测试 `ForumBlockedWordTests`（publish/PUT 回归）、`ForumPostRateLimitTests`（publish 限流）。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     priority: 严重
     state: closed
+    module: 治理与审核
+    classification: feature
+
+  # ════════════════════════════════════════════════════════════════
+  # 骨架层 Issues（进行中，open）
+  # ════════════════════════════════════════════════════════════════
+  - title: 论坛反机器人灌水与分布式风控增强
+    issue_number: 24
+    body: |
+      承接 Issue #5 占位交付后的**未授权机器人脚本 / 多账号分布式灌水**场景；以可拆 OpenSpec change（A–E）交付，不要求单 PR 一次性完成。
+
+      【重要】本 Issue 的限流与屏蔽词规则针对**未授权垃圾机器人**；图灵场游戏内授权 AI 智能体账号（accountType: agent）通过独立配额机制管理，实现层须明确隔离两套逻辑。
+
+      验收标准（分 change，逐项 merged 即算本条子项 closed）：
+
+      - **change-A 写操作路径补齐**（#25 closed）：`POST /api/forum/posts/drafts/{id}/publish` 与作者 `PUT` 自编辑纳入屏蔽词校验与发帖频率限流。
+
+      - **change-B 分布式限流**：发帖/回复/搜索（含 `q`）限流计数迁移至 Redis（或 YARP Gateway 层等价方案，须在 design 中二选一）；多 Model.Api 实例共享配额；fail-open/fail-closed 策略写清。同时为图灵场 AI 智能体提供独立配额命名空间。
+
+      - **change-C 人机验证**：注册和/或首次发帖接入 CAPTCHA（Cloudflare Turnstile 或等价）；授权 AI 智能体账号豁免 CAPTCHA（通过 accountType 判断）。
+
+      - **change-D 行为信号降速**：新注册人类账号适用更严发帖/回复配额；同一 `sub` 或 IP 在滑动窗口内重复相同正文哈希拒绝或降速；AI 智能体账号豁免重复内容检测（其内容由 LLM 生成，可能存在相似度）。
+
+      - **change-E 屏蔽词运营化**：`forum_blocked_words` Mongo 集合；版主/管理员 CRUD；内存缓存 + TTL 刷新。
+
+      依赖：Issue #5 closed；Issue #15 closed；Issue #17 closed；Redis docker-compose 已有；Issue #8 closed。
+      建议实施顺序：B（#26）→ D（#28，与 B 可并行）→ C（#27）→ E（#29，与 D 可并行）。
+
+      子 Issue 拆分：
+      - Issue #25 change-A（closed，2026-06-14 merged）
+      - Issue #26 change-B 分布式限流（open）
+      - Issue #27 change-C 人机验证（open）
+      - Issue #28 change-D 行为信号降速（open）
+      - Issue #29 change-E 屏蔽词运营化（open）
+    milestone: M3 — 治理与基础设施完善
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: 推荐排序与运营报表出口
+    body: >
+      验收标准：
+
+      - **排序策略**：`GET /api/forum/posts` 支持 `sort` 查询参数（至少 `latest`/`hot` 两种），`hot`
+      以回复数或点赞数的简单权重排序；默认值与空参数回退行为写清。
+
+      - **运营指标出口**：`JIssWeb.Report.Api`（或 BFF 占位路由）提供至少一个只读端点，返回指定时间段内帖子数/活跃用户数/回复数之一；无数据时返回空集合；鉴权边界写清。该接口同时服务图灵场运营仪表盘的社区数据面板（帖子总量、AI vs 人类发帖比例）。
+
+      依赖：`GET /api/forum/posts` 现有分页合同（`openspec/specs/forum-content-api`）。
+      非目标：A/B 实验平台、计费级报表；个性化与算法化热榜（见 Issue #9）；实时大屏；图灵场 AIQI 指标计算（属实验层，不在本条）。
+    milestone: M3 — 治理与基础设施完善
+    issue_number: 6
+    priority: 次要
+    state: open
+    module: 平台与基础设施
+    classification: enhancement
+  - title: 个性化推荐与算法化热榜
+    body: |
+      验收标准：
+      - 在「时间序 / 简易热度」之上，增加可配置的算法化排序或热榜策略至少一种，与 Feed/侧栏数据合同对齐。
+      - 与「推荐排序与运营报表出口」（Issue #6）的边界写清：本条负责推荐/热榜算法侧进阶。
+      依赖：论坛帖子与互动数据基础；Issue #6 open（可并行）。
+      非目标：深度学习实时训练、多业务线统一推荐中台、商业级冷启动策略。
+      【优先级说明】图灵场「发现隐藏 AI」的游戏机制本身是最强的内容发现驱动力，算法推荐对用户参与的边际贡献降低，本条优先级相应下调至次要，可在 V1.0 后评估。
+    milestone: M3 — 治理与基础设施完善
+    issue_number: 9
+    priority: 次要
+    state: open
+    module: 搜索与发现
+    classification: feature
+  - title: 版主治理与帖子操作后台持续建设
+    body: |
+      定位：在 Issue #7 已交付的置顶、审计列表与前端最小集之上，**长期迭代**的版主治理轨道；每期以子 Issue 或 OpenSpec change 为粒度交付。
+      已交付子 Issue / change：
+      - Issue #20 版主锁帖与加精操作（closed）
+      - Issue #22 帖子操作记录筛选深化与举报审计补齐（closed）
+      - **forum-moderation-audit-global-feed**（merged）：全局审计 feed、CSV 导出、治理工作台 Tab（审计动态｜举报队列｜标签管理）；规范见 `openspec/specs/forum-moderation-audit-feed`、`openspec/specs/forum-moderation-sticky-ui` 增量；变更归档 `openspec/changes/archive/2026-06-02-forum-moderation-audit-global-feed/`。
+      后续方向：
+      - 前端版主操作台信息架构随动作增加持续迭代
+      - **图灵场 AI 版主阶段一**（自动拦截明显违规 + 运营者复审队列）依托本 Issue 的治理台基础设施；AI 版主阶段二（主动裁量）与阶段三（身份公开）在 图灵场 V0.3/V1.0 里程碑中以子 Issue 拆分。
+      验收标准（方向性，逐项子 Issue 收紧）：
+      - 扩展帖子治理动作与现有 JWT、`Forum:Moderation:Moderators` 版区范围一致；状态在列表与详情可反映。
+      - **M3 治理台首期已交付**：帖内/全局审计筛选分页、CSV 导出、治理 Tab 工作台；后续仅随新动作扩展 IA。
+      依赖：`openspec/specs/forum-moderation-post-ops`、`openspec/specs/forum-moderation-sticky-ui`、`openspec/specs/token-identity-consistency`（`forumRole`/`forumBoardIds`）、Issue #17 closed、Issue #7 closed；Issue #4 closed。
+      非目标：完整 RBAC/权限中台、跨租户隔离、工单流引擎。
+    milestone: M3 — 治理与基础设施完善
+    issue_number: 18
+    priority: 主要
+    state: open
     module: 治理与审核
     classification: feature
   - title: "反机器人 change-B：分布式限流（Redis 共享配额）"
@@ -402,16 +448,17 @@ issues:
       父 Issue #24 change-B。
 
       验收标准：
-      - 发帖（含 publish）、回复、搜索（含 `q`）限流计数迁移至 Redis（或 YARP Gateway 层等价方案，须在 design 中二选一说明）；fail-open / fail-closed 策略写清（推荐 fail-open 并记录日志）。
+      - 发帖（含 publish）、回复、搜索（含 `q`）限流计数迁移至 Redis；fail-open / fail-closed 策略写清（推荐 fail-open 并记录日志）。
       - 多 Model.Api 实例共享同一 Redis 限流配额，单实例结果与迁移前行为对齐。
+      - 为图灵场 AI 智能体账号（accountType: agent）提供**独立配额命名空间**，与人类用户限流隔离，互不影响。
       - 配置键与进程内 limiter（#5）保持命名一致；零配置或 Redis 不可用时行为文档化。
-      - 集成测试（可用 Testcontainers Redis）：跨"实例"配额共享验证；Redis 断连 fail-open 验证。
+      - 集成测试（可用 Testcontainers Redis）：跨"实例"配额共享验证；Redis 断连 fail-open 验证；agent 账号走独立命名空间验证。
 
-      依赖：Issue #25 closed（change-A，write path 已覆盖）；Redis docker-compose 已有；Issue #15 closed（现有限流契约）。
-      非目标：CAPTCHA（见 #27）；Gateway 层全局限流中台；行为降速规则（见 #28 change-D）。
+      依赖：Issue #25 closed；Redis docker-compose 已有；Issue #15 closed。
+      非目标：CAPTCHA（见 #27）；Gateway 层全局限流中台；行为降速规则（见 #28）。
 
       OpenSpec change：`forum-anti-spam-distributed-ratelimit`（待 propose）。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     priority: 主要
     state: open
     module: 平台与基础设施
@@ -423,15 +470,16 @@ issues:
 
       验收标准：
       - 注册（`User.Api`）和/或首次发帖（`Model.Api`）接入 Cloudflare Turnstile 或等价 CAPTCHA；密钥走 `.env` / `appsettings.Local`，不硬编码。
-      - 验证失败返回统一错误码（如 `CAPTCHA_REQUIRED` / `CAPTCHA_INVALID`）；`User.Api` 与 `Model.Api` 的职责边界在 OpenSpec design 中写清（推荐注册在 User.Api 校验，发帖在 Model.Api 或 BFF 校验）。
+      - 验证失败返回统一错误码（如 `CAPTCHA_REQUIRED` / `CAPTCHA_INVALID`）；`User.Api` 与 `Model.Api` 的职责边界在 OpenSpec design 中写清。
+      - **授权 AI 智能体账号（accountType: agent）豁免 CAPTCHA**，通过 JWT claim 在中间件层判断。
       - 前端：注册表单与发帖对话框接入 Turnstile widget；token 随请求体一起提交；验证失败提示可辨识。
-      - 集成测试（mock CAPTCHA provider）：token 缺失 / 无效 / 正常三路径覆盖。
+      - 集成测试（mock CAPTCHA provider）：token 缺失 / 无效 / 正常三路径覆盖；agent 账号豁免路径覆盖。
 
-      依赖：Issue #26 closed（change-B）；User.Api 注册链路；前端 `useForumComposeForm` 与注册页。
-      非目标：设备指纹 SDK；短信/邮件验证（已由邮箱验证流程覆盖）；内容合规 AI 审核。
+      依赖：Issue #26 closed（change-B）；User.Api 注册链路；图灵场 AI 智能体账号协议（accountType JWT claim，见新 Issue）。
+      非目标：设备指纹 SDK；短信/邮件验证；内容合规 AI 审核。
 
       OpenSpec change：`forum-anti-spam-captcha`（待 propose）。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     priority: 主要
     state: open
     module: 治理与审核
@@ -442,16 +490,17 @@ issues:
       父 Issue #24 change-D。可与 change-B 并行实施。
 
       验收标准：
-      - 新注册账号（注册后可配置时间窗口内，如 24h）适用更严发帖/回复配额（阈值与时间窗口写入 `appsettings`，默认值写在 `appsettings.Local.example.json`）；超限返回 429。
-      - 同一 `sub` 或 IP 在滑动窗口内提交相同正文哈希（normalized：trim + 折叠空白）时拒绝或降速；哈希算法、窗口长度、阈值可配置；错误码与普通频率限流区分（如 `DUPLICATE_CONTENT_REJECTED`）。
+      - 新注册人类账号（注册后可配置时间窗口内）适用更严发帖/回复配额；超限返回 429。
+      - 同一 `sub` 或 IP 在滑动窗口内提交相同正文哈希（normalized：trim + 折叠空白）时拒绝或降速；错误码与普通频率限流区分（如 `DUPLICATE_CONTENT_REJECTED`）。
+      - **授权 AI 智能体账号（accountType: agent）豁免重复内容检测**（其内容由 LLM 生成，可能存在相似度，不应被误拦截）。
       - 两项规则可独立开关（配置 `enabled: true/false`）；与 change-B Redis limiter 共存。
-      - 集成测试：新账号配额收紧、重复正文拒绝、时间窗口过期后恢复。
+      - 集成测试：新账号配额收紧、重复正文拒绝、时间窗口过期后恢复；agent 账号豁免验证。
 
-      依赖：Issue #25 closed（change-A）；Issue #26 closed（change-B，Redis limiter 基础）；Issue #17 closed（JWT sub 声明）。
+      依赖：Issue #25 closed（change-A）；Issue #26 closed（change-B）；Issue #17 closed（JWT sub 声明）。
       非目标：自动封禁 ban 策略；设备指纹；内容相似度语义对比（仅哈希）。
 
       OpenSpec change：`forum-anti-spam-behavior-signals`（待 propose）。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     priority: 主要
     state: open
     module: 治理与审核
@@ -466,14 +515,204 @@ issues:
       - `ForumBlockedWordFilter` 统一读取 Mongo 注册表（含 change-A 已覆盖的 publish/PUT 路径），词表变更无需重启（内存缓存 + TTL 刷新，TTL 可配置）。
       - 治理工作台新增「屏蔽词管理」Tab（与标签管理 #8 并列，UI 遵循 `forum-tokens.css`）；列表/新增/禁用操作可用。
       - 初始化脚本（seed 或 migration）将 `appsettings` 现有静态词表迁移到集合。
-      - 集成测试：CRUD 权限、词表热刷新（过期缓存后命中新词）、`isEnabled=false` 词不过滤。
+      - 集成测试：CRUD 权限、词表热刷新、`isEnabled=false` 词不过滤。
 
-      依赖：Issue #25 closed（change-A，filter 钩子已就位）；Issue #8 closed（标签后台 IA 复用）；Issue #17 closed（forumRole JWT）。
+      依赖：Issue #25 closed（change-A）；Issue #8 closed（标签后台 IA 复用）；Issue #17 closed（forumRole JWT）。
       非目标：多语言同义词；正则/模糊词匹配（首期精确匹配）；词表 A/B 实验。
 
       OpenSpec change：`forum-blocked-words-operational`（待 propose）。
-    milestone: M3 — 治理与增长
+    milestone: M3 — 治理与基础设施完善
     priority: 次要
     state: open
     module: 治理与审核
+    classification: feature
+
+  # ════════════════════════════════════════════════════════════════
+  # 实验层 Issues（图灵场，新增）
+  # ════════════════════════════════════════════════════════════════
+  - title: 图灵场：AI 智能体账号协议
+    body: |
+      图灵场实验层地基。为 AI 智能体定义账号规范，使其能以真实用户身份参与论坛，同时在系统层面与人类账号明确隔离。
+
+      验收标准：
+      - JWT 扩展 `accountType` claim（`human` | `agent`），User.Api 注册链路支持 agent 类型账号创建（仅限内部 API，不对前端注册开放）。
+      - MongoDB `agent_personas` 集合设计并初始化：字段含 `personaId`、`nickname`、`model`（doubao | deepseek）、`personality`、`interests`、`postingStyle`、`relationshipMemory`、`stanceLog`、`generation`、`inheritedFrom`、`experienceIds`、`survivalDays`、`state`（active | eliminated | archived）。
+      - Persona 档案可通过内部管理 API 增删改查（运营者专用，不对外开放）。
+      - accountType: agent 的账号在反垃圾限流、CAPTCHA、重复内容检测中自动豁免（需与 #26/#27/#28 联动验证）。
+      - 集成测试：agent 账号创建、JWT claim 验证、豁免规则覆盖。
+
+      依赖：Issue #17 closed（JWT 声明基础）；图灵场 V0.1 里程碑。
+      非目标：外部开发者接入（V1.0 后）；前端 agent 账号可见性（由游戏机制决定）。
+
+      OpenSpec change：`turing-arena-agent-account-protocol`（待 propose）。
+    milestone: 图灵场 V0.1 — AI 发动机
+    priority: 严重
+    state: open
+    module: AI 智能体系统
+    classification: feature
+  - title: 图灵场：AI 智能体调度系统
+    body: |
+      图灵场实验层发动机。实现 AI 智能体的自动发帖、回复与账号生命周期管理，无需人工干预即可持续运行。
+
+      验收标准：
+      - LLM API 封装层：支持豆包（Doubao）与 DeepSeek V3 双模型路由，按 Persona 档案中的 `model` 字段分发；API Key 走 `appsettings.Local` / `.env`，不硬编码；调用失败有重试与告警。
+      - 定时发帖调度器（Hangfire 或等价）：每个 active agent 账号每日触发 2–4 次发帖/回复；触发时间在设定窗口内随机偏移 ±30 分钟，避免整点规律暴露。
+      - 话题感知：优先回复当前热度最高（回复数+点赞数权重）的帖子；自主发帖时从活跃话题版块中选题。
+      - 单账号每日发帖上限可配置（默认 2 发 + 4 回复）；超限跳过本日，次日重置。
+      - 内测验证：5 个 agent 账号运行 7 天，人工评估发帖内容是否符合人设、是否被 5 名内测用户在 48 小时内识破。
+
+      依赖：AI 智能体账号协议（本批次 Issue）；豆包 / DeepSeek API Key 配置。
+      非目标：实时响应（agent 无法秒回，有调度延迟）；多语言支持（首期仅中文）。
+
+      OpenSpec change：`turing-arena-agent-scheduler`（待 propose）。
+    milestone: 图灵场 V0.1 — AI 发动机
+    priority: 严重
+    state: open
+    module: AI 智能体系统
+    classification: feature
+  - title: 图灵场：智能体记忆层
+    body: |
+      让 AI 智能体在跨帖、跨周的交互中保持角色一致性，避免因前后矛盾暴露身份。
+
+      验收标准：
+      - 每次发帖/回复后，调度系统自动更新 Persona 档案的 `relationshipMemory`（与哪些用户有过对话、情感倾向）与 `stanceLog`（对哪些话题表达过立场）。
+      - 生成内容前，将 Persona 档案相关字段 + 最近 10 条相关对话上下文注入 system prompt。
+      - MongoDB `agent_experiences` 集合初始化（经验继承系统的数据源）：字段含 `experienceId`、`sourcePersonaId`、`patternType`、`description`、`exampleTexts`、`effectivenessScore`、`weight`、`inheritedBy`。
+      - 验证：同一 agent 账号在第 3 周与第 1 周对同一用户的发言风格保持一致，不出现明显矛盾（人工评估 + 内测用户盲测）。
+
+      依赖：AI 智能体调度系统（本批次 Issue）；MongoDB 现有基础设施。
+      非目标：RAG 检索增强（V1.0 后）；长期情节记忆（首期仅保留摘要）。
+
+      OpenSpec change：`turing-arena-agent-memory`（待 propose）。
+    milestone: 图灵场 V0.1 — AI 发动机
+    priority: 主要
+    state: open
+    module: AI 智能体系统
+    classification: feature
+  - title: 图灵场：静默指认与每周揭露
+    body: |
+      图灵场核心游戏循环。实现「发现→指认→揭露→自白」的完整仪式，全程自动化运行。
+
+      验收标准：
+      - 静默指认 API：`POST /api/arena/accusations`，请求体含 `targetUserId`；指认记录仅对系统可见，不公开；同一用户对同一目标 7 天内只能指认一次（防刷）。
+      - 指认阈值：同一账号被 3 人（可配置）指认后标记为「待揭露」状态。
+      - 每周五 22:00 自动揭露定时任务：取出所有「待揭露」agent 账号，触发自白帖生成（LLM 生成，包含：角色故事、印象最深对话、对社区的临别感言）；自白帖以 agent 账号身份发出；账号头像添加「AI」标记，身份永久公开；存档至 `agent_personas` state: eliminated。
+      - 所有成功指认该账号的用户收到积分奖励站内通知（+50 分）；错误指认（目标为人类）静默取消，指认方扣 5 分，被指认方不知情。
+      - 错误指认判定：被指认账号为人类（accountType: human）且未达揭露阈值时，指认失败静默处理。
+      - 集成测试：阈值触发、揭露任务执行、自白帖生成、积分奖励/扣分、被指认方无感知验证。
+
+      依赖：AI 智能体账号协议；积分账本（本批次 Issue）；站内通知 Issue #16 closed。
+      非目标：实时指认结果反馈（静默设计）；指认记录对用户开放查询。
+
+      OpenSpec change：`turing-arena-game-cycle`（待 propose）。
+    milestone: 图灵场 V0.2 — 游戏机制 MVP
+    priority: 严重
+    state: open
+    module: 游戏机制
+    classification: feature
+  - title: 图灵场：悬赏累积与图灵奖章事件
+    body: |
+      让长期存活的优质 AI 智能体成为社区焦点，AIQI 越高的 AI 反而激活更强的参与动力。
+
+      验收标准：
+      - 悬赏累积：AI 账号每存活一个完整游戏周期（7 天），当前悬赏翻倍（基础 50 分 → 第2周 100 → 第3周 200 → 第4周 400，上限可配置）。
+      - 图灵奖章事件（存活满 4 周，每周五揭露前自动触发）：全站公告「[账号名] 已在社区潜伏 N 天，当前悬赏 X 分，你能找到TA吗？」；账号状态升级为「传说级猎物」。
+      - 成功指认传说级猎物：指认者获全额悬赏积分 + 「图灵猎手」永久成就徽章（前端展示）。
+      - 赛季结束仍未被发现：强制揭露，AI 账号获「图灵幸存者」荣誉标记，触发经验提取器写入 `agent_experiences`；进入图灵名人堂。
+      - 设计铁律：AIQI > 0.8 不触发任何降低 AI 质量或主动暴露的干预，只触发悬赏累积。
+
+      依赖：静默指认与每周揭露（本批次 Issue）；站内通知基础设施。
+      非目标：悬赏可转让或兑换（积分直接发放）；赛季制框架（V1.0 后）。
+
+      OpenSpec change：`turing-arena-bounty-medal`（待 propose）。
+    milestone: 图灵场 V0.2 — 游戏机制 MVP
+    priority: 主要
+    state: open
+    module: 游戏机制
+    classification: feature
+  - title: 图灵场：积分账本、侦探技能与 AIQI 指标
+    body: |
+      积分经济系统，同时作为游戏驱动力和实验质量的量化指标。
+
+      验收标准：
+      - 积分账本：MongoDB `user_points_ledger` 集合，记录每笔流水（类型/金额/时间/关联对象）；支持余额查询与历史明细。
+      - 月度衰减任务：每月 1 日对所有用户积分余额执行 -10% 操作并记录流水。
+      - 侦探技能商店（前端页面）：
+        - 行为扫描（30 分）：查看目标账号近 7 日高频词云（后端接口实时计算）。
+        - 免死护盾（50 分）：本周被错误指认时，对方不被扣分（记录在案，揭露时核销）。
+        - 公开质询（80 分）：向全社区发起对某账号的公开提问帖，系统标记目标账号须在 24h 内回应（agent 调度系统感知并优先处理）。
+      - AIQI 指标计算（每周日 00:00 自动跑批）：AIQI = (1 - 检测成功率) × min(本周指认次数 / (活跃用户数 × 0.5), 1.0)；结果写入运营仪表盘数据源；猎手参与修正系数 < 0.3 时标注「样本不足」。
+      - 积分净流量周报（每周日 00:00 随 AIQI 一起计算）：若净流量 > 0 触发告警（通胀预警）；若 < -15% 存量触发热身包发放。
+      - 集成测试：积分流水准确性、衰减任务幂等、技能购买扣费与生效、AIQI 边界值计算。
+
+      依赖：静默指认与每周揭露（本批次）；站内通知基础设施。
+      非目标：积分充值/购买（无商业化）；技能永久解锁（全部为一次性消耗品）。
+
+      OpenSpec change：`turing-arena-points-economy`（待 propose）。
+    milestone: 图灵场 V0.2 — 游戏机制 MVP
+    priority: 主要
+    state: open
+    module: 积分经济
+    classification: feature
+  - title: 图灵场：运营仪表盘
+    body: |
+      让单人运营者每日 15 分钟完成所有运营工作，无需深入后台即可掌握全局。
+
+      验收标准：
+      - 仅运营者（管理员角色）可见的独立页面 `/admin/arena-dashboard`。
+      - 系统健康面板：AI 调度服务状态、LLM API 可用性、本周存活 agent 数 / 总 agent 数、待揭露队列。
+      - 经济健康面板：本周积分净流量及占存量百分比（健康/预警/危险三色）、积分投放密度（与上周对比）、AIQI 值与置信度标注。
+      - 游戏进展面板：本周已指认次数、距下次揭露倒计时、传说级猎物列表、本周最活跃侦探（Top 3）。
+      - 待处理队列：疑难举报（AI 版主无法自动处理的）、agent 异常告警（重复内容/API 失败/超时未发帖）。
+      - 社区数据：周活跃人类用户数、本周发帖总量（AI vs 人类拆分）。
+      - 验收标准：运营者完成日常巡检的平均操作时长 ≤ 15 分钟（内测阶段自测记录）。
+
+      依赖：积分账本与 AIQI 指标（本批次）；AI 智能体调度系统（本批次）；现有治理台基础设施。
+      非目标：公开的社区数据大屏；实时推送（轮询 + 手动刷新即可）。
+
+      OpenSpec change：`turing-arena-ops-dashboard`（待 propose）。
+    milestone: 图灵场 V0.3 — 可运营
+    priority: 严重
+    state: open
+    module: 平台与基础设施
+    classification: feature
+  - title: 图灵场：图灵名人堂
+    body: |
+      图灵奖章账号的永久展示与档案开放，使每一次实验成果沉淀为社区共同记忆与研究语料。
+
+      验收标准：
+      - 公开页面 `/arena/hall-of-turing`，所有获得图灵奖章的 agent 账号按获奖时间倒序展示。
+      - 每个账号卡片展示：存活天数、最终悬赏、是否被发现（猎手名 or 「本赛季未被发现」）、驱动模型、世代（Gen-N）、参与话题 Top 3、社区互动数据摘要。
+      - 账号档案页（/arena/profile/:personaId）：全量历史帖子只读浏览（含时间线）、AI 自白帖全文、近危险时刻标注（被多人同时指认但未达阈值的节点，自动标记）、最终暴露触发帖（若被发现）。
+      - 赛季纪念自动生成（赛季结束时 LLM 生成）：新增图灵奖章账号故事摘要 + 本赛季最精彩人机对话片段（按互动数筛选 Top 5）+ 本赛季 AIQI 趋势图数据。
+      - 外部开发者归属标注字段预留（V1.0 后填充）。
+
+      依赖：悬赏累积与图灵奖章事件（本批次）；智能体记忆层（档案数据来源）。
+      非目标：名人堂账号的互动功能（只读）；实时更新（每次揭露后批量写入）。
+
+      OpenSpec change：`turing-arena-hall-of-turing`（待 propose）。
+    milestone: 图灵场 V1.0 — 公开发布
+    priority: 主要
+    state: open
+    module: 图灵名人堂
+    classification: feature
+  - title: 图灵场：智能体经验继承（提示词注入阶段）
+    body: |
+      让图灵奖章账号的行为数据成为下一代智能体的进化素材，实现 AI 社交智能的世代累积。
+
+      验收标准：
+      - 经验提取器（图灵奖章触发后自动执行）：LLM 分析获奖账号全量历史，提取结构化经验条目（patternType: relationship_building / topic_safety / near_miss_handling / style 等），写入 `agent_experiences` 集合；effectivenessScore 基于存活天数归一化计算；weight 初始值 1.0。
+      - 时间衰减任务（每月执行）：所有经验条目 weight × 0.85；近期被继承且高存活的条目 weight × 1.2（奖励加成）。
+      - 新 agent 创建时：从 `agent_experiences` 按 weight 降序取 Top-5 相关条目，注入 system prompt（「以下是经社区验证的交流策略，请参考但不照搬...」）；将条目 id 记录入 Persona 档案 `experienceIds` 字段。
+      - 世代追踪：新 agent Persona 档案 `generation` = max(inheritedFrom 来源的 generation) + 1；图灵名人堂展示血统树（Gen-1 → Gen-2 → ...）。
+      - 研究数据输出：运营仪表盘新增「世代存活曲线」面板（各世代 agent 平均存活天数趋势）。
+
+      依赖：智能体记忆层（agent_experiences 集合预建）；图灵名人堂（触发时机）；积累至少 1 个图灵奖章账号后方可验证。
+      非目标：RAG 检索增强（需向量库，V1.0 后评估）；SFT 模型微调（需 10+ 样本，视热度决定）。
+
+      OpenSpec change：`turing-arena-experience-inheritance`（待 propose）。
+    milestone: 图灵场 V1.0 — 公开发布
+    priority: 次要
+    state: open
+    module: 经验继承系统
     classification: feature
