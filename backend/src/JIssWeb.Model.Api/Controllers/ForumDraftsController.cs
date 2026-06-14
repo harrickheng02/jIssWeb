@@ -2,6 +2,7 @@ using JIssWeb.Common;
 using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
 using JIssWeb.Model.Api.Authorization;
+using JIssWeb.Model.Api.Middleware;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
@@ -23,18 +24,24 @@ public class ForumDraftsController : ControllerBase
     private readonly IMongoCollection<ForumTagRecord> _tags;
     private readonly IOptions<ForumBoardsOptions> _boardOptions;
     private readonly ForumAuthorDisplayResolver _authorNames;
+    private readonly IForumBlockedWordFilter _blockedWords;
+    private readonly IForumPostRateLimitService _postRateLimit;
 
     public ForumDraftsController(
         IMongoClient mongoClient,
         IOptions<MongoSettings> mongoOptions,
         IOptions<ForumBoardsOptions> boardOptions,
-        ForumAuthorDisplayResolver authorNames)
+        ForumAuthorDisplayResolver authorNames,
+        IForumBlockedWordFilter blockedWords,
+        IForumPostRateLimitService postRateLimit)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _tags = db.GetCollection<ForumTagRecord>(ForumMongoSetup.TagsCollectionName);
         _boardOptions = boardOptions;
         _authorNames = authorNames;
+        _blockedWords = blockedWords;
+        _postRateLimit = postRateLimit;
     }
 
     // POST api/forum/posts/drafts
@@ -150,6 +157,15 @@ public class ForumDraftsController : ControllerBase
         if (boardTitle is null)
             return BadRequest(ApiResult<PublishDraftResultDto>.Fail("无效的板块", "INVALID_BOARD_ID"));
 
+        // Blocked word check — publish always rejects regardless of Handling (no local-only semantic for publish)
+        if (_blockedWords.Evaluate(draft.Title, draft.Body) != BlockedWordEvaluation.Pass)
+            return BadRequest(ApiResult<PublishDraftResultDto>.Fail("内容含有违禁词汇", "BLOCKED_CONTENT"));
+
+        // Rate limit check — shares post create quota
+        if (_postRateLimit.IsPostCreateRateLimited(sub, GetClientIp()))
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                ApiResult<PublishDraftResultDto>.Fail("发帖过于频繁，请稍后再试", "RATE_LIMITED"));
+
         await _posts.UpdateOneAsync(x => x.Id == draftId,
             Builders<ForumPostRecord>.Update
                 .Set(x => x.State, "published")
@@ -161,6 +177,8 @@ public class ForumDraftsController : ControllerBase
                 Builders<ForumTagRecord>.Filter.In(x => x.Name, draft.Tags),
                 Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, 1));
 
+        _postRateLimit.RecordSuccessfulPostCreate(sub, GetClientIp());
+
         return Ok(ApiResult<PublishDraftResultDto>.Ok(new PublishDraftResultDto { Id = draftId, State = "published" }));
     }
 
@@ -169,6 +187,8 @@ public class ForumDraftsController : ControllerBase
         try { return User.GetUserId(); }
         catch (UnauthorizedAccessException) { return null; }
     }
+
+    private string GetClientIp() => ForumRateLimitHttpHelpers.GetClientIp(HttpContext);
 
     private string? ResolveBoard(string? boardId, string? fallbackTitle = null)
     {

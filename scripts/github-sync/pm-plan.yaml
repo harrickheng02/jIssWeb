@@ -189,6 +189,7 @@ issues:
     module: 治理与审核
     classification: enhancement
   - title: 论坛反机器人灌水与分布式风控增强
+    issue_number: 24
     body: |
       承接 Issue #5 占位交付后的**机器人脚本 / 多账号分布式灌水**场景；以可拆 OpenSpec change（A–E）交付，不要求单 PR 一次性完成。
 
@@ -208,7 +209,14 @@ issues:
 
       非目标：自建大模型审核、全站实时风控中台、商业级设备指纹 SDK、法务级证据链、自动封禁（ban）策略引擎。
 
-      建议实施顺序：A → B → D → C → E（B 与 D 可并行；C 依赖 User.Api；E 可与 D 并行）。
+      建议实施顺序：A（#25）→ B（#26）→ D（#28，与 B 可并行）→ C（#27）→ E（#29，与 D 可并行）。
+
+      子 Issue 拆分：
+      - Issue #25 change-A 写操作路径补齐（open）
+      - Issue #26 change-B 分布式限流（open）
+      - Issue #27 change-C 人机验证（open）
+      - Issue #28 change-D 行为信号降速（open）
+      - Issue #29 change-E 屏蔽词运营化（open）
     milestone: M3 — 治理与增长
     priority: 主要
     state: open
@@ -366,4 +374,106 @@ issues:
     priority: 次要
     state: closed
     module: 帖子与回复
+    classification: feature
+  - title: "反机器人 change-A：写操作路径屏蔽词与限流补齐"
+    issue_number: 25
+    body: |
+      父 Issue #24 change-A。
+
+      验收标准：
+      - `POST /api/forum/posts/drafts/{id}/publish` 经过与 `POST /api/forum/posts` 同级的 `ForumBlockedWordFilter` 屏蔽词校验；命中返回 400 + 错误说明字段。
+      - 作者 `PUT /api/forum/posts/{id}`（title/body/tags）与 `PUT /api/forum/posts/{id}/replies/{replyId}`（body）同样接入屏蔽词校验；命中返回 400。
+      - publish 接口纳入发帖频率限流（与 `POST /api/forum/posts` 共用配额或独立配额，策略在 OpenSpec design 中二选一写清）；超限返回 429。
+      - 集成测试：`ForumBlockedWordTests` 新增 publish/PUT 绕路回归用例；`ForumPostRateLimitTests` 新增 publish 限流用例。
+      - `appsettings.Local.example.json` 无需新增键（复用 #5 已有配置结构）。
+
+      依赖：Issue #5 closed（`ForumBlockedWordFilter`、`InProcessSlidingWindowRateLimiter`）；Issue #23 closed（`ForumDraftsController`、`ForumPostsController` PUT 自编辑）。
+      非目标：分布式限流（见 #26 change-B）；屏蔽词 Mongo 化（见 #29 change-E）；CAPTCHA（见 #27 change-C）。
+
+      OpenSpec change：`forum-anti-spam-write-path`（待 propose）。
+    milestone: M3 — 治理与增长
+    priority: 严重
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: "反机器人 change-B：分布式限流（Redis 共享配额）"
+    issue_number: 26
+    body: |
+      父 Issue #24 change-B。
+
+      验收标准：
+      - 发帖（含 publish）、回复、搜索（含 `q`）限流计数迁移至 Redis（或 YARP Gateway 层等价方案，须在 design 中二选一说明）；fail-open / fail-closed 策略写清（推荐 fail-open 并记录日志）。
+      - 多 Model.Api 实例共享同一 Redis 限流配额，单实例结果与迁移前行为对齐。
+      - 配置键与进程内 limiter（#5）保持命名一致；零配置或 Redis 不可用时行为文档化。
+      - 集成测试（可用 Testcontainers Redis）：跨"实例"配额共享验证；Redis 断连 fail-open 验证。
+
+      依赖：Issue #25 closed（change-A，write path 已覆盖）；Redis docker-compose 已有；Issue #15 closed（现有限流契约）。
+      非目标：CAPTCHA（见 #27）；Gateway 层全局限流中台；行为降速规则（见 #28 change-D）。
+
+      OpenSpec change：`forum-anti-spam-distributed-ratelimit`（待 propose）。
+    milestone: M3 — 治理与增长
+    priority: 主要
+    state: open
+    module: 平台与基础设施
+    classification: feature
+  - title: "反机器人 change-C：人机验证（CAPTCHA 接入）"
+    issue_number: 27
+    body: |
+      父 Issue #24 change-C。
+
+      验收标准：
+      - 注册（`User.Api`）和/或首次发帖（`Model.Api`）接入 Cloudflare Turnstile 或等价 CAPTCHA；密钥走 `.env` / `appsettings.Local`，不硬编码。
+      - 验证失败返回统一错误码（如 `CAPTCHA_REQUIRED` / `CAPTCHA_INVALID`）；`User.Api` 与 `Model.Api` 的职责边界在 OpenSpec design 中写清（推荐注册在 User.Api 校验，发帖在 Model.Api 或 BFF 校验）。
+      - 前端：注册表单与发帖对话框接入 Turnstile widget；token 随请求体一起提交；验证失败提示可辨识。
+      - 集成测试（mock CAPTCHA provider）：token 缺失 / 无效 / 正常三路径覆盖。
+
+      依赖：Issue #26 closed（change-B）；User.Api 注册链路；前端 `useForumComposeForm` 与注册页。
+      非目标：设备指纹 SDK；短信/邮件验证（已由邮箱验证流程覆盖）；内容合规 AI 审核。
+
+      OpenSpec change：`forum-anti-spam-captcha`（待 propose）。
+    milestone: M3 — 治理与增长
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: "反机器人 change-D：行为信号降速（新账号 + 重复正文）"
+    issue_number: 28
+    body: |
+      父 Issue #24 change-D。可与 change-B 并行实施。
+
+      验收标准：
+      - 新注册账号（注册后可配置时间窗口内，如 24h）适用更严发帖/回复配额（阈值与时间窗口写入 `appsettings`，默认值写在 `appsettings.Local.example.json`）；超限返回 429。
+      - 同一 `sub` 或 IP 在滑动窗口内提交相同正文哈希（normalized：trim + 折叠空白）时拒绝或降速；哈希算法、窗口长度、阈值可配置；错误码与普通频率限流区分（如 `DUPLICATE_CONTENT_REJECTED`）。
+      - 两项规则可独立开关（配置 `enabled: true/false`）；与 change-B Redis limiter 共存。
+      - 集成测试：新账号配额收紧、重复正文拒绝、时间窗口过期后恢复。
+
+      依赖：Issue #25 closed（change-A）；Issue #26 closed（change-B，Redis limiter 基础）；Issue #17 closed（JWT sub 声明）。
+      非目标：自动封禁 ban 策略；设备指纹；内容相似度语义对比（仅哈希）。
+
+      OpenSpec change：`forum-anti-spam-behavior-signals`（待 propose）。
+    milestone: M3 — 治理与增长
+    priority: 主要
+    state: open
+    module: 治理与审核
+    classification: feature
+  - title: "反机器人 change-E：屏蔽词运营化（Mongo CRUD + 版主 UI）"
+    issue_number: 29
+    body: |
+      父 Issue #24 change-E。可与 change-D 并行实施。
+
+      验收标准：
+      - `forum_blocked_words` MongoDB 集合：字段含 `word`（唯一索引）、`createdBy`、`createdAtUtc`、`isEnabled`；支持版主/管理员 CRUD（`AdminBlockedWordsController`，鉴权与 `AdminTagsController` 一致）。
+      - `ForumBlockedWordFilter` 统一读取 Mongo 注册表（含 change-A 已覆盖的 publish/PUT 路径），词表变更无需重启（内存缓存 + TTL 刷新，TTL 可配置）。
+      - 治理工作台新增「屏蔽词管理」Tab（与标签管理 #8 并列，UI 遵循 `forum-tokens.css`）；列表/新增/禁用操作可用。
+      - 初始化脚本（seed 或 migration）将 `appsettings` 现有静态词表迁移到集合。
+      - 集成测试：CRUD 权限、词表热刷新（过期缓存后命中新词）、`isEnabled=false` 词不过滤。
+
+      依赖：Issue #25 closed（change-A，filter 钩子已就位）；Issue #8 closed（标签后台 IA 复用）；Issue #17 closed（forumRole JWT）。
+      非目标：多语言同义词；正则/模糊词匹配（首期精确匹配）；词表 A/B 实验。
+
+      OpenSpec change：`forum-blocked-words-operational`（待 propose）。
+    milestone: M3 — 治理与增长
+    priority: 次要
+    state: open
+    module: 治理与审核
     classification: feature

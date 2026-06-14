@@ -105,12 +105,13 @@ public sealed class ForumPostRateLimitTests
     }
 
     [Fact]
-    public async Task DraftPublish_NotRateLimited()
+    public async Task DraftPublish_SharesPostQuota_Returns429WhenExhausted()
     {
+        // change-A: draft publish now shares the post create quota
         using var factory = _fx.CreateFactory(b =>
         {
             b.UseSetting("Forum:PostRateLimit:MaxPosts", "1");
-            b.UseSetting("Forum:PostRateLimit:MaxReplies", "1");
+            b.UseSetting("Forum:PostRateLimit:MaxReplies", "30");
             b.UseSetting("Forum:PostRateLimit:WindowSeconds", "60");
         });
         using var client = factory.CreateClient();
@@ -119,23 +120,16 @@ public sealed class ForumPostRateLimitTests
             new { title = "first", body = "x", boardId = "general" }));
         Assert.Equal(HttpStatusCode.OK, firstPost.StatusCode);
 
-        var secondPost = await client.SendAsync(AuthPost("/api/forum/posts", "rl-draft",
-            new { title = "blocked post", body = "x", boardId = "general" }));
-        Assert.Equal((HttpStatusCode)429, secondPost.StatusCode);
-
-        var createDraft = AuthPost("/api/forum/posts/drafts", "rl-draft", new { title = "d", body = "b", boardId = "general" });
+        var createDraft = AuthPost("/api/forum/posts/drafts", "rl-draft",
+            new { title = "d", body = "b", boardId = "general" });
         var draftRes = await client.SendAsync(createDraft);
         draftRes.EnsureSuccessStatusCode();
         var draftId = JsonDocument.Parse(await draftRes.Content.ReadAsStringAsync())
             .RootElement.GetProperty("data").GetProperty("id").GetString();
 
+        // quota exhausted — publish should now be rate-limited
         var pubRes = await client.SendAsync(AuthPost($"/api/forum/posts/drafts/{draftId}/publish", "rl-draft"));
-        Assert.NotEqual((HttpStatusCode)429, pubRes.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, pubRes.StatusCode);
-
-        using var scope = factory.Services.CreateScope();
-        var mongo = scope.ServiceProvider.GetRequiredService<IMongoClient>();
-        var posts = mongo.GetDatabase(_fx.DatabaseName).GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
-        await posts.DeleteManyAsync(x => x.AuthorSubId == "rl-draft");
+        Assert.Equal((HttpStatusCode)429, pubRes.StatusCode);
+        await AssertCodeAsync(pubRes, "RATE_LIMITED");
     }
 }

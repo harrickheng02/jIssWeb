@@ -51,18 +51,21 @@ public sealed class ForumAntiSpamReviewFixTests
     }
 
     [Fact]
-    public async Task PutSelfEdit_WithBlockedWord_NotFiltered()
+    public async Task PutSelfEdit_WithBlockedWord_Returns400()
     {
+        // change-A: PUT self-edit is now covered by blocked-word filter
         using var factory = _fx.CreateFactory(b =>
         {
             b.UseSetting("Forum:BlockedWords:Enabled", "true");
+            b.UseSetting("Forum:BlockedWords:Handling", "reject");
             b.UseSetting("Forum:BlockedWords:Words:0", "evil");
         });
         using var client = factory.CreateClient();
 
         var res = await client.SendAsync(Auth(HttpMethod.Put, "/api/forum/posts/aspam-post-1", "user-author",
             new { title = "evil title", body = "updated body" }));
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        await AssertCodeAsync(res, "BLOCKED_CONTENT");
     }
 
     [Fact]

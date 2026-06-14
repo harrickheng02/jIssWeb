@@ -409,6 +409,10 @@ public class ForumPostsController : ControllerBase
         if (!string.Equals(reply.AuthorSubId, authorId, StringComparison.Ordinal))
             return StatusCode(StatusCodes.Status403Forbidden, ApiResult<ReplyDto>.Fail("无权编辑", "FORBIDDEN"));
 
+        // Blocked word check — PUT always rejects regardless of Handling
+        if (_blockedWords.Evaluate(null, request.Body) != BlockedWordEvaluation.Pass)
+            return BadRequest(ApiResult<ReplyDto>.Fail("内容含有违禁词汇", "BLOCKED_CONTENT"));
+
         var now = DateTime.UtcNow;
         await _replies.UpdateOneAsync(
             x => x.Id == replyId,
@@ -569,6 +573,13 @@ public class ForumPostsController : ControllerBase
                 return BadRequest(ApiResult<PostListItemDto>.Fail(tagsResult.Error, tagsResult.Code));
             newTags = tagsResult.Tags;
         }
+
+        // Blocked word check — evaluate only submitted fields; PUT always rejects regardless of Handling
+        var editTitle = !string.IsNullOrWhiteSpace(request.Title) ? request.Title : null;
+        var editBody = !string.IsNullOrWhiteSpace(request.Body) ? request.Body : null;
+        if ((editTitle is not null || editBody is not null)
+            && _blockedWords.Evaluate(editTitle, editBody) != BlockedWordEvaluation.Pass)
+            return BadRequest(ApiResult<PostListItemDto>.Fail("内容含有违禁词汇", "BLOCKED_CONTENT"));
 
         var now = DateTime.UtcNow;
         var updateDef = Builders<ForumPostRecord>.Update.Set(x => x.UpdatedAtUtc, now);
