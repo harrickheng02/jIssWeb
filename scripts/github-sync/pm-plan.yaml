@@ -212,7 +212,7 @@ issues:
       建议实施顺序：A（#25）→ B（#26）→ D（#28，与 B 可并行）→ C（#27）→ E（#29，与 D 可并行）。
 
       子 Issue 拆分：
-      - Issue #25 change-A 写操作路径补齐（open）
+      - Issue #25 change-A 写操作路径补齐（closed，2026-06-14 merged）
       - Issue #26 change-B 分布式限流（open）
       - Issue #27 change-C 人机验证（open）
       - Issue #28 change-D 行为信号降速（open）
@@ -390,10 +390,10 @@ issues:
       依赖：Issue #5 closed（`ForumBlockedWordFilter`、`InProcessSlidingWindowRateLimiter`）；Issue #23 closed（`ForumDraftsController`、`ForumPostsController` PUT 自编辑）。
       非目标：分布式限流（见 #26 change-B）；屏蔽词 Mongo 化（见 #29 change-E）；CAPTCHA（见 #27 change-C）。
 
-      OpenSpec change：`forum-anti-spam-write-path`（待 propose）。
+      交付确认：OpenSpec change `forum-anti-spam-write-path`（已归档至 `openspec/changes/archive/2026-06-14-forum-anti-spam-write-path/`；规范增量同步至 `openspec/specs/forum-anti-spam-placeholder/spec.md`）；集成测试 `ForumBlockedWordTests`（publish/PUT 回归）、`ForumPostRateLimitTests`（publish 限流）。
     milestone: M3 — 治理与增长
     priority: 严重
-    state: open
+    state: closed
     module: 治理与审核
     classification: feature
   - title: "反机器人 change-B：分布式限流（Redis 共享配额）"
