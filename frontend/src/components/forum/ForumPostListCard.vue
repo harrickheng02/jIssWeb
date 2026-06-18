@@ -7,7 +7,7 @@ import type { ForumPostListItem, ForumPostListPatch } from '@/api/clients'
 import IconThumbUp from '@/components/icons/IconThumbUp.vue'
 import IconThumbUpOutline from '@/components/icons/IconThumbUpOutline.vue'
 import { useForumPostEngagement } from '@/composables/useForumPostEngagement'
-import { useAuthStore } from '@/stores/auth'
+import { useCurrentUser } from '@/composables/useCurrentUser'
 import { forumAuthorLabel, formatPublishedUtc } from '@/utils/forumPostDisplay'
 
 const props = withDefaults(
@@ -32,14 +32,14 @@ const emit = defineEmits<{
   patchPost: [patch: ForumPostListPatch]
 }>()
 
-const auth = useAuthStore()
+const { isLoggedIn } = useCurrentUser()
 const router = useRouter()
 
 const { busyLike, busyFavorite, toggleLike, toggleFavorite } = useForumPostEngagement(
   () => props.post,
   (patch) => emit('patchPost', patch),
   {
-    isAuthed: () => Boolean(auth.token),
+    isAuthed: () => isLoggedIn.value,
     onUnauthenticated: () => void router.push({ name: 'auth' }),
   },
 )

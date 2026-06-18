@@ -2,21 +2,31 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getMyDrafts, deleteDraft, publishDraft, getForumPost, type ForumPostListItem } from '@/api/clients'
+import type { ForumPostListItem } from '@/api/clients'
 import { useForumBoards } from '@/composables/useForumBoards'
 import { useForumComposeForm } from '@/composables/useForumComposeForm'
+import { useMeDrafts } from '@/composables/useMeDrafts'
 
 const { forumBoards, loadForumBoards } = useForumBoards()
 const router = useRouter()
 
-const loading = ref(false)
-const error = ref<string | null>(null)
-const items = ref<ForumPostListItem[]>([])
-const totalCount = ref(0)
 const page = ref(1)
 const pageSize = 10
-const deletingId = ref<string | null>(null)
-const publishingId = ref<string | null>(null)
+
+const {
+  loading,
+  error,
+  items,
+  totalCount,
+  totalPages,
+  deletingId,
+  publishingId,
+  loadingEditId,
+  fetchDrafts: loadDrafts,
+  fetchDraftDetail,
+  removeDraft,
+  submitPublish,
+} = useMeDrafts()
 
 const {
   composeOpen,
@@ -40,25 +50,8 @@ const {
   },
 })
 
-const totalPages = ref(1)
-
 async function fetchDrafts() {
-  loading.value = true
-  error.value = null
-  try {
-    const res = await getMyDrafts(page.value, pageSize)
-    if (!res.success || !res.data) {
-      error.value = res.message ?? '加载失败'
-      return
-    }
-    items.value = res.data.items
-    totalCount.value = res.data.totalCount
-    totalPages.value = Math.max(1, Math.ceil(res.data.totalCount / pageSize))
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '网络异常'
-  } finally {
-    loading.value = false
-  }
+  await loadDrafts(page.value, pageSize)
 }
 
 function formatRelativeTime(iso: string) {
@@ -74,31 +67,22 @@ function formatRelativeTime(iso: string) {
   return d.toLocaleDateString('zh-CN')
 }
 
-const loadingEditId = ref<string | null>(null)
-
 async function editDraft(draft: ForumPostListItem) {
   if (loadingEditId.value === draft.id) return
-  loadingEditId.value = draft.id
-  try {
-    const res = await getForumPost(draft.id)
-    if (!res.success || !res.data) {
-      ElMessage.error(res.message ?? '加载草稿失败')
-      return
-    }
-    const full = res.data
-    const boardId = forumBoards.value.find((b) => b.title === full.board)?.id
-    openComposeDialogForDraftEdit({
-      id: full.id,
-      title: full.title,
-      body: full.body,
-      tags: full.tags,
-      boardId,
-    })
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '加载草稿失败')
-  } finally {
-    loadingEditId.value = null
+  const res = await fetchDraftDetail(draft.id)
+  if (!res.success) {
+    ElMessage.error(res.message)
+    return
   }
+  const full = res.data
+  const boardId = forumBoards.value.find((b) => b.title === full.board)?.id
+  openComposeDialogForDraftEdit({
+    id: full.id,
+    title: full.title,
+    body: full.body,
+    tags: full.tags,
+    boardId,
+  })
 }
 
 async function confirmDelete(draft: ForumPostListItem) {
@@ -111,20 +95,13 @@ async function confirmDelete(draft: ForumPostListItem) {
   } catch {
     return
   }
-  deletingId.value = draft.id
-  try {
-    const res = await deleteDraft(draft.id)
-    if (!res.success) {
-      ElMessage.error((res as { message?: string }).message ?? '删除失败')
-      return
-    }
-    ElMessage.success('草稿已删除')
-    void fetchDrafts()
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
-  } finally {
-    deletingId.value = null
+  const res = await removeDraft(draft.id)
+  if (!res.success) {
+    ElMessage.error(res.message ?? '删除失败')
+    return
   }
+  ElMessage.success('草稿已删除')
+  void fetchDrafts()
 }
 
 async function confirmPublish(draft: ForumPostListItem) {
@@ -142,21 +119,14 @@ async function confirmPublish(draft: ForumPostListItem) {
   } catch {
     return
   }
-  publishingId.value = draft.id
-  try {
-    const res = await publishDraft(draft.id)
-    if (!res.success) {
-      ElMessage.error((res as { message?: string }).message ?? '发布失败')
-      return
-    }
-    ElMessage.success('草稿已发布')
-    void fetchDrafts()
-    void router.push({ name: 'post-detail', params: { id: draft.id } })
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '发布失败')
-  } finally {
-    publishingId.value = null
+  const res = await submitPublish(draft.id)
+  if (!res.success) {
+    ElMessage.error(res.message ?? '发布失败')
+    return
   }
+  ElMessage.success('草稿已发布')
+  void fetchDrafts()
+  void router.push({ name: 'post-detail', params: { id: draft.id } })
 }
 
 function prevPage() {

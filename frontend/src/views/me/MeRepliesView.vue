@@ -1,65 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { listMyForumReplies, type ForumReply } from '@/api/clients'
-import { useAuthStore } from '@/stores/auth'
 import { forumAuthorLabel, formatPublishedUtc } from '@/utils/forumPostDisplay'
-import { mergeLocalRepliesIntoMeList } from '@/utils/forumLocalContent'
+import { useMeReplies } from '@/composables/useMeReplies'
 
 const router = useRouter()
-const auth = useAuthStore()
-const loading = ref(true)
-const error = ref('')
-const items = ref<ForumReply[]>([])
-const page = ref(1)
-const pageSize = 20
-const totalCount = ref(0)
-
-const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize)))
+const { loading, error, items, page, totalPages } = useMeReplies()
 
 function previewBody(body: string) {
   const t = body.trim().replace(/\s+/g, ' ')
   return t.length > 160 ? `${t.slice(0, 160)}…` : t
 }
-
-async function load() {
-  if (!auth.token) {
-    items.value = []
-    totalCount.value = 0
-    return
-  }
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await listMyForumReplies(page.value, pageSize)
-    if (res.success && res.data) {
-      items.value = auth.sub ? mergeLocalRepliesIntoMeList(auth.sub, res.data.items) : res.data.items
-      totalCount.value = res.data.totalCount
-    } else {
-      error.value = res.message ?? '加载失败'
-      items.value = []
-      totalCount.value = 0
-    }
-  } catch {
-    error.value = '加载失败'
-    items.value = []
-    totalCount.value = 0
-  } finally {
-    loading.value = false
-  }
-}
-
-watch(
-  () => auth.token,
-  () => {
-    page.value = 1
-    void load()
-  },
-)
-
-watch(page, () => void load())
-
-onMounted(() => void load())
 
 function goPost(postId: string) {
   void router.push({ name: 'post-detail', params: { id: postId } })

@@ -6,21 +6,17 @@ import { useForumBoards } from '@/composables/useForumBoards'
 import { useForumComposeForm } from '@/composables/useForumComposeForm'
 import { useForumHomeFeed } from '@/composables/useForumHomeFeed'
 import { useForumPopularTags } from '@/composables/useForumPopularTags'
-import { useAuthStore } from '@/stores/auth'
+import { useForumSidebar } from '@/composables/useForumSidebar'
+import { useCurrentUser } from '@/composables/useCurrentUser'
 import ForumPostListCard from '@/components/forum/ForumPostListCard.vue'
 import ForumRepliesLockedMark from '@/components/forum/ForumRepliesLockedMark.vue'
-import {
-  getForumAnnouncements,
-  listForumPosts,
-  type ForumAnnouncementItem,
-  type ForumPostListItem,
-} from '@/api/clients'
+import type { ForumAnnouncementItem } from '@/api/clients'
 
 /** Right-column hot list: `forum-homepage-shell` requires page=1 and pageSize=8. */
 const hotSidebarPageSize = 8
 
 const router = useRouter()
-const auth = useAuthStore()
+const { isLoggedIn } = useCurrentUser()
 const activeFilter = ref<'latest' | 'hot' | 'featured'>('latest')
 const activeSidebar = ref('all')
 
@@ -89,52 +85,25 @@ const {
   fetchPosts,
 })
 
-const isAuthed = computed(() => Boolean(auth.token))
+const isAuthed = computed(() => isLoggedIn.value)
 
-const hotSidebarPosts = ref<ForumPostListItem[]>([])
-const hotSidebarLoading = ref(false)
-const hotSidebarError = ref<string | null>(null)
-
-const announcements = ref<ForumAnnouncementItem[]>([])
-const annLoading = ref(false)
-const annError = ref<string | null>(null)
+const {
+  hotSidebarPosts,
+  hotSidebarLoading,
+  hotSidebarError,
+  announcements,
+  annLoading,
+  annError,
+  loadHotSidebar: fetchHotSidebar,
+  loadAnnouncements: fetchAnnouncements,
+} = useForumSidebar()
 
 async function loadHotSidebar() {
-  hotSidebarLoading.value = true
-  hotSidebarError.value = null
-  try {
-    const res = await listForumPosts(1, hotSidebarPageSize, boardIdQueryParam(), undefined, undefined, 'hot')
-    if (!res.success || !res.data) {
-      hotSidebarError.value = res.message ?? '加载失败'
-      hotSidebarPosts.value = []
-      return
-    }
-    hotSidebarPosts.value = res.data.items
-  } catch (e) {
-    hotSidebarError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
-    hotSidebarPosts.value = []
-  } finally {
-    hotSidebarLoading.value = false
-  }
+  await fetchHotSidebar(hotSidebarPageSize, boardIdQueryParam())
 }
 
 async function loadAnnouncements() {
-  annLoading.value = true
-  annError.value = null
-  try {
-    const res = await getForumAnnouncements(5)
-    if (!res.success || !res.data) {
-      annError.value = res.message ?? '加载失败'
-      announcements.value = []
-      return
-    }
-    announcements.value = res.data
-  } catch (e) {
-    annError.value = e instanceof Error ? e.message : '网络异常，请稍后重试'
-    announcements.value = []
-  } finally {
-    annLoading.value = false
-  }
+  await fetchAnnouncements(5)
 }
 
 function openAnnouncement(a: ForumAnnouncementItem) {

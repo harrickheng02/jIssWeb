@@ -244,3 +244,30 @@ The application shell SHALL expose a visible moderation entry point when the use
 - **WHEN** the shell renders for an authenticated user whose effective forum role is member
 - **THEN** the moderation entry control SHALL not be shown
 
+### Requirement: Auth state consumed through stable composable interface
+
+The SPA SHALL expose authenticated user state through a dedicated composable (e.g. `useCurrentUser()`). Components and other composables SHALL NOT directly depend on the Pinia auth store's internal fields.
+
+#### Scenario: Component accesses user identity
+
+- **WHEN** a component or composable needs to know the current user's identity or moderation role
+- **THEN** it SHALL use the auth composable interface, not import and destructure the auth store directly
+
+### Requirement: View layer accesses API through composables
+
+Business views (views that are not authentication-flow pages) SHALL NOT call `api/clients` named methods directly in `<script setup>`. API access SHALL be delegated to composables.
+
+#### Scenario: View renders data from a backend API
+
+- **WHEN** a view needs to display data fetched from a backend service
+- **THEN** a composable SHALL own the fetch and state; the view SHALL only call the composable
+
+### Requirement: Presentational components do not call API clients
+
+UI and forum components that primarily render data (e.g. post cards, governance panels) SHALL NOT import or call `api/clients` directly. They SHALL receive data via props or call composables.
+
+#### Scenario: Post card component renders engagement state
+
+- **WHEN** a post list card component needs like/favorite counts or the user's engagement state
+- **THEN** it SHALL obtain this via a composable, not by calling the API client directly
+
