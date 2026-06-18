@@ -25,7 +25,6 @@ public class ForumPostsController : ControllerBase
 {
     private readonly IMongoCollection<ForumPostRecord> _posts;
     private readonly IMongoCollection<ForumReplyRecord> _replies;
-    private readonly IMongoCollection<InAppNotificationRecord> _notifications;
     private readonly IMongoCollection<ForumTagRecord> _tags;
     private readonly IMongoCollection<ForumPostLikeRecord> _likes;
     private readonly IMongoCollection<ForumPostFavoriteRecord> _favorites;
@@ -35,6 +34,7 @@ public class ForumPostsController : ControllerBase
     private readonly ForumModerationDeleteService _moderationDelete;
     private readonly IForumBlockedWordFilter _blockedWords;
     private readonly IForumPostRateLimitService _postRateLimit;
+    private readonly IForumNotificationWriter _notificationWriter;
     private readonly ILogger<ForumPostsController> _logger;
 
     public ForumPostsController(
@@ -46,12 +46,12 @@ public class ForumPostsController : ControllerBase
         ForumModerationDeleteService moderationDelete,
         IForumBlockedWordFilter blockedWords,
         IForumPostRateLimitService postRateLimit,
+        IForumNotificationWriter notificationWriter,
         ILogger<ForumPostsController> logger)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
-        _notifications = db.GetCollection<InAppNotificationRecord>(ForumMongoSetup.NotificationsCollectionName);
         _tags = db.GetCollection<ForumTagRecord>(ForumMongoSetup.TagsCollectionName);
         _likes = db.GetCollection<ForumPostLikeRecord>(ForumMongoSetup.LikesCollectionName);
         _favorites = db.GetCollection<ForumPostFavoriteRecord>(ForumMongoSetup.FavoritesCollectionName);
@@ -61,6 +61,7 @@ public class ForumPostsController : ControllerBase
         _moderationDelete = moderationDelete;
         _blockedWords = blockedWords;
         _postRateLimit = postRateLimit;
+        _notificationWriter = notificationWriter;
         _logger = logger;
     }
 
@@ -248,29 +249,7 @@ public class ForumPostsController : ControllerBase
         _postRateLimit.RecordSuccessfulReplyCreate(authorId, GetClientIp());
         await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, 1));
 
-        if (!string.Equals(post.AuthorSubId, authorId, StringComparison.Ordinal))
-        {
-            var notif = new InAppNotificationRecord
-            {
-                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                RecipientSubId = post.AuthorSubId,
-                Type = InAppNotificationTypes.ReplyToPost,
-                PostId = postId,
-                ReplyId = reply.Id,
-                ActorSubId = authorId,
-                PostTitle = post.Title,
-                ReadAtUtc = null,
-                CreatedAtUtc = reply.CreatedAtUtc,
-            };
-            try
-            {
-                await _notifications.InsertOneAsync(notif);
-            }
-            catch (MongoWriteException ex) when (ex.WriteError?.Code == 11000)
-            {
-                _logger.LogDebug(ex, "Skipped duplicate notification for reply {ReplyId}", reply.Id);
-            }
-        }
+        await _notificationWriter.WriteReplyNotificationAsync(post, reply);
 
         var replyNames = await _authorNames.ResolveAsync(new[] { reply.AuthorSubId });
         return Ok(ApiResult<ReplyDto>.Ok(ForumDtoMapping.ToReplyDto(reply, replyNames)));
@@ -536,7 +515,7 @@ public class ForumPostsController : ControllerBase
 
         // 物理删除：级联清理
         await _replies.DeleteManyAsync(x => x.PostId == postId);
-        await _notifications.DeleteManyAsync(x => x.PostId == postId);
+        await _notificationWriter.DeleteByPostAsync(postId);
         await _likes.DeleteManyAsync(x => x.PostId == postId);
         await _favorites.DeleteManyAsync(x => x.PostId == postId);
         await _posts.DeleteOneAsync(x => x.Id == postId);

@@ -78,6 +78,7 @@ builder.Services.AddSingleton<ForumEngagementLikeCountCache>(sp =>
 });
 builder.Services.AddScoped<ForumEngagementService>();
 builder.Services.AddScoped<ForumModerationDeleteService>();
+builder.Services.AddScoped<IForumNotificationWriter, ForumNotificationWriter>();
 builder.Services.AddApplication();
 builder.Services.AddMongoInfrastructure(builder.Configuration);
 builder.Services.AddJIssWebCoreApi(builder.Configuration);
