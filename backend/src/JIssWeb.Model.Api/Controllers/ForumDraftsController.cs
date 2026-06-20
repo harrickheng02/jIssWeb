@@ -162,7 +162,7 @@ public class ForumDraftsController : ControllerBase
             return BadRequest(ApiResult<PublishDraftResultDto>.Fail("内容含有违禁词汇", "BLOCKED_CONTENT"));
 
         // Rate limit check — shares post create quota
-        if (_postRateLimit.IsPostCreateRateLimited(sub, GetClientIp()))
+        if (await _postRateLimit.IsPostCreateRateLimitedAsync(sub, GetClientIp(), IsAgentAccount()))
             return StatusCode(StatusCodes.Status429TooManyRequests,
                 ApiResult<PublishDraftResultDto>.Fail("发帖过于频繁，请稍后再试", "RATE_LIMITED"));
 
@@ -177,7 +177,7 @@ public class ForumDraftsController : ControllerBase
                 Builders<ForumTagRecord>.Filter.In(x => x.Name, draft.Tags),
                 Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, 1));
 
-        _postRateLimit.RecordSuccessfulPostCreate(sub, GetClientIp());
+        await _postRateLimit.RecordSuccessfulPostCreateAsync(sub, GetClientIp(), IsAgentAccount());
 
         return Ok(ApiResult<PublishDraftResultDto>.Ok(new PublishDraftResultDto { Id = draftId, State = "published" }));
     }
@@ -189,6 +189,8 @@ public class ForumDraftsController : ControllerBase
     }
 
     private string GetClientIp() => ForumRateLimitHttpHelpers.GetClientIp(HttpContext);
+
+    private bool IsAgentAccount() => ForumRateLimitHttpHelpers.IsAgentAccount(HttpContext);
 
     private string? ResolveBoard(string? boardId, string? fallbackTitle = null)
     {

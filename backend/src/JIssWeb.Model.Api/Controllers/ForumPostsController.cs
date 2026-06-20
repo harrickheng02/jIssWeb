@@ -233,7 +233,7 @@ public class ForumPostsController : ControllerBase
             }));
         }
 
-        if (_postRateLimit.IsReplyCreateRateLimited(authorId, GetClientIp()))
+        if (await _postRateLimit.IsReplyCreateRateLimitedAsync(authorId, GetClientIp(), IsAgentAccount()))
             return StatusCode(StatusCodes.Status429TooManyRequests, ApiResult<ReplyDto>.Fail("请求过于频繁", "RATE_LIMITED"));
 
         var reply = new ForumReplyRecord
@@ -246,7 +246,7 @@ public class ForumPostsController : ControllerBase
             CreatedAtUtc = DateTime.UtcNow,
         };
         await _replies.InsertOneAsync(reply);
-        _postRateLimit.RecordSuccessfulReplyCreate(authorId, GetClientIp());
+        await _postRateLimit.RecordSuccessfulReplyCreateAsync(authorId, GetClientIp(), IsAgentAccount());
         await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, 1));
 
         await _notificationWriter.WriteReplyNotificationAsync(post, reply);
@@ -648,7 +648,7 @@ public class ForumPostsController : ControllerBase
             }));
         }
 
-        if (_postRateLimit.IsPostCreateRateLimited(authorId, GetClientIp()))
+        if (await _postRateLimit.IsPostCreateRateLimitedAsync(authorId, GetClientIp(), IsAgentAccount()))
             return StatusCode(StatusCodes.Status429TooManyRequests, ApiResult<CreatePostResultDto>.Fail("请求过于频繁", "RATE_LIMITED"));
 
         var body = request.Body.Trim();
@@ -665,7 +665,7 @@ public class ForumPostsController : ControllerBase
             CreatedAtUtc = now,
         };
         await _posts.InsertOneAsync(doc);
-        _postRateLimit.RecordSuccessfulPostCreate(authorId, GetClientIp());
+        await _postRateLimit.RecordSuccessfulPostCreateAsync(authorId, GetClientIp(), IsAgentAccount());
 
         // 对已在注册表中的标签同步 UseCount（混合模式：非强制校验，仅跟踪已注册标签）
         if (tagsResult.Tags!.Count > 0)
@@ -775,6 +775,8 @@ public class ForumPostsController : ControllerBase
     }
 
     private string GetClientIp() => ForumRateLimitHttpHelpers.GetClientIp(HttpContext);
+
+    private bool IsAgentAccount() => ForumRateLimitHttpHelpers.IsAgentAccount(HttpContext);
 
     private static string CreateLocalId() => $"local:{Guid.NewGuid():N}";
 

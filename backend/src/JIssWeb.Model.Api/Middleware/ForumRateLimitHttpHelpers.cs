@@ -2,6 +2,11 @@ namespace JIssWeb.Model.Api.Middleware;
 
 internal static class ForumRateLimitHttpHelpers
 {
+    internal const string AgentAccountType = "agent";
+
+    internal static bool IsAgentAccount(HttpContext context) =>
+        context.User.FindFirst("accountType")?.Value == AgentAccountType;
+
     internal static string GetClientIp(HttpContext context)
     {
         var fwd = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();

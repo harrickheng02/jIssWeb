@@ -31,6 +31,7 @@ public sealed class ForumAntiSpamIntegrationFixture : IAsyncLifetime
             b.UseSetting("Mongo:DatabaseName", DatabaseName);
             b.UseSetting("Forum:Boards:0:Id", "general");
             b.UseSetting("Forum:Boards:0:Title", "综合");
+            b.UseSetting("Forum:RateLimit:UseRedis", "false");
             b.ConfigureTestServices(services =>
             {
                 services.RemoveAll(typeof(IConnectionMultiplexer));
