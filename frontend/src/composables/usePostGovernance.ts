@@ -8,7 +8,6 @@ import {
   setForumPostFeatured,
   setForumPostRepliesLocked,
   setForumPostSticky,
-  type ForumPostDetail,
   type ListModerationAuditOptions,
 } from '@/api/clients'
 

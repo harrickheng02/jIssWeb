@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { exchangeVerifySession } from '@/api/clients'
+import { bffEstablish, exchangeVerifySession } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -18,7 +18,8 @@ onMounted(async () => {
     try {
       const res = await exchangeVerifySession(code)
       if (res.success && res.data) {
-        auth.applyAuthSession(res.data.accessToken, res.data.refreshToken)
+        await bffEstablish(res.data.refreshToken).catch(() => {})
+        auth.applyAuthSession(res.data.accessToken)
         await router.replace('/')
         return
       }

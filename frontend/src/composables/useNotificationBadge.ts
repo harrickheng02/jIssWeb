@@ -2,6 +2,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getForumUnreadNotificationCount } from '@/api/clients'
 import { formatBadgeCount } from '@/utils/formatBadgeCount'
+import { useCurrentUser } from '@/composables/useCurrentUser'
 
 const UNREAD_POLL_MS = 60_000
 
@@ -14,6 +15,7 @@ export function useNotificationBadge(options?: {
   onRouteChange?: (handler: () => void) => (() => void) | undefined
 }) {
   const auth = useAuthStore()
+  const { forumUnreadCount } = useCurrentUser()
   const unreadCount = ref(0)
   const unreadBadgeValue = computed(() => formatBadgeCount(unreadCount.value, 99))
 
@@ -49,8 +51,15 @@ export function useNotificationBadge(options?: {
 
   let removeRouteHook: (() => void) | undefined
 
+  // /bff/me 返回后将实际未读数同步到徽标（一次性）
+  const stopMeSeed = watch(forumUnreadCount, (count) => {
+    unreadCount.value = count
+    stopMeSeed()
+  })
+
   onMounted(() => {
-    refresh()
+    // 初始未读数从 /bff/me 的结果（forumUnreadCount）读取，不发独立请求
+    unreadCount.value = forumUnreadCount.value
     startPoll()
     window.addEventListener('jiss-forum-notifications-changed', refresh)
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -59,6 +68,7 @@ export function useNotificationBadge(options?: {
 
   onUnmounted(() => {
     stopPoll()
+    stopMeSeed()
     window.removeEventListener('jiss-forum-notifications-changed', refresh)
     document.removeEventListener('visibilitychange', onVisibilityChange)
     removeRouteHook?.()
@@ -67,10 +77,16 @@ export function useNotificationBadge(options?: {
 
   watch(
     () => auth.token,
-    (token) => {
-      refresh()
-      if (token) startPoll()
-      else stopPoll()
+    (token, prevToken) => {
+      if (token && !prevToken) {
+        // null→token：真正登录，立即刷新（me 尚未返回时的兜底）
+        refresh()
+        startPoll()
+      } else if (!token) {
+        unreadCount.value = 0
+        stopPoll()
+      }
+      // token 轮换（非空→非空）不重复请求
     },
   )
 

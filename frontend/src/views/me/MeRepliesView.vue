@@ -34,7 +34,7 @@ function nextPage() {
       <el-card v-for="r in items" :key="r.id" class="reply-card" shadow="hover">
         <div class="reply-meta">
           <span class="reply-time">{{ formatPublishedUtc(r.createdAtUtc) }}</span>
-          <el-link :underline="false" type="primary" @click="goPost(r.postId)">查看帖子</el-link>
+          <el-link underline="never" type="primary" @click="goPost(r.postId)">查看帖子</el-link>
         </div>
         <p class="reply-body">{{ previewBody(r.body) }}</p>
         <div class="reply-foot">

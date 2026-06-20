@@ -2,13 +2,15 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login, register } from '@/api/clients'
+import { bffLogin, register } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
+import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useLegalUiStore } from '@/stores/legalUi'
 import { isStrongPassword, PASSWORD_STRONG_HINT } from '@/utils/passwordPolicy'
 import './auth-view.css'
 
 const auth = useAuthStore()
+const { fetchMe } = useCurrentUser()
 const legalUi = useLegalUiStore()
 const router = useRouter()
 const activeTab = ref<'login' | 'register'>('login')
@@ -166,10 +168,11 @@ async function doLogin() {
 
   loading.value = true
   try {
-    const res = await login(loginForm.email, loginForm.password)
+    const res = await bffLogin(loginForm.email, loginForm.password)
     if (!res.success || !res.data) throw new Error(res.message ?? '登录失败')
-    auth.applyAuthSession(res.data.accessToken, res.data.refreshToken)
+    auth.applyAuthSession(res.data.accessToken)
     auth.setPendingVerifyEmail(null)
+    void fetchMe()
     ElMessage.success('登录成功')
     void router.push('/')
   } catch (e: any) {

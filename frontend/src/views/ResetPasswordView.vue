@@ -2,7 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { completeResetPassword } from '@/api/clients'
+import { bffEstablish, completeResetPassword } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 import { useLegalUiStore } from '@/stores/legalUi'
 import { isStrongPassword, PASSWORD_STRONG_HINT } from '@/utils/passwordPolicy'
@@ -77,7 +77,8 @@ async function submit() {
   try {
     const res = await completeResetPassword(rs, password.value)
     if (res.success && res.data) {
-      auth.applyAuthSession(res.data.accessToken, res.data.refreshToken)
+      await bffEstablish(res.data.refreshToken).catch(() => {})
+      auth.applyAuthSession(res.data.accessToken)
       ElMessage.success('密码已更新')
       await router.replace('/')
       return

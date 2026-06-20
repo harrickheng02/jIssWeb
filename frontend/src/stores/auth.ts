@@ -1,11 +1,15 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-const storageKey = 'jissweb.jwt'
-const refreshStorageKeyLocal = 'jissweb.refresh.local'
-const refreshStorageKeySession = 'jissweb.refresh.session'
 const pendingEmailKey = 'jissweb.pending.email'
 const pendingVerifyCooldownUntilKey = 'jissweb.pending.verify.cooldown.until'
+const sessionTokenKey = 'jissweb.session.token'
+// 非敏感标志：仅标记"曾经登录过"，供 main.ts 决定是否发起 restoreSession，避免未登录用户看到 401
+const sessionHintKey = 'jissweb.session.hint'
+
+// 清理 pre-BFF 时代遗留的旧 key
+;['jissweb.jwt', 'jissweb.refresh.local'].forEach((k) => localStorage.removeItem(k))
+;['jissweb.jwt', 'jissweb.refresh.session'].forEach((k) => sessionStorage.removeItem(k))
 
 export type ForumRole = 'member' | 'moderator' | 'admin'
 
@@ -28,44 +32,80 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+type AuthChannelMsg = { type: 'token'; value: string } | { type: 'logout' } | { type: 'request-token' }
+
+const authChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('jissweb.auth') : null
+
+// 新标签打开时无 sessionStorage token，广播 request-token 请求其他标签同步。
+// 最多等 50ms：BroadcastChannel 同进程响应通常 < 5ms；无其他标签时超时后继续（由 restoreSession 兜底）。
+let _bcSyncResolve: (() => void) | null = null
+export const bcSyncReady: Promise<void> =
+  !sessionStorage.getItem(sessionTokenKey) && typeof BroadcastChannel !== 'undefined'
+    ? new Promise<void>((resolve) => {
+        _bcSyncResolve = resolve
+        setTimeout(() => { resolve(); _bcSyncResolve = null }, 50)
+      })
+    : Promise.resolve()
+
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem(storageKey) ?? sessionStorage.getItem(storageKey))
-  const refreshToken = ref<string | null>(
-    localStorage.getItem(refreshStorageKeyLocal) ?? sessionStorage.getItem(refreshStorageKeySession),
-  )
+  // 从 sessionStorage 同步读取——页面刷新后立即可用，无需等待异步请求
+  const token = ref<string | null>(sessionStorage.getItem(sessionTokenKey))
+
   const pendingVerifyEmail = ref<string | null>(sessionStorage.getItem(pendingEmailKey))
   const pendingVerifyCooldownUntil = ref(Number(sessionStorage.getItem(pendingVerifyCooldownUntilKey) ?? '0'))
 
-  function setToken(value: string | null) {
-    token.value = value
-    if (value) {
-      localStorage.setItem(storageKey, value)
-      sessionStorage.removeItem(storageKey)
-    } else {
-      localStorage.removeItem(storageKey)
-      sessionStorage.removeItem(storageKey)
+  if (authChannel) {
+    authChannel.onmessage = (event: MessageEvent<AuthChannelMsg>) => {
+      const msg = event.data
+      if (msg.type === 'token') {
+        token.value = msg.value
+        sessionStorage.setItem(sessionTokenKey, msg.value)
+        _bcSyncResolve?.()
+        _bcSyncResolve = null
+      } else if (msg.type === 'logout') {
+        token.value = null
+        sessionStorage.removeItem(sessionTokenKey)
+      } else if (msg.type === 'request-token' && token.value) {
+        authChannel.postMessage({ type: 'token', value: token.value } as AuthChannelMsg)
+      }
+    }
+    // 无 token 时广播请求，其他标签会回复当前 token
+    if (!token.value) {
+      authChannel.postMessage({ type: 'request-token' } as AuthChannelMsg)
     }
   }
 
-  function setRefreshToken(value: string | null) {
-    refreshToken.value = value
-    if (value) {
-      localStorage.setItem(refreshStorageKeyLocal, value)
-      sessionStorage.removeItem(refreshStorageKeySession)
-    } else {
-      localStorage.removeItem(refreshStorageKeyLocal)
-      sessionStorage.removeItem(refreshStorageKeySession)
-    }
-  }
-
-  function applyAuthSession(accessToken: string, newRefreshToken: string) {
-    setToken(accessToken)
-    setRefreshToken(newRefreshToken)
+  function applyAuthSession(accessToken: string) {
+    token.value = accessToken
+    sessionStorage.setItem(sessionTokenKey, accessToken)
+    localStorage.setItem(sessionHintKey, '1')
+    authChannel?.postMessage({ type: 'token', value: accessToken } as AuthChannelMsg)
   }
 
   function clearAuth() {
-    setToken(null)
-    setRefreshToken(null)
+    token.value = null
+    sessionStorage.removeItem(sessionTokenKey)
+    localStorage.removeItem(sessionHintKey)
+    authChannel?.postMessage({ type: 'logout' } as AuthChannelMsg)
+  }
+
+  // 后台静默刷新：用 BFF HttpOnly Cookie 换新 access token
+  // sessionStorage 已保障刷新后不丢登录态，此函数作为 token 更新手段
+  async function restoreSession() {
+    try {
+      const res = await fetch('/api/bff/auth/token', { credentials: 'include' })
+      if (!res.ok) {
+        // 401 = BFF 明确说没有有效 cookie，清掉 sessionStorage 避免过期 token 继续使用
+        if (res.status === 401) clearAuth()
+        return
+      }
+      const body = (await res.json()) as { success: boolean; data?: { accessToken: string } }
+      if (body.success && body.data?.accessToken) {
+        applyAuthSession(body.data.accessToken)
+      }
+    } catch {
+      // 网络错误/BFF 未启动：保留 sessionStorage 中的 token，不强制注销
+    }
   }
 
   function setPendingVerifyEmail(value: string | null) {
@@ -107,7 +147,6 @@ export const useAuthStore = defineStore('auth', () => {
   const canModerate = computed(() => forumRole.value === 'moderator' || forumRole.value === 'admin')
   const canAdmin = computed(() => forumRole.value === 'admin')
 
-  /** Parsed from JWT `forumBoardIds` JSON array; empty when claim missing or invalid. */
   const forumBoardIds = computed<string[]>(() => {
     const t = token.value?.trim()
     if (!t) return []
@@ -125,7 +164,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     token,
-    refreshToken,
     pendingVerifyEmail,
     pendingVerifyCooldownUntil,
     sub,
@@ -133,10 +171,9 @@ export const useAuthStore = defineStore('auth', () => {
     canModerate,
     canAdmin,
     forumBoardIds,
-    setToken,
-    setRefreshToken,
     applyAuthSession,
     clearAuth,
+    restoreSession,
     setPendingVerifyEmail,
     setPendingVerifyCooldownUntil,
     setPendingVerifyCooldown,

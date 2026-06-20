@@ -18,49 +18,37 @@ export type ApiErrorResult = {
 
 type RetryAuthConfig = InternalAxiosRequestConfig & { _retryAuth?: boolean }
 
-const refreshInFlightByPrefix = new Map<string, Promise<void>>()
-
-function normalizeBasePrefix(prefix: string): string {
-  const t = prefix.trim()
-  if (!t) return ''
-  return t.endsWith('/') ? t.slice(0, -1) : t
-}
+let bffRefreshInFlight: Promise<void> | null = null
 
 function normalizePath(url: string | undefined): string {
   if (!url) return ''
   return url.startsWith('/') ? url : `/${url}`
 }
 
-function isAuthPath(path: string): boolean {
-  return normalizePath(path).startsWith('/auth/')
+function isBffAuthPath(path: string): boolean {
+  return normalizePath(path).startsWith('/bff/auth/')
 }
 
-function runSingleFlightRefresh(refreshTokenValue: string, apiPrefix: string): Promise<void> {
-  const key = normalizeBasePrefix(apiPrefix)
-  if (!key) {
-    throw new Error('createClient baseURL prefix is required for auth refresh')
-  }
-  let inflight = refreshInFlightByPrefix.get(key)
-  if (inflight) return inflight
-  inflight = (async () => {
+function runBffRefresh(): Promise<void> {
+  if (bffRefreshInFlight) return bffRefreshInFlight
+  bffRefreshInFlight = (async () => {
     try {
-      const { data } = await axios.post<ApiResult<AuthTokenPair>>(
-        `${key}/auth/refresh`,
-        { refreshToken: refreshTokenValue },
-        { timeout: 15000 },
+      const { data } = await axios.post<ApiResult<{ accessToken: string; accessTokenExpiresAtUtc: string }>>(
+        '/api/bff/auth/refresh',
+        {},
+        { headers: { 'X-BFF-Source': 'web' }, timeout: 15000, withCredentials: true },
       )
       const auth = useAuthStore()
       if (data.success && data.data) {
-        auth.applyAuthSession(data.data.accessToken, data.data.refreshToken)
+        auth.applyAuthSession(data.data.accessToken)
       } else {
         throw new Error(data.message ?? 'refresh failed')
       }
     } finally {
-      refreshInFlightByPrefix.delete(key)
+      bffRefreshInFlight = null
     }
   })()
-  refreshInFlightByPrefix.set(key, inflight)
-  return inflight
+  return bffRefreshInFlight
 }
 
 function createClient(prefix: string): AxiosInstance {
@@ -84,20 +72,18 @@ function createClient(prefix: string): AxiosInstance {
         return Promise.reject(error)
       }
       const path = normalizePath(original.url)
-      if (isAuthPath(path)) {
+      if (isBffAuthPath(path)) {
         return Promise.reject(error)
       }
       const auth = useAuthStore()
       const bearer = original.headers?.Authorization
       const hadBearer =
         typeof bearer === 'string' && bearer.startsWith('Bearer ') && bearer.length > 'Bearer '.length
-      if (!hadBearer || !auth.refreshToken) {
-        auth.clearAuth()
-        await redirectToLogin()
+      if (!hadBearer) {
         return Promise.reject(error)
       }
       try {
-        await runSingleFlightRefresh(auth.refreshToken, prefix)
+        await runBffRefresh()
       } catch {
         auth.clearAuth()
         await redirectToLogin()
@@ -152,18 +138,75 @@ export async function register(
   return data
 }
 
-export async function login(email: string, password: string) {
-  const { data } = await userApi.post<ApiResult<AuthTokenPair>>('/auth/login', { email, password })
+// ── BFF Auth ─────────────────────────────────────────────────────────────────
+
+export interface BffAccessToken {
+  accessToken: string
+  accessTokenExpiresAtUtc: string
+}
+
+export async function bffLogin(email: string, password: string) {
+  const { data } = await axios.post<ApiResult<BffAccessToken>>(
+    '/api/bff/auth/login',
+    { email, password },
+    { headers: { 'X-BFF-Source': 'web' }, timeout: 15000, withCredentials: true },
+  )
   return data
 }
 
-export async function refresh(refreshToken: string) {
-  const { data } = await userApi.post<ApiResult<AuthTokenPair>>('/auth/refresh', { refreshToken })
+export async function bffEstablish(refreshToken: string) {
+  await axios.post(
+    '/api/bff/auth/establish',
+    { refreshToken },
+    { headers: { 'X-BFF-Source': 'web' }, timeout: 10000, withCredentials: true },
+  )
+}
+
+export async function bffRevoke() {
+  try {
+    await axios.post('/api/bff/auth/revoke', {}, {
+      headers: { 'X-BFF-Source': 'web' },
+      timeout: 5000,
+      withCredentials: true,
+    })
+  } catch {
+    // Cookie is cleared by the caller's clearAuth() regardless
+  }
+}
+
+// ── BFF Me Bundle ─────────────────────────────────────────────────────────────
+
+export interface MeBundle {
+  profile: { nickname?: string; gender?: string; birthDate?: string } | null
+  forum: { unreadCount: number }
+  warnings?: string[]
+}
+
+export async function getMe() {
+  const { data } = await bffApi.get<ApiResult<MeBundle>>('/bff/me')
   return data
 }
 
-export async function revoke(refreshToken: string) {
-  const { data } = await userApi.post<ApiResult<string>>('/auth/revoke', { refreshToken })
+// ── BFF Forum Init Bundle ─────────────────────────────────────────────────────
+
+export interface ForumInitBundle {
+  boards: ForumBoardItem[]
+  announcements: ForumAnnouncementItem[]
+  posts: PagedForumPosts
+  popularTags: string[]
+  warnings?: string[]
+}
+
+export async function getForumInit(params?: {
+  page?: number
+  pageSize?: number
+  boardId?: string
+  q?: string
+  tag?: string
+  sort?: string
+  featured?: boolean
+}) {
+  const { data } = await bffApi.get<ApiResult<ForumInitBundle>>('/bff/forum-init', { params })
   return data
 }
 

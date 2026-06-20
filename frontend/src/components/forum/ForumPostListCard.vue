@@ -93,7 +93,7 @@ const favoriteIcon = (): Component => (favorited() ? StarFilled : Star)
     <p class="post-excerpt">{{ post.excerpt }}</p>
 
     <div class="post-meta">
-      <el-link class="post-author-link" :underline="false" @click="onAuthor">
+      <el-link class="post-author-link" underline="never" @click="onAuthor">
         {{ forumAuthorLabel(post.authorDisplayName, post.authorId) }}
       </el-link>
       <div class="tag-list">

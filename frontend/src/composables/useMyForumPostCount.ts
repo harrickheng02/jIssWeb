@@ -26,8 +26,10 @@ export function useMyForumPostCount(tokenRef: Ref<string | null | undefined>) {
 
   watch(
     () => tokenRef.value,
-    () => {
-      void loadPostCount()
+    (t, prevT) => {
+      if (prevT && t) return  // token 轮换（非空→非空），不重新请求
+      if (t) void loadPostCount()
+      else postCount.value = null
     },
     { immediate: true },
   )

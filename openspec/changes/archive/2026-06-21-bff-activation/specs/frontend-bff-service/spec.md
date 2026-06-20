@@ -1,10 +1,4 @@
-# frontend-bff-service Specification
-
-## Purpose
-
-为前端提供专属的 ASP.NET Core BFF 服务，承担鉴权生命周期管理与页面级数据聚合职责，将前端响应塑形与底层领域服务解耦。BFF 通过 Gateway 的 YARP 路由 `/api/bff/**` 对外暴露。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Frontend-oriented backend entry
 
@@ -52,7 +46,7 @@ The BFF SHALL be able to call one or more downstream services and return a front
 - **WHEN** one or more downstream services fail during a BFF aggregation request
 - **THEN** the BFF SHALL return a degraded response with available data, setting failed fields to null/empty, and SHALL include a `warnings` array in the response indicating which data sources were unavailable; the HTTP status SHALL remain 200 for partial failures
 
----
+## ADDED Requirements
 
 ### Requirement: BFF 对所有变更端点施加来源校验
 
@@ -62,4 +56,3 @@ BFF SHALL 要求所有非只读端点（Cookie Session 鉴权端点）的请求�
 
 - **WHEN** 任意 BFF 变更端点收到不含 `X-BFF-Source: web` Header 的请求
 - **THEN** BFF SHALL 返回 HTTP 400，记录警告日志，不执行任何下游调用
-

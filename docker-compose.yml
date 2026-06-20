@@ -118,13 +118,21 @@ services:
       Jwt__Issuer: JIssWeb
       Jwt__Audience: JIssWeb
       Jwt__Key: ${JWT_KEY}
-      DownstreamServices__UserApiBaseUrl: ${BFF_USER_API_URL:-http://user-api:5097/}
-      DownstreamServices__CustomerApiBaseUrl: ${BFF_CUSTOMER_API_URL:-http://customer-api:5098/}
+      Redis__ConnectionString: redis:6379
+      Redis__Password: ${REDIS_PASSWORD}
+      Redis__KeyPrefix: "bff:"
+      DownstreamServices__UserApiBaseUrl: ${BFF_USER_API_URL:-http://user-api:5097}
+      DownstreamServices__CustomerApiBaseUrl: ${BFF_CUSTOMER_API_URL:-http://customer-api:5098}
+      DownstreamServices__ModelApiBaseUrl: ${BFF_MODEL_API_URL:-http://model-api:5099}
     depends_on:
       user-api:
         condition: service_started
       customer-api:
         condition: service_started
+      model-api:
+        condition: service_started
+      redis:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

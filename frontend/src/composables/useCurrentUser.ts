@@ -1,33 +1,51 @@
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { getMe, type MeBundle } from '@/api/clients'
 
-/**
- * 统一暴露当前用户认证状态的 composable。
- * 消费者应通过此接口访问用户身份，而非直接依赖 Pinia auth store 的内部字段。
- */
-export function useCurrentUser() {
+// 模块级单例：所有组件共享，token 变化只触发一次 getMe()
+const meData = ref<MeBundle | null>(null)
+let _watchRegistered = false
+let _fetching = false
+
+async function fetchMe() {
   const auth = useAuthStore()
+  if (!auth.token) { meData.value = null; return }
+  if (_fetching) return
+  _fetching = true
+  try {
+    const res = await getMe()
+    if (res.success && res.data) meData.value = res.data
+    else meData.value = null
+  } catch {
+    meData.value = null
+  } finally {
+    _fetching = false
+  }
+}
 
-  /** 当前用户 ID（来自 JWT sub 字段），未登录时为 null */
-  const userId = computed<string | null>(() => auth.sub)
+function initOnce() {
+  if (_watchRegistered) return
+  _watchRegistered = true
+  const auth = useAuthStore()
+  if (auth.token) void fetchMe()
+  watch(() => auth.token, (t, prevT) => {
+    if (t && !prevT) void fetchMe()  // null→token：登录，拉取用户信息
+    else if (!t) meData.value = null  // token→null：登出，清除
+    // token 轮换（非空→非空）：仅刷新凭证，用户信息不变，不重复请求
+  })
+}
 
-  /** 是否已登录（token 存在） */
-  const isLoggedIn = computed<boolean>(() => Boolean(auth.token))
-
-  /** 是否拥有版主或管理员权限 */
-  const canModerate = computed<boolean>(() => auth.canModerate)
-
-  /** 是否拥有管理员权限 */
-  const canAdmin = computed<boolean>(() => auth.canAdmin)
-
-  /** 论坛角色 */
-  const forumRole = computed(() => auth.forumRole)
-
+export function useCurrentUser() {
+  initOnce()
+  const auth = useAuthStore()
   return {
-    userId,
-    isLoggedIn,
-    canModerate,
-    canAdmin,
-    forumRole,
+    userId: computed<string | null>(() => auth.sub),
+    isLoggedIn: computed<boolean>(() => Boolean(auth.token)),
+    canModerate: computed<boolean>(() => auth.canModerate),
+    canAdmin: computed<boolean>(() => auth.canAdmin),
+    forumRole: computed(() => auth.forumRole),
+    nickname: computed(() => meData.value?.profile?.nickname ?? null),
+    forumUnreadCount: computed(() => meData.value?.forum?.unreadCount ?? 0),
+    fetchMe,
   }
 }

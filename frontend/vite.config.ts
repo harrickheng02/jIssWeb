@@ -34,6 +34,7 @@ function requireEnv(env: Record<string, string>, key: string): string {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, repoRoot, '')
   const gatewayBase = `http://127.0.0.1:${requireEnv(env, 'VITE_PROXY_GATEWAY_PORT')}`
+  const bffBase = `http://127.0.0.1:${requireEnv(env, 'VITE_PROXY_BFF_PORT')}`
   const userBase = `http://127.0.0.1:${requireEnv(env, 'VITE_PROXY_USER_API_PORT')}`
   const customerBase = `http://127.0.0.1:${requireEnv(env, 'VITE_PROXY_CUSTOMER_API_PORT')}`
   const modelBase = `http://127.0.0.1:${requireEnv(env, 'VITE_PROXY_MODEL_API_PORT')}`
@@ -55,6 +56,10 @@ export default defineConfig(({ mode }) => {
         '/api-model': local(modelBase, '/api-model', true),
         '/api-accounting': local(accountingBase, '/api-accounting', true),
         '/api-report': local(reportBase, '/api-report', true),
+        '/api/bff': {
+          target: bffBase,
+          changeOrigin: true,
+        },
         '/api/forum': {
           target: modelBase,
           changeOrigin: true,

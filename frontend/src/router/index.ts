@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, bcSyncReady } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -137,7 +137,8 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  await bcSyncReady
   const auth = useAuthStore()
   if (to.meta.requiresModerate && !auth.canModerate) return { name: 'home' }
   if (!to.meta.requiresAuth) return true

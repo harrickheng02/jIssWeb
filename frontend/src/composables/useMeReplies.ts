@@ -46,9 +46,10 @@ export function useMeReplies(pageSize = 20) {
 
   watch(
     () => auth.token,
-    () => {
-      page.value = 1
-      void load()
+    (t, prevT) => {
+      if (t && !prevT) { page.value = 1; void load() }  // 登录
+      else if (!t) { items.value = []; totalCount.value = 0 }  // 登出
+      // token 轮换不重新请求
     },
   )
 

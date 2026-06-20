@@ -10,7 +10,7 @@ import { useForumSidebar } from '@/composables/useForumSidebar'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import ForumPostListCard from '@/components/forum/ForumPostListCard.vue'
 import ForumRepliesLockedMark from '@/components/forum/ForumRepliesLockedMark.vue'
-import type { ForumAnnouncementItem } from '@/api/clients'
+import { type ForumAnnouncementItem } from '@/api/clients'
 
 /** Right-column hot list: `forum-homepage-shell` requires page=1 and pageSize=8. */
 const hotSidebarPageSize = 8
@@ -26,7 +26,7 @@ const filters = [
   { id: 'featured', label: '精华' },
 ] as const
 
-const { forumBoards, sidebarItems, loadForumBoards } = useForumBoards()
+const { forumBoards, sidebarItems } = useForumBoards()
 
 function boardIdQueryParam() {
   return activeSidebar.value === 'all' ? undefined : activeSidebar.value
@@ -49,6 +49,8 @@ const {
   searchQuery,
   tagFilterValue,
   fetchPosts,
+  initBundle,
+  initWarnings,
   setFeedTag,
   clearFeedTag,
   prevPage,
@@ -57,6 +59,24 @@ const {
 } = useForumHomeFeed(activeSidebar, activeFilter, {
   onActiveSidebarChange: () => void loadPopularTags(),
   resolveBoardTitle,
+})
+
+// 消费 BFF bundle：boards / announcements / popularTags 由首次加载的 forum-init 填充
+watch(initBundle, (bundle) => {
+  if (!bundle) return
+  forumBoards.value = bundle.boards
+  announcements.value = bundle.announcements
+  popularTags.value = bundle.popularTags
+})
+
+// warnings 双层：用户提示 + 开发/运维日志
+watch(initWarnings, (warnings) => {
+  if (!warnings.length) return
+  console.warn('[BFF forum-init] 部分下游服务异常:', warnings)
+  ElMessage.warning({
+    message: `论坛部分内容加载不完整（${warnings.join('、')}），可刷新重试`,
+    duration: 5000,
+  })
 })
 
 function getDefaultComposeBoardId() {
@@ -95,15 +115,10 @@ const {
   annLoading,
   annError,
   loadHotSidebar: fetchHotSidebar,
-  loadAnnouncements: fetchAnnouncements,
 } = useForumSidebar()
 
 async function loadHotSidebar() {
   await fetchHotSidebar(hotSidebarPageSize, boardIdQueryParam())
-}
-
-async function loadAnnouncements() {
-  await fetchAnnouncements(5)
 }
 
 function openAnnouncement(a: ForumAnnouncementItem) {
@@ -139,11 +154,7 @@ watch(activeSidebar, () => {
 })
 
 onMounted(() => {
-  void loadForumBoards().finally(() => {
-    void loadPopularTags()
-    void loadHotSidebar()
-    void loadAnnouncements()
-  })
+  void loadHotSidebar()
 })
 </script>
 
@@ -280,7 +291,7 @@ onMounted(() => {
             <div v-for="post in hotSidebarPosts" :key="post.id" class="hot-row">
               <ForumRepliesLockedMark v-if="post.repliesLocked" :size="14" class="hot-row__lock" />
               <el-link
-                :underline="false"
+                underline="never"
                 class="hot-item hot-row__link"
                 @click="goPost(post.id)"
               >
@@ -318,7 +329,7 @@ onMounted(() => {
               <el-link
                 v-if="a.linkUrl?.trim()"
                 type="primary"
-                :underline="false"
+                underline="never"
                 @click.stop="openAnnouncement(a)"
               >
                 {{ a.title }}
