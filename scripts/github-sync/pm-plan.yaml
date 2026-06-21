@@ -441,8 +441,8 @@ issues:
       - **change-A 写操作路径补齐**（#25 closed）：`POST /api/forum/posts/drafts/{id}/publish` 与作者 `PUT` 自编辑纳入屏蔽词校验与发帖频率限流。
 
 
-      - **change-B 分布式限流**：发帖/回复/搜索（含 `q`）限流计数迁移至 Redis（或 YARP Gateway 层等价方案，须在 design 中二选一）；多 Model.Api
-      实例共享配额；fail-open/fail-closed 策略写清。同时为图灵场 AI 智能体提供独立配额命名空间。
+      - **change-B 分布式限流**（#26 closed，2026-06-21 merged）：发帖/回复/搜索（含 `q`）限流计数迁移至 Redis；多 Model.Api 实例共享配额；fail-open 策略；AI
+      智能体独立配额命名空间（agent:post/reply:{sub}，搜索豁免）。
 
 
       - **change-C 人机验证**：注册和/或首次发帖接入 CAPTCHA（Cloudflare Turnstile 或等价）；授权 AI 智能体账号豁免 CAPTCHA（通过 accountType 判断）。
@@ -463,9 +463,9 @@ issues:
 
       - Issue #25 change-A（closed，2026-06-14 merged）
 
-      - Issue #26 change-B 分布式限流（open）
+      - Issue #26 change-B 分布式限流（closed，2026-06-21 merged）
 
-      - Issue #27 change-C 人机验证（open）
+      - Issue #27 change-C 人机验证（closed，2026-06-21 merged）
 
       - Issue #28 change-D 行为信号降速（open）
 
@@ -475,27 +475,6 @@ issues:
     priority: 主要
     state: open
     module: 治理与审核
-    classification: feature
-  - title: 反机器人 change-B：分布式限流（Redis 共享配额）
-    body: |
-      父 Issue #24 change-B。
-
-      验收标准：
-      - 发帖（含 publish）、回复、搜索（含 `q`）限流计数迁移至 Redis；fail-open / fail-closed 策略写清（推荐 fail-open 并记录日志）。
-      - 多 Model.Api 实例共享同一 Redis 限流配额，单实例结果与迁移前行为对齐。
-      - 为图灵场 AI 智能体账号（accountType: agent）提供**独立配额命名空间**，与人类用户限流隔离，互不影响。
-      - 配置键与进程内 limiter（#5）保持命名一致；零配置或 Redis 不可用时行为文档化。
-      - 集成测试（可用 Testcontainers Redis）：跨"实例"配额共享验证；Redis 断连 fail-open 验证；agent 账号走独立命名空间验证。
-
-      依赖：Issue #25 closed；Redis docker-compose 已有；Issue #15 closed。
-      非目标：CAPTCHA（见 #27）；Gateway 层全局限流中台；行为降速规则（见 #28）。
-
-      OpenSpec change：`forum-anti-spam-distributed-ratelimit`（待 propose）。
-    milestone: M3 — 治理与基础设施完善
-    issue_number: 26
-    priority: 主要
-    state: open
-    module: 平台与基础设施
     classification: feature
   - title: 反机器人 change-C：人机验证（CAPTCHA 接入）
     body: |
@@ -511,11 +490,11 @@ issues:
       依赖：Issue #26 closed（change-B）；User.Api 注册链路；图灵场 AI 智能体账号协议（accountType JWT claim，见新 Issue）。
       非目标：设备指纹 SDK；短信/邮件验证；内容合规 AI 审核。
 
-      OpenSpec change：`forum-anti-spam-captcha`（待 propose）。
+      OpenSpec change：`forum-anti-spam-captcha`（已归档，`openspec/changes/archive/2026-06-21-forum-anti-spam-captcha/`）。
     milestone: M3 — 治理与基础设施完善
     issue_number: 27
     priority: 主要
-    state: open
+    state: closed
     module: 治理与审核
     classification: feature
   - title: 反机器人 change-D：行为信号降速（新账号 + 重复正文）
