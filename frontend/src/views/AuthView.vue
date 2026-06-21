@@ -2,12 +2,17 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import VueTurnstile from 'vue-turnstile'
 import { bffLogin, register } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useLegalUiStore } from '@/stores/legalUi'
 import { isStrongPassword, PASSWORD_STRONG_HINT } from '@/utils/passwordPolicy'
 import './auth-view.css'
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined
+const turnstileEnabled = Boolean(TURNSTILE_SITE_KEY)
+const turnstileRef = ref<InstanceType<typeof VueTurnstile> | null>(null)
 
 const auth = useAuthStore()
 const { fetchMe } = useCurrentUser()
@@ -30,6 +35,7 @@ const registerForm = reactive({
   gender: '',
   birthDate: '',
   agreed: false,
+  captchaToken: '',
 })
 
 const loginErrors = reactive({
@@ -53,7 +59,8 @@ const canSubmitRegister = computed(() =>
     registerForm.email &&
       registerForm.password &&
       registerForm.confirmPassword &&
-      registerForm.agreed,
+      registerForm.agreed &&
+      (!turnstileEnabled || registerForm.captchaToken),
   ),
 )
 
@@ -91,6 +98,10 @@ function getAuthErrorMessage(code?: string, fallback?: string) {
       return fallback || '操作过于频繁，请稍后重试'
     case 'RESEND_DAILY_LIMITED':
       return '今日验证邮件发送次数过多，请明天再试'
+    case 'CAPTCHA_REQUIRED':
+      return '请完成人机验证后再提交'
+    case 'CAPTCHA_INVALID':
+      return '人机验证失败，请重试'
     default:
       return fallback || '操作失败'
   }
@@ -205,11 +216,16 @@ async function doRegister() {
 
   loading.value = true
   try {
-    const res = await register(registerForm.email, registerForm.password, {
-      nickname: registerForm.nickname.trim() || undefined,
-      gender: registerForm.gender || undefined,
-      birthDate: registerForm.birthDate || undefined,
-    })
+    const res = await register(
+      registerForm.email,
+      registerForm.password,
+      {
+        nickname: registerForm.nickname.trim() || undefined,
+        gender: registerForm.gender || undefined,
+        birthDate: registerForm.birthDate || undefined,
+      },
+      registerForm.captchaToken || undefined,
+    )
     if (!res.success) throw new Error(res.message ?? '注册失败')
     auth.setPendingVerifyEmail(registerForm.email)
     auth.setPendingVerifyCooldown(60)
@@ -222,6 +238,10 @@ async function doRegister() {
       auth.setPendingVerifyEmail(registerForm.email)
       auth.setPendingVerifyCooldown(getRetryAfterSeconds(e))
       void router.push('/register/pending')
+    }
+    if (code === 'CAPTCHA_REQUIRED' || code === 'CAPTCHA_INVALID') {
+      registerForm.captchaToken = ''
+      turnstileRef.value?.reset()
     }
     requestError.value = message
     ElMessage.error(message)
@@ -366,6 +386,16 @@ async function doRegister() {
                       </span>
                     </div>
                   </el-form-item>
+
+                  <div v-if="turnstileEnabled" class="auth-page__captcha">
+                    <VueTurnstile
+                      ref="turnstileRef"
+                      v-model="registerForm.captchaToken"
+                      :site-key="TURNSTILE_SITE_KEY!"
+                      theme="auto"
+                      size="flexible"
+                    />
+                  </div>
 
                   <el-button
                     type="success"

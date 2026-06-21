@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
+    envDir: repoRoot,
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -42,6 +43,8 @@ public class AuthController : ControllerBase
     private readonly ILogger<AuthController> _logger;
     private readonly IMongoCollection<ProfileRecordDoc>? _customerProfiles;
     private readonly ForumOptions _forum;
+    private readonly ICaptchaVerifier _captchaVerifier;
+    private readonly CaptchaSettings _captchaSettings;
 
     public AuthController(
         IOptions<JwtSettings> jwtOptions,
@@ -51,9 +54,11 @@ public class AuthController : ControllerBase
         IOptions<PasswordResetSettings> passwordResetOptions,
         IOptions<LoginSecuritySettings> loginSecurityOptions,
         IOptions<ForumOptions> forumOptions,
+        IOptions<CaptchaSettings> captchaOptions,
         IMongoClient mongoClient,
         IConnectionMultiplexer redis,
         IVerificationEmailSender emailSender,
+        ICaptchaVerifier captchaVerifier,
         ILogger<AuthController> logger)
     {
         _jwt = jwtOptions.Value;
@@ -62,11 +67,13 @@ public class AuthController : ControllerBase
         _passwordReset = passwordResetOptions.Value;
         _loginSecurity = loginSecurityOptions.Value;
         _forum = forumOptions.Value;
+        _captchaSettings = captchaOptions.Value;
         var database = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _users = database.GetCollection<UserAccount>("users");
         _refreshSessions = database.GetCollection<RefreshSession>("refresh_sessions");
         _redis = redis.GetDatabase();
         _emailSender = emailSender;
+        _captchaVerifier = captchaVerifier;
         _logger = logger;
         var customerDb = mongoOptions.Value.CustomerDatabaseName?.Trim();
         if (!string.IsNullOrEmpty(customerDb))
@@ -84,6 +91,10 @@ public class AuthController : ControllerBase
             return BadRequest(ApiResult<string>.Fail("密码强度不足", "WEAK_PASSWORD"));
         if (await IsRateLimitedAsync("register", email, _emailVerification.RegisterPerMinuteLimit))
             return StatusCode(429, ApiResult<string>.Fail("请求过于频繁", "RATE_LIMITED"));
+
+        var captchaResult = await ValidateCaptchaAsync(request.CaptchaToken);
+        if (captchaResult is not null)
+            return captchaResult;
 
         var profileErr = TryParseRegisterProfile(request, out var requestedNickname, out var gender, out var birthDate);
         if (profileErr is not null)
@@ -582,6 +593,27 @@ public class AuthController : ControllerBase
         };
     }
 
+    private async Task<ActionResult<ApiResult<string>>?> ValidateCaptchaAsync(string? captchaToken)
+    {
+        if (!_captchaSettings.Enabled)
+            return null;
+
+        // agent 账号豁免桩：#30 落地后此分支自动激活（当前生产环境 accountType claim 从不签发）
+        var accountTypeClaim = User.FindFirstValue("accountType");
+        if (string.Equals(accountTypeClaim, "agent", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        if (string.IsNullOrWhiteSpace(captchaToken))
+            return BadRequest(ApiResult<string>.Fail("人机验证未完成", "CAPTCHA_REQUIRED"));
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var passed = await _captchaVerifier.VerifyAsync(captchaToken, ip);
+        if (!passed)
+            return BadRequest(ApiResult<string>.Fail("人机验证失败，请重试", "CAPTCHA_INVALID"));
+
+        return null;
+    }
+
     private static string? NormalizeEmail(string? email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -1046,6 +1078,7 @@ public class RegisterRequest
     public string? Nickname { get; set; }
     public string? Gender { get; set; }
     public string? BirthDate { get; set; }
+    public string? CaptchaToken { get; set; }
 }
 
 public class LoginRequest

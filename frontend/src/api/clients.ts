@@ -126,6 +126,7 @@ export async function register(
   email: string,
   password: string,
   profile: { nickname?: string; gender?: string; birthDate?: string },
+  captchaToken?: string,
 ) {
   const body: Record<string, string> = {
     email,
@@ -134,6 +135,7 @@ export async function register(
   if (profile.nickname?.trim()) body.nickname = profile.nickname.trim()
   if (profile.gender) body.gender = profile.gender
   if (profile.birthDate) body.birthDate = profile.birthDate
+  if (captchaToken) body.captchaToken = captchaToken
   const { data } = await userApi.post<ApiResult<string>>('/auth/register', body)
   return data
 }
