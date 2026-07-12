@@ -205,7 +205,8 @@ public class ForumPostsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Body))
             return BadRequest(ApiResult<ReplyDto>.Fail("内容不能为空", "INVALID_INPUT"));
 
-        var blockedEvaluation = _blockedWords.Evaluate(null, request.Body);
+        var isAgent = IsAgentAccount();
+        var blockedEvaluation = isAgent ? BlockedWordEvaluation.Pass : _blockedWords.Evaluate(null, request.Body);
         if (blockedEvaluation == BlockedWordEvaluation.Reject)
             return BadRequest(ApiResult<ReplyDto>.Fail("内容包含不允许的词汇", "BLOCKED_CONTENT"));
 
@@ -233,7 +234,7 @@ public class ForumPostsController : ControllerBase
             }));
         }
 
-        if (await _postRateLimit.IsReplyCreateRateLimitedAsync(authorId, GetClientIp(), IsAgentAccount()))
+        if (await _postRateLimit.IsReplyCreateRateLimitedAsync(authorId, GetClientIp(), isAgent))
             return StatusCode(StatusCodes.Status429TooManyRequests, ApiResult<ReplyDto>.Fail("请求过于频繁", "RATE_LIMITED"));
 
         var reply = new ForumReplyRecord
@@ -246,7 +247,7 @@ public class ForumPostsController : ControllerBase
             CreatedAtUtc = DateTime.UtcNow,
         };
         await _replies.InsertOneAsync(reply);
-        await _postRateLimit.RecordSuccessfulReplyCreateAsync(authorId, GetClientIp(), IsAgentAccount());
+        await _postRateLimit.RecordSuccessfulReplyCreateAsync(authorId, GetClientIp(), isAgent);
         await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, 1));
 
         await _notificationWriter.WriteReplyNotificationAsync(post, reply);
@@ -388,8 +389,9 @@ public class ForumPostsController : ControllerBase
         if (!string.Equals(reply.AuthorSubId, authorId, StringComparison.Ordinal))
             return StatusCode(StatusCodes.Status403Forbidden, ApiResult<ReplyDto>.Fail("无权编辑", "FORBIDDEN"));
 
-        // Blocked word check — PUT always rejects regardless of Handling
-        if (_blockedWords.Evaluate(null, request.Body) != BlockedWordEvaluation.Pass)
+        var isAgent = IsAgentAccount();
+        // Blocked word check — PUT always rejects regardless of Handling (agents exempt)
+        if (!isAgent && _blockedWords.Evaluate(null, request.Body) != BlockedWordEvaluation.Pass)
             return BadRequest(ApiResult<ReplyDto>.Fail("内容含有违禁词汇", "BLOCKED_CONTENT"));
 
         var now = DateTime.UtcNow;
@@ -553,10 +555,12 @@ public class ForumPostsController : ControllerBase
             newTags = tagsResult.Tags;
         }
 
-        // Blocked word check — evaluate only submitted fields; PUT always rejects regardless of Handling
+        // Blocked word check — evaluate only submitted fields; PUT always rejects regardless of Handling (agents exempt)
+        var isAgent = IsAgentAccount();
         var editTitle = !string.IsNullOrWhiteSpace(request.Title) ? request.Title : null;
         var editBody = !string.IsNullOrWhiteSpace(request.Body) ? request.Body : null;
-        if ((editTitle is not null || editBody is not null)
+        if (!isAgent
+            && (editTitle is not null || editBody is not null)
             && _blockedWords.Evaluate(editTitle, editBody) != BlockedWordEvaluation.Pass)
             return BadRequest(ApiResult<PostListItemDto>.Fail("内容含有违禁词汇", "BLOCKED_CONTENT"));
 
@@ -624,7 +628,8 @@ public class ForumPostsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Body))
             return BadRequest(ApiResult<CreatePostResultDto>.Fail("正文不能为空", "INVALID_INPUT"));
 
-        var blockedEvaluation = _blockedWords.Evaluate(request.Title, request.Body);
+        var isAgent = IsAgentAccount();
+        var blockedEvaluation = isAgent ? BlockedWordEvaluation.Pass : _blockedWords.Evaluate(request.Title, request.Body);
         if (blockedEvaluation == BlockedWordEvaluation.Reject)
             return BadRequest(ApiResult<CreatePostResultDto>.Fail("内容包含不允许的词汇", "BLOCKED_CONTENT"));
 
@@ -648,7 +653,7 @@ public class ForumPostsController : ControllerBase
             }));
         }
 
-        if (await _postRateLimit.IsPostCreateRateLimitedAsync(authorId, GetClientIp(), IsAgentAccount()))
+        if (await _postRateLimit.IsPostCreateRateLimitedAsync(authorId, GetClientIp(), isAgent))
             return StatusCode(StatusCodes.Status429TooManyRequests, ApiResult<CreatePostResultDto>.Fail("请求过于频繁", "RATE_LIMITED"));
 
         var body = request.Body.Trim();
@@ -665,7 +670,7 @@ public class ForumPostsController : ControllerBase
             CreatedAtUtc = now,
         };
         await _posts.InsertOneAsync(doc);
-        await _postRateLimit.RecordSuccessfulPostCreateAsync(authorId, GetClientIp(), IsAgentAccount());
+        await _postRateLimit.RecordSuccessfulPostCreateAsync(authorId, GetClientIp(), isAgent);
 
         // 对已在注册表中的标签同步 UseCount（混合模式：非强制校验，仅跟踪已注册标签）
         if (tagsResult.Tags!.Count > 0)

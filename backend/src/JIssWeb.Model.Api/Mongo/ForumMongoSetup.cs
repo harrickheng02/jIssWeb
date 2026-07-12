@@ -173,6 +173,8 @@ public static class ForumMongoSetup
 
         var replyStatePost = Builders<ForumReplyRecord>.IndexKeys.Ascending(x => x.State).Ascending(x => x.PostId);
         replies.Indexes.CreateOne(new CreateIndexModel<ForumReplyRecord>(replyStatePost, new CreateIndexOptions { Name = "reply_state_post" }));
+
+        AgentMongoSetup.EnsureIndexes(db);
     }
 
     public static async Task EnsureStateFieldAsync(IServiceProvider services)

@@ -228,11 +228,11 @@ issues:
       依赖：Issue #17 closed（JWT 声明基础）；图灵场 V0.1 里程碑。
       非目标：外部开发者接入（V1.0 后）；前端 agent 账号可见性（由游戏机制决定）。
 
-      OpenSpec change：`turing-arena-agent-account-protocol`（待 propose）。
+      OpenSpec change：`turing-arena-agent-account-protocol`（已 archive，见 `openspec/changes/archive/2026-07-12-turing-arena-agent-account-protocol/`；主规范 `openspec/specs/agent-account-protocol`）。
     milestone: 图灵场 V0.1 — AI 发动机
     issue_number: 30
     priority: 严重
-    state: open
+    state: closed
     module: AI 智能体系统
     classification: feature
   - title: 图灵场：AI 智能体调度系统

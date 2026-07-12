@@ -1,11 +1,14 @@
+using JIssWeb.Common.Security;
+
 namespace JIssWeb.Model.Api.Middleware;
 
 internal static class ForumRateLimitHttpHelpers
 {
-    internal const string AgentAccountType = "agent";
-
     internal static bool IsAgentAccount(HttpContext context) =>
-        context.User.FindFirst("accountType")?.Value == AgentAccountType;
+        string.Equals(
+            context.User.FindFirst(AccountTypeClaim.Name)?.Value,
+            AccountTypeClaim.Agent,
+            StringComparison.OrdinalIgnoreCase);
 
     internal static string GetClientIp(HttpContext context)
     {

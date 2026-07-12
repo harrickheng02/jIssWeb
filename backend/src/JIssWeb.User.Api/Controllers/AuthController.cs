@@ -7,6 +7,7 @@ using JIssWeb.Common.Helpers;
 using JIssWeb.Common.Options;
 using JIssWeb.Common.Security;
 using JIssWeb.User.Api;
+using JIssWeb.User.Api.Authorization;
 using JIssWeb.User.Api.Models;
 using JIssWeb.User.Api.Options;
 using JIssWeb.User.Api.Services;
@@ -179,7 +180,7 @@ public class AuthController : ControllerBase
         }
 
         var user = await _users.Find(x => x.Email == email).FirstOrDefaultAsync();
-        if (user is null)
+        if (user is null || user.IsAgentAccount)
         {
             await RecordLoginFailureAsync(email);
             return Unauthorized(ApiResult<AuthTokenPair>.Fail("账号或密码错误", "LOGIN_FAILED"));
@@ -477,6 +478,42 @@ public class AuthController : ControllerBase
         return Ok(ApiResult<string>.Ok(new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(token)));
     }
 
+    [HttpPost("/api/internal/agents/accounts")]
+    [RequireInternalApiKey]
+    public async Task<ActionResult<ApiResult<AgentAccountCreatedDto>>> CreateAgentAccount(
+        [FromBody] CreateAgentAccountRequest request)
+    {
+        var email = NormalizeEmail(request.Email);
+        if (email is null || !IsValidEmail(email))
+            return BadRequest(ApiResult<AgentAccountCreatedDto>.Fail("邮箱无效", "INVALID_INPUT"));
+
+        var existing = await _users.Find(x => x.Email == email).FirstOrDefaultAsync();
+        if (existing is not null)
+            return Conflict(ApiResult<AgentAccountCreatedDto>.Fail("邮箱已注册", "EMAIL_EXISTS"));
+
+        var now = DateTime.UtcNow;
+        var salt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+        var user = new UserAccount
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            Email = email,
+            PasswordSalt = salt,
+            PasswordHash = HashPassword(GenerateToken(), salt),
+            CreatedAtUtc = now,
+            EmailVerifiedAtUtc = now,
+            IsAgentAccount = true,
+        };
+
+        await _users.InsertOneAsync(user);
+        var accessToken = CreateAccessToken(user);
+        return Ok(ApiResult<AgentAccountCreatedDto>.Ok(new AgentAccountCreatedDto
+        {
+            AgentUserId = user.Id,
+            AccessToken = accessToken.Token,
+            AccessTokenExpiresAtUtc = accessToken.ExpiresAtUtc,
+        }));
+    }
+
     private async Task RevokeAllRefreshSessionsForUserAsync(string userId)
     {
         var now = DateTime.UtcNow;
@@ -527,6 +564,7 @@ public class AuthController : ControllerBase
             new("email", user.Email),
             new("emailVerified", "true"),
             new(ForumRoleClaim.Name, forumRole),
+            new(AccountTypeClaim.Name, user.IsAgentAccount ? AccountTypeClaim.Agent : AccountTypeClaim.Human),
         };
         // Only embed board scope when non-empty so model-service can fall back to Forum:Moderation (e.g. Docker env) when absent.
         if (string.Equals(forumRole, ForumRoleClaim.Moderator, StringComparison.Ordinal))
@@ -1113,6 +1151,19 @@ public class CompleteResetPasswordRequest
     public string? Password { get; set; }
 }
 
+public class CreateAgentAccountRequest
+{
+    public string? Email { get; set; }
+    public string? PersonaId { get; set; }
+}
+
+public class AgentAccountCreatedDto
+{
+    public string AgentUserId { get; set; } = "";
+    public string AccessToken { get; set; } = "";
+    public DateTime AccessTokenExpiresAtUtc { get; set; }
+}
+
 public class AuthTokenPair
 {
     public string AccessToken { get; set; } = "";
@@ -1134,6 +1185,9 @@ public class UserAccount
 
     /// <summary>Global forum role persisted for the account: member, moderator, or admin.</summary>
     public string? ForumRole { get; set; }
+
+    /// <summary>When true, JWT includes <c>accountType: agent</c>; password login is rejected.</summary>
+    public bool IsAgentAccount { get; set; }
 }
 
 public class RefreshSession

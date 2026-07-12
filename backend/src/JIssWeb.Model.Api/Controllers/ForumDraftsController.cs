@@ -152,17 +152,19 @@ public class ForumDraftsController : ControllerBase
         if (string.IsNullOrWhiteSpace(draft.Body))
             return BadRequest(ApiResult<PublishDraftResultDto>.Fail("正文不能为空", "INVALID_INPUT"));
 
+        var isAgent = IsAgentAccount();
+
         // Validate board
         var boardTitle = ResolveBoard(null, draft.Board);
         if (boardTitle is null)
             return BadRequest(ApiResult<PublishDraftResultDto>.Fail("无效的板块", "INVALID_BOARD_ID"));
 
         // Blocked word check — publish always rejects regardless of Handling (no local-only semantic for publish)
-        if (_blockedWords.Evaluate(draft.Title, draft.Body) != BlockedWordEvaluation.Pass)
+        if (!isAgent && _blockedWords.Evaluate(draft.Title, draft.Body) != BlockedWordEvaluation.Pass)
             return BadRequest(ApiResult<PublishDraftResultDto>.Fail("内容含有违禁词汇", "BLOCKED_CONTENT"));
 
         // Rate limit check — shares post create quota
-        if (await _postRateLimit.IsPostCreateRateLimitedAsync(sub, GetClientIp(), IsAgentAccount()))
+        if (await _postRateLimit.IsPostCreateRateLimitedAsync(sub, GetClientIp(), isAgent))
             return StatusCode(StatusCodes.Status429TooManyRequests,
                 ApiResult<PublishDraftResultDto>.Fail("发帖过于频繁，请稍后再试", "RATE_LIMITED"));
 
@@ -177,7 +179,7 @@ public class ForumDraftsController : ControllerBase
                 Builders<ForumTagRecord>.Filter.In(x => x.Name, draft.Tags),
                 Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, 1));
 
-        await _postRateLimit.RecordSuccessfulPostCreateAsync(sub, GetClientIp(), IsAgentAccount());
+        await _postRateLimit.RecordSuccessfulPostCreateAsync(sub, GetClientIp(), isAgent);
 
         return Ok(ApiResult<PublishDraftResultDto>.Ok(new PublishDraftResultDto { Id = draftId, State = "published" }));
     }
