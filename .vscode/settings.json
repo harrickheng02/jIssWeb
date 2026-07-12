@@ -1,5 +1,6 @@
 {
     "dotrush.roslyn.projectOrSolutionFiles": [
         "c:\\Code\\jIssWeb\\.claude\\worktrees\\agent-afe48c1423caca4f3\\backend\\src\\JIssWeb.sln"
-    ]
+    ],
+    "dotnet.defaultSolution": "backend/src/JIssWeb.sln"
 }

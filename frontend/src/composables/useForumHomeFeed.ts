@@ -1,7 +1,13 @@
 import axios from 'axios'
 import { computed, ref, watch, type Ref } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
-import { listForumPosts, type ForumPostListItem, type ForumPostListPatch } from '@/api/clients'
+import {
+  getForumInit,
+  listForumPosts,
+  type ForumInitBundle,
+  type ForumPostListItem,
+  type ForumPostListPatch,
+} from '@/api/clients'
 import { applyForumPostListPatch } from '@/utils/applyForumPostListPatch'
 import { mergeLocalPostsIntoFeed } from '@/utils/forumLocalContent'
 import { firstQueryString } from '@/utils/routeQuery'
@@ -26,6 +32,9 @@ export function useForumHomeFeed(
   const page = ref(1)
   const pageSize = ref(20)
   const totalCount = ref(0)
+  const initBundle = ref<ForumInitBundle | null>(null)
+  const initWarnings = ref<string[]>([])
+  let _firstLoad = true
 
   const searchQuery = computed(() => firstQueryString(route.query.q))
   const tagFilterValue = computed(() => {
@@ -47,21 +56,46 @@ export function useForumHomeFeed(
       const q = qResolved || undefined
       const sortParam: 'hot' | undefined = feedSort.value === 'hot' ? 'hot' : undefined
       const featuredParam: boolean | undefined = feedSort.value === 'featured' ? true : undefined
-      const res = await listForumPosts(
-        page.value,
-        pageSize.value,
-        listBoardIdParam(),
-        q,
-        tagFilterValue.value,
-        sortParam,
-        featuredParam,
-      )
-      if (!res.success || !res.data) {
-        listError.value = res.message ?? '加载失败'
-        postList.value = []
-        return
+
+      let items: ForumPostListItem[]
+      let total: number
+
+      if (_firstLoad) {
+        _firstLoad = false
+        // 首次加载：使用 BFF bundle，同时获取 boards/announcements/tags
+        const res = await getForumInit({
+          page: page.value,
+          pageSize: pageSize.value,
+          boardId: listBoardIdParam(),
+          q,
+          tag: tagFilterValue.value,
+          sort: sortParam,
+          featured: featuredParam,
+        })
+        if (!res.success || !res.data) {
+          listError.value = res.message ?? '加载失败'
+          postList.value = []
+          return
+        }
+        initBundle.value = res.data
+        initWarnings.value = res.data.warnings ?? []
+        items = res.data.posts.items
+        total = res.data.posts.totalCount
+      } else {
+        // 后续过滤/翻页：仅取帖子列表
+        const res = await listForumPosts(
+          page.value, pageSize.value, listBoardIdParam(), q,
+          tagFilterValue.value, sortParam, featuredParam,
+        )
+        if (!res.success || !res.data) {
+          listError.value = res.message ?? '加载失败'
+          postList.value = []
+          return
+        }
+        items = res.data.items
+        total = res.data.totalCount
       }
-      let items = res.data.items
+
       if (auth.sub && !qResolved) {
         items = mergeLocalPostsIntoFeed(auth.sub, items, {
           boardTitle: options?.resolveBoardTitle?.(listBoardIdParam()),
@@ -69,7 +103,7 @@ export function useForumHomeFeed(
         })
       }
       postList.value = items
-      totalCount.value = res.data.totalCount
+      totalCount.value = total
     } catch (e) {
       if (axios.isAxiosError(e) && e.response?.status === 429) {
         listError.value = '请求过于频繁，请稍后再试'
@@ -143,6 +177,8 @@ export function useForumHomeFeed(
     searchQuery,
     tagFilterValue,
     fetchPosts,
+    initBundle,
+    initWarnings,
     setFeedTag,
     clearFeedTag,
     prevPage,

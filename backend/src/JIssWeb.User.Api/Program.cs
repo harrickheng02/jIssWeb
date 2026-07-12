@@ -8,6 +8,7 @@ using JIssWeb.User.Api.Mongo;
 using JIssWeb.User.Api.Options;
 using JIssWeb.User.Api.Services;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
@@ -22,6 +23,11 @@ builder.Services.Configure<SmtpEmailSettings>(builder.Configuration.GetSection("
 builder.Services.Configure<LoginSecuritySettings>(builder.Configuration.GetSection("LoginSecurity"));
 builder.Services.Configure<ForumOptions>(builder.Configuration.GetSection(ForumOptions.SectionName));
 builder.Services.Configure<InternalServiceOptions>(builder.Configuration.GetSection(InternalServiceOptions.SectionName));
+builder.Services.Configure<CaptchaSettings>(builder.Configuration.GetSection(CaptchaSettings.SectionName));
+builder.Services.AddHttpClient("turnstile", c =>
+    c.BaseAddress = new Uri("https://challenges.cloudflare.com"));
+builder.Services.AddSingleton<TurnstileCaptchaVerifier>();
+builder.Services.AddSingleton<ICaptchaVerifier>(sp => sp.GetRequiredService<TurnstileCaptchaVerifier>());
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<UserSanctionService>();
 builder.Services.AddSingleton<ConsoleVerificationEmailSender>();
@@ -36,6 +42,10 @@ builder.Services.AddSingleton<IVerificationEmailSender>(sp =>
 
 var app = builder.Build();
 UserMongoSetup.EnsureIndexes(app.Services);
+
+var captchaSettings = app.Services.GetRequiredService<IOptions<CaptchaSettings>>().Value;
+if (captchaSettings.Enabled && string.IsNullOrWhiteSpace(captchaSettings.SecretKey))
+    app.Logger.LogWarning("CAPTCHA is enabled but Captcha:SecretKey is not configured — all registration attempts will be rejected");
 
 if (app.Environment.IsDevelopment())
 {

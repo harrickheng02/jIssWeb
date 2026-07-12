@@ -54,6 +54,40 @@ All commands assume the repo root unless noted.
 - Post titles and summaries are clamped to **2 lines max**.
 - Dark mode is driven by `html.dark[data-theme='dark']` overrides in `forum-tokens.css`.
 
+## BFF conventions
+
+`JIssWeb.Frontend.Bff` 是前端专属的编排层，介于 SPA 和域 API 之间。以下约定必须遵守，否则会让 BFF 退化成透明代理或变成第二个业务层。
+
+**何时加 BFF 端点**
+
+| 场景 | 做法 |
+|------|------|
+| SPA 首屏需要并发调 2+ 个下游 | 新增 BFF 聚合端点 |
+| 鉴权生命周期操作（登录/刷新/登出） | 走 `BffAuthController`，写 HttpOnly Cookie |
+| 下游响应字段需裁剪/重命名才适合前端 | BFF 做 response shaping |
+| 单个下游调用、无聚合需求 | 前端直调域 API，不过 BFF |
+| 写操作（创帖、回复、投票等） | 永远直调域 API，BFF 不承载写操作 |
+
+**后端：新聚合端点模板**
+
+参考 `BffForumInitController` / `BffMeController`：
+
+1. 所有下游请求用 `Task.WhenAll` 并发，单个失败不中断整体
+2. 失败的下游把 `label` 写入 `warnings` 列表，返回 `null`
+3. `warnings` 字段放在 response record 内，通过 `ApiResult<T>.Ok()` 统一序列化为 `data.warnings`——不要在 HTTP 根层返回 `warnings`
+4. 需要 Bearer 的端点：从 `Request.Headers.Authorization` 读取并通过 `CreateAuthorizedClient(bearer)` 转发，不读 Cookie、不重签 token
+5. 每个新端点都要有降级测试（一路下游返回 503，断言响应仍为 200 且 `data.warnings` 非空）
+
+**前端：消费 BFF 数据的模式**
+
+- **页面首次加载**：走 BFF 束（如 `getForumInit`），在 composable 里用 `_firstLoad = true` 标记；首次之后的翻页/筛选直调轻量域 API（如 `listForumPosts`）
+- **用户状态**：`/bff/me` 返回的数据由 `useCurrentUser` 单例持有，其他 composable 通过 `useCurrentUser()` 读取，不要各自再调 `/bff/me`
+- **token watch 守卫**：watch `auth.token` 时始终用 `(t, prevT)` 双参数形式，跳过 token 轮换（非空→非空）；仅在 `null→token`（登录）和 `token→null`（登出）时触发副作用
+
+**BFF 的边界**
+
+BFF 不做权限判断、不访问数据库、不承载论坛业务规则——这些属于 Model API / User API。BFF 只做：HTTP 编排、并发聚合、Cookie 生命周期管理。
+
 ## Backend architecture
 
 - Solution layout: `JIssWeb.Common` (cross-cutting hosting / middleware / options), `JIssWeb.Domain` and `JIssWeb.Application` (DDD layers), `JIssWeb.Infrastructure` (Mongo, etc.), and one `*.Api` per bounded context (User, Customer, Model, Accounting, Report) plus `Gateway.Api` (YARP) and `Frontend.Bff`.
@@ -141,3 +175,13 @@ Skills 位于 `.claude/skills/` 目录，每个 skill 有独立的 `SKILL.md` �
 
 如果你认为哪怕只有 1% 的可能性某个 skill 适用于你正在做的事情，你必须调用该 skill 检查。
 <!-- superpowers-zh:end -->
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

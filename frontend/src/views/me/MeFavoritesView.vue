@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { listMyForumFavorites, type ForumPostListPatch } from '@/api/clients'
+import type { ForumPostListPatch } from '@/api/clients'
 import ForumPostListCard from '@/components/forum/ForumPostListCard.vue'
-import { useMeForumPostList } from '@/composables/useMeForumPostList'
+import { useMeForumFavorites } from '@/composables/useMeForumFavorites'
 
 const router = useRouter()
 const { loading, error, items, page, totalPages, applyPostListPatch, refresh } =
-  useMeForumPostList(listMyForumFavorites)
+  useMeForumFavorites()
 
 function onFavoritePatch(p: ForumPostListPatch) {
   if (p.favoritedByMe === false) void refresh()

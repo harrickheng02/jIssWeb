@@ -79,6 +79,11 @@
   min-height: 44px;
 }
 
+.auth-page__captcha {
+  margin-top: var(--space-12);
+  margin-bottom: var(--space-16);
+}
+
 .auth-page__pwd {
   width: 100%;
 }

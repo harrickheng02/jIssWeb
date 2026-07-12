@@ -31,6 +31,7 @@ builder.Services.Configure<ForumSearchRateLimitOptions>(builder.Configuration.Ge
 builder.Services.Configure<ForumBlockedWordsOptions>(builder.Configuration.GetSection(ForumBlockedWordsOptions.SectionName));
 builder.Services.PostConfigure<ForumBlockedWordsOptions>(o => o.Words ??= new());
 builder.Services.Configure<ForumPostRateLimitOptions>(builder.Configuration.GetSection(ForumPostRateLimitOptions.SectionName));
+builder.Services.Configure<ForumRateLimitOptions>(builder.Configuration.GetSection(ForumRateLimitOptions.SectionName));
 builder.Services.Configure<ForumReportRetentionOptions>(builder.Configuration.GetSection(ForumReportRetentionOptions.SectionName));
 builder.Services.Configure<ForumModerationAuditOptions>(builder.Configuration.GetSection(ForumModerationAuditOptions.SectionName));
 builder.Services.Configure<InternalServiceOptions>(builder.Configuration.GetSection(InternalServiceOptions.SectionName));
@@ -47,37 +48,50 @@ builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
 builder.Services.Configure<ForumSoftDeleteOptions>(builder.Configuration.GetSection(ForumSoftDeleteOptions.SectionName));
 builder.Services.AddHostedService<DraftCleanupBackgroundService>();
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection(RedisSettings.SectionName));
+// Shared Redis connection — registered only when reachable.
+// Consumers resolve via GetService<IConnectionMultiplexer>() (returns null when absent → fail-open).
+{
+    var redisOpts = builder.Configuration.GetSection(RedisSettings.SectionName).Get<RedisSettings>() ?? new RedisSettings();
+    var conn = redisOpts.ConnectionString?.Trim() ?? "";
+    if (!string.IsNullOrWhiteSpace(conn))
+    {
+        try
+        {
+            var options = ConfigurationOptions.Parse(conn);
+            if (!string.IsNullOrEmpty(redisOpts.Password))
+                options.Password = redisOpts.Password;
+            builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(options));
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[WARN] Redis connection failed; features will degrade gracefully. {ex.Message}");
+        }
+    }
+}
 builder.Services.AddSingleton<InProcessSlidingWindowRateLimiter>();
+builder.Services.AddSingleton<IForumRateLimitBackend>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<ForumRateLimitOptions>>().Value;
+    if (!opts.UseRedis)
+        return new InProcessRateLimitBackend(sp.GetRequiredService<InProcessSlidingWindowRateLimiter>());
+    return new RedisRateLimitBackend(
+        sp.GetService<IConnectionMultiplexer>(),
+        sp.GetRequiredService<IOptions<RedisSettings>>(),
+        sp.GetRequiredService<ILogger<RedisRateLimitBackend>>());
+});
 builder.Services.AddSingleton<IForumBlockedWordFilter, ForumBlockedWordFilter>();
 builder.Services.AddSingleton<IForumPostRateLimitService, ForumPostRateLimitService>();
 builder.Services.AddScoped<ForumAuthorDisplayResolver>();
 builder.Services.AddSingleton<ForumReportTargetResolver>();
 builder.Services.AddSingleton<ForumModerationAccessService>();
 builder.Services.AddSingleton<ForumEngagementLikeCountCache>(sp =>
-{
-    var redisOpts = sp.GetRequiredService<IOptions<RedisSettings>>();
-    var logger = sp.GetRequiredService<ILogger<ForumEngagementLikeCountCache>>();
-    IConnectionMultiplexer? mux = null;
-    var conn = redisOpts.Value.ConnectionString?.Trim() ?? "";
-    if (!string.IsNullOrWhiteSpace(conn))
-    {
-        try
-        {
-            var options = ConfigurationOptions.Parse(conn);
-            if (!string.IsNullOrEmpty(redisOpts.Value.Password))
-                options.Password = redisOpts.Value.Password;
-            mux = ConnectionMultiplexer.Connect(options);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Redis connection failed; like count cache disabled");
-        }
-    }
-
-    return new ForumEngagementLikeCountCache(mux, redisOpts, logger);
-});
+    new ForumEngagementLikeCountCache(
+        sp.GetService<IConnectionMultiplexer>(),
+        sp.GetRequiredService<IOptions<RedisSettings>>(),
+        sp.GetRequiredService<ILogger<ForumEngagementLikeCountCache>>()));
 builder.Services.AddScoped<ForumEngagementService>();
 builder.Services.AddScoped<ForumModerationDeleteService>();
+builder.Services.AddScoped<IForumNotificationWriter, ForumNotificationWriter>();
 builder.Services.AddApplication();
 builder.Services.AddMongoInfrastructure(builder.Configuration);
 builder.Services.AddJIssWebCoreApi(builder.Configuration);

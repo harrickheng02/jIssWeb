@@ -409,3 +409,17 @@ Rate-limit rejection SHALL take precedence over blocked-word evaluation when bot
 - **WHEN** a user exceeds the post create rate limit and also submits content that would hit a blocked word
 - **THEN** the response SHALL be HTTP 429 with code `RATE_LIMITED`
 
+### Requirement: Post controller SHALL NOT directly own the notification collection
+
+The ForumPostsController SHALL delegate notification creation to a dedicated notification writer service. The controller SHALL NOT hold a direct reference to the InAppNotificationRecord Mongo collection.
+
+#### Scenario: Reply creates notification through service
+
+- **WHEN** a reply is successfully persisted
+- **THEN** the notification write SHALL be invoked via IForumNotificationWriter, not via a collection reference held by the controller
+
+#### Scenario: Permanent post deletion cascades notifications through service
+
+- **WHEN** a post is permanently deleted
+- **THEN** the notification cascade delete SHALL be invoked via IForumNotificationWriter, not via a collection reference held by the controller
+

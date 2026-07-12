@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JIssWeb.Model.Api.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JIssWeb.User.Api.Tests", "..\tests\JIssWeb.User.Api.Tests\JIssWeb.User.Api.Tests.csproj", "{9B3C4395-35DD-4DAA-B591-83E8E351293C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JIssWeb.Frontend.Bff.Tests", "..\tests\JIssWeb.Frontend.Bff.Tests\JIssWeb.Frontend.Bff.Tests.csproj", "{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -195,6 +197,18 @@ Global
 		{9B3C4395-35DD-4DAA-B591-83E8E351293C}.Release|x64.Build.0 = Release|Any CPU
 		{9B3C4395-35DD-4DAA-B591-83E8E351293C}.Release|x86.ActiveCfg = Release|Any CPU
 		{9B3C4395-35DD-4DAA-B591-83E8E351293C}.Release|x86.Build.0 = Release|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Debug|x64.Build.0 = Debug|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Debug|x86.Build.0 = Debug|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Release|x64.ActiveCfg = Release|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Release|x64.Build.0 = Release|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Release|x86.ActiveCfg = Release|Any CPU
+		{6992A0F2-90D5-46D8-A89A-7BE4C8F8BEEB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
