@@ -2,25 +2,15 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import {
-  deleteModerationForumPost,
-  deleteForumPost,
-  deleteForumReply,
-  deleteModerationForumReply,
-  getForumPost,
-  listModerationAuditByPost,
-  setForumPostFeatured,
-  setForumPostRepliesLocked,
-  setForumPostSticky,
-  type ForumPostDetail,
-} from '@/api/clients'
+import type { ForumPostDetail } from '@/api/clients'
 import {
   ALL_MODERATION_AUDIT_ACTIONS,
   MODERATION_AUDIT_ACTION_FILTER_OPTIONS,
   moderationAuditActionQueryValue,
   type ModerationAuditActionFilterValue,
 } from '@/constants/moderationAuditActions'
-import { useAuthStore } from '@/stores/auth'
+import { useCurrentUser } from '@/composables/useCurrentUser'
+import { usePostGovernance } from '@/composables/usePostGovernance'
 import { confirmDeleteAuthorForumPost, confirmDeleteModerationForumPost, confirmDeleteModerationForumReply } from '@/utils/moderationForumConfirm'
 
 const props = withDefaults(
@@ -47,8 +37,9 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-const auth = useAuthStore()
-const canModerate = computed(() => auth.canModerate)
+const { canModerate: canModerateUser, userId } = useCurrentUser()
+const canModerate = computed(() => canModerateUser.value)
+const governance = usePostGovernance()
 
 const resolving = ref(false)
 const resolveError = ref<string | null>(null)
@@ -106,7 +97,7 @@ async function resolveLocalPost() {
   resolving.value = true
   localPost.value = null
   try {
-    const res = await getForumPost(props.postId)
+    const res = await governance.fetchPost(props.postId)
     if (!res.success || !res.data) {
       resolveError.value = res.message ?? '主题不可读或已删除'
       localPost.value = null
@@ -143,7 +134,7 @@ async function loadAudit() {
   auditError.value = null
   auditItems.value = []
   try {
-    const res = await listModerationAuditByPost(props.postId, {
+    const res = await governance.fetchAuditByPost(props.postId, {
       page: auditPage.value,
       pageSize: auditPageSize.value,
       action: moderationAuditActionQueryValue(auditActionFilter.value),
@@ -197,7 +188,7 @@ async function toggleSticky(nextValue: boolean) {
   if (!canModerate.value || !localPost.value) return
   stickyBusy.value = true
   try {
-    const res = await setForumPostSticky(props.postId, nextValue)
+    const res = await governance.toggleSticky(props.postId, nextValue)
     if (!res.success) {
       ElMessage.error(res.message ?? '操作失败')
       return
@@ -215,7 +206,7 @@ async function toggleFeatured(nextValue: boolean) {
   if (!canModerate.value || !localPost.value) return
   featuredBusy.value = true
   try {
-    const res = await setForumPostFeatured(props.postId, nextValue)
+    const res = await governance.toggleFeatured(props.postId, nextValue)
     if (!res.success) {
       ElMessage.error(res.message ?? '操作失败')
       return
@@ -233,7 +224,7 @@ async function toggleReplyLock(nextLocked: boolean) {
   if (!canModerate.value || !localPost.value) return
   lockBusy.value = true
   try {
-    const res = await setForumPostRepliesLocked(props.postId, nextLocked)
+    const res = await governance.toggleRepliesLocked(props.postId, nextLocked)
     if (!res.success) {
       ElMessage.error(res.message ?? '操作失败')
       return
@@ -249,7 +240,7 @@ async function toggleReplyLock(nextLocked: boolean) {
 
 async function onDeletePost() {
   if (!canModerate.value || !localPost.value) return
-  const isAuthor = Boolean(auth.sub && auth.sub === localPost.value.authorId)
+  const isAuthor = Boolean(userId.value && userId.value === localPost.value.authorId)
   const ok = isAuthor
     ? await confirmDeleteAuthorForumPost()
     : await confirmDeleteModerationForumPost()
@@ -262,9 +253,7 @@ async function onDeletePost() {
 
   deletePostBusy.value = true
   try {
-    const res = isAuthor
-      ? await deleteForumPost(props.postId)
-      : await deleteModerationForumPost(props.postId, reportPayload)
+    const res = await governance.deletePost(props.postId, isAuthor, reportPayload)
     if (!res.success) {
       ElMessage.error(res.message ?? '删除失败')
       return
@@ -290,9 +279,7 @@ async function onDeleteFocusedReply() {
 
   deleteFocusReplyBusy.value = true
   try {
-    const res = reportPayload
-      ? await deleteModerationForumReply(rid, reportPayload)
-      : await deleteForumReply(props.postId, rid)
+    const res = await governance.deleteReply(props.postId, rid, reportPayload)
     if (!res.success) {
       ElMessage.error(res.message ?? '删除失败')
       return

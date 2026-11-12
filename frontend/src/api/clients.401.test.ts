@@ -14,15 +14,14 @@ import { redirectToLogin } from '@/utils/authRedirect'
 let refreshCalls = 0
 
 const server = setupServer(
-  http.post('http://localhost:3000/api/auth/refresh', async () => {
+  // BFF refresh endpoint (now used by the 401 interceptor)
+  http.post('http://localhost:3000/api/bff/auth/refresh', async () => {
     refreshCalls++
     return HttpResponse.json({
       success: true,
       data: {
         accessToken: 'new-access',
-        refreshToken: 'new-refresh',
         accessTokenExpiresAtUtc: new Date().toISOString(),
-        refreshTokenExpiresAtUtc: new Date().toISOString(),
       },
     })
   }),
@@ -65,34 +64,33 @@ describe('401 refresh', () => {
     setActivePinia(createPinia())
   })
 
-  it('401 后 refresh 一次并重试成功', async () => {
+  it('401 后 BFF refresh 一次并重试成功', async () => {
     const auth = useAuthStore()
-    auth.applyAuthSession('bad-access', 'refresh-ok')
+    auth.applyAuthSession('bad-access')
     const res = await getProfile()
     expect(res.success).toBe(true)
     expect(res.data?.id).toBe('1')
     expect(refreshCalls).toBe(1)
   })
 
-  it('并行 401 只触发一次 refresh', async () => {
+  it('并行 401 只触发一次 BFF refresh', async () => {
     const auth = useAuthStore()
-    auth.applyAuthSession('bad-access', 'refresh-ok')
+    auth.applyAuthSession('bad-access')
     const [a, b] = await Promise.all([getProfile(), getProfile()])
     expect(a.success && b.success).toBe(true)
     expect(refreshCalls).toBe(1)
   })
 
-  it('refresh 失败时清会话并调用 redirectToLogin', async () => {
+  it('BFF refresh 失败时清会话并调用 redirectToLogin', async () => {
     server.use(
-      http.post('http://localhost:3000/api/auth/refresh', () =>
+      http.post('http://localhost:3000/api/bff/auth/refresh', () =>
         HttpResponse.json({ success: false }, { status: 401 }),
       ),
     )
     const auth = useAuthStore()
-    auth.applyAuthSession('bad-access', 'refresh-ok')
+    auth.applyAuthSession('bad-access')
     await expect(getProfile()).rejects.toBeDefined()
     expect(auth.token).toBeNull()
-    expect(auth.refreshToken).toBeNull()
     expect(redirectToLogin).toHaveBeenCalled()
   })
 })

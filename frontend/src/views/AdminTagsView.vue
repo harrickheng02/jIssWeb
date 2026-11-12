@@ -2,31 +2,12 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import axios from 'axios'
-import {
-  adminListTags,
-  adminCreateTag,
-  adminPatchTag,
-  adminDisableTag,
-  adminEnableTag,
-  adminDeleteTag,
-  type ForumTagDto,
-  type PagedForumTags,
-} from '@/api/clients'
-
-function httpErrMsg(e: unknown): string {
-  if (axios.isAxiosError(e)) {
-    const status = e.response?.status
-    const msg = (e.response?.data as { message?: string })?.message
-    return msg ? `${status}: ${msg}` : `HTTP ${status ?? '连接失败'}`
-  }
-  return e instanceof Error ? e.message : '未知错误'
-}
+import type { ForumTagDto } from '@/api/clients'
+import { useAdminTags } from '@/composables/useAdminTags'
 
 // ── 列表状态 ─────────────────────────────────────────────────────────────────
-const loading = ref(false)
-const tags = ref<ForumTagDto[]>([])
-const totalCount = ref(0)
+const { loading, tags, totalCount, loadTags: fetchTags, createTag, patchTag, disableTag, enableTag, deleteTag } =
+  useAdminTags()
 const page = ref(1)
 const pageSize = ref(20)
 const filterStatus = ref('')
@@ -34,22 +15,12 @@ const searchQ = ref('')
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 async function loadTags() {
-  loading.value = true
-  try {
-    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value }
-    if (filterStatus.value) params.status = filterStatus.value
-    if (searchQ.value.trim()) params.q = searchQ.value.trim()
-    const res = await adminListTags(params as Parameters<typeof adminListTags>[0])
-    if (res.success && res.data) {
-      tags.value = (res.data as PagedForumTags).items
-      totalCount.value = (res.data as PagedForumTags).totalCount
-    } else {
-      ElMessage.error(res.message ?? '加载失败')
-    }
-  } catch (e) {
-    ElMessage.error(httpErrMsg(e))
-  } finally {
-    loading.value = false
+  const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value }
+  if (filterStatus.value) params.status = filterStatus.value
+  if (searchQ.value.trim()) params.q = searchQ.value.trim()
+  const res = await fetchTags(params)
+  if (!res.success) {
+    ElMessage.error(res.message ?? '加载失败')
   }
 }
 
@@ -110,7 +81,7 @@ async function submitCreate() {
   createSubmitting.value = true
   createError.value = ''
   try {
-    const res = await adminCreateTag({
+    const res = await createTag({
       name: createForm.name.trim(),
       description: createForm.description.trim() || undefined,
     })
@@ -124,7 +95,7 @@ async function submitCreate() {
       createError.value = res.message ?? '创建失败'
     }
   } catch (e) {
-    createError.value = httpErrMsg(e)
+    createError.value = e instanceof Error ? e.message : '未知错误'
   } finally {
     createSubmitting.value = false
   }
@@ -160,7 +131,7 @@ async function submitEdit() {
   editSubmitting.value = true
   editError.value = ''
   try {
-    const res = await adminPatchTag(editForm.id, {
+    const res = await patchTag(editForm.id, {
       name: editForm.name.trim(),
       description: editForm.description.trim() || undefined,
     })
@@ -174,7 +145,7 @@ async function submitEdit() {
       editError.value = res.message ?? '更新失败'
     }
   } catch (e) {
-    editError.value = httpErrMsg(e)
+    editError.value = e instanceof Error ? e.message : '未知错误'
   } finally {
     editSubmitting.value = false
   }
@@ -192,7 +163,7 @@ async function handleDisable(tag: ForumTagDto) {
     return
   }
   try {
-    const res = await adminDisableTag(tag.id)
+    const res = await disableTag(tag.id)
     if (res.success) {
       ElMessage.success('已禁用')
       void loadTags()
@@ -200,13 +171,13 @@ async function handleDisable(tag: ForumTagDto) {
       ElMessage.error(res.message ?? '操作失败')
     }
   } catch (e) {
-    ElMessage.error(httpErrMsg(e))
+    ElMessage.error(e instanceof Error ? e.message : '网络异常')
   }
 }
 
 async function handleEnable(tag: ForumTagDto) {
   try {
-    const res = await adminEnableTag(tag.id)
+    const res = await enableTag(tag.id)
     if (res.success) {
       ElMessage.success('已启用')
       void loadTags()
@@ -214,7 +185,7 @@ async function handleEnable(tag: ForumTagDto) {
       ElMessage.error(res.message ?? '操作失败')
     }
   } catch (e) {
-    ElMessage.error(httpErrMsg(e))
+    ElMessage.error(e instanceof Error ? e.message : '网络异常')
   }
 }
 
@@ -230,7 +201,7 @@ async function handleDelete(tag: ForumTagDto) {
     return
   }
   try {
-    const res = await adminDeleteTag(tag.id)
+    const res = await deleteTag(tag.id)
     if (res.success) {
       ElMessage.success('已删除')
       void loadTags()
@@ -238,7 +209,7 @@ async function handleDelete(tag: ForumTagDto) {
       ElMessage.error(res.message ?? '删除失败')
     }
   } catch (e) {
-    ElMessage.error(httpErrMsg(e))
+    ElMessage.error(e instanceof Error ? e.message : '网络异常')
   }
 }
 </script>

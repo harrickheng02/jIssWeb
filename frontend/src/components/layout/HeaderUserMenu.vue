@@ -1,60 +1,26 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { UserFilled, ArrowRight, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { getProfile } from '@/api/clients'
+import { useCurrentUser } from '@/composables/useCurrentUser'
+import { bffRevoke } from '@/api/clients'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const theme = useThemeStore()
-const nickname = ref('')
+const { nickname: rawNickname, isLoggedIn, canModerate } = useCurrentUser()
 
-const isAuthed = computed(() => Boolean(auth.token))
-const canModerate = computed(() => auth.canModerate)
+const isAuthed = computed(() => isLoggedIn.value)
 
-const displayName = computed(() => nickname.value.trim() || '用户')
+const displayName = computed(() => rawNickname.value?.trim() || '用户')
 
 const avatarText = computed(() => {
   const n = displayName.value
   return n ? n.slice(0, 1).toUpperCase() : 'U'
-})
-
-async function loadNickname() {
-  if (!auth.token) {
-    nickname.value = ''
-    return
-  }
-  try {
-    const res = await getProfile()
-    if (res.success && res.data?.nickname?.trim()) nickname.value = res.data.nickname.trim()
-    else nickname.value = ''
-  } catch {
-    nickname.value = ''
-  }
-}
-
-watch(
-  () => auth.token,
-  () => {
-    void loadNickname()
-  },
-  { immediate: true },
-)
-
-function onProfileUpdated() {
-  void loadNickname()
-}
-
-onMounted(() => {
-  window.addEventListener('jiss-profile-updated', onProfileUpdated)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('jiss-profile-updated', onProfileUpdated)
 })
 
 function goAuth() {
@@ -66,6 +32,7 @@ function onThemeDarkSwitch(value: string | number | boolean) {
 }
 
 function logout() {
+  void bffRevoke()
   auth.clearAuth()
   ElMessage.success('已退出')
   if (route.path.startsWith('/profile') || route.path.startsWith('/me')) void router.push('/')

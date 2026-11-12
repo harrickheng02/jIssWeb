@@ -25,15 +25,13 @@ public sealed class InProcessSlidingWindowRateLimiter
         return true;
     }
 
-    public bool TryConsumeKeys(IEnumerable<string> clientKeys, int maxRequests, int windowSeconds)
+    public void ForceConsume(string clientKey, int windowSeconds)
     {
-        var keys = clientKeys.Where(k => !string.IsNullOrEmpty(k)).Distinct(StringComparer.Ordinal).ToList();
-        if (keys.Count == 0)
-            return true;
-        if (keys.Any(k => WouldExceed(k, maxRequests, windowSeconds)))
-            return false;
-        foreach (var key in keys)
-            TryConsume(key, maxRequests, windowSeconds);
-        return true;
+        var now = DateTime.UtcNow;
+        var windowStart = now.AddSeconds(-windowSeconds);
+        var q = _buckets.GetOrAdd(clientKey, _ => new ConcurrentQueue<DateTime>());
+        while (q.TryPeek(out var oldest) && oldest < windowStart)
+            q.TryDequeue(out _);
+        q.Enqueue(now);
     }
 }

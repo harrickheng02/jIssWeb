@@ -1,0 +1,10 @@
+# IDE and agent tooling — not part of the product codebase
+.claude/
+.cursor/
+
+# Graphify output (avoid the graph indexing itself)
+graphify-out/
+
+# Static assets with no semantic value
+frontend/public/icons/
+frontend/src/assets/

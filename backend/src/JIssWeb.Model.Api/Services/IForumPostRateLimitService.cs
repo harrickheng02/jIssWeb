@@ -2,11 +2,11 @@ namespace JIssWeb.Model.Api.Services;
 
 public interface IForumPostRateLimitService
 {
-    bool IsPostCreateRateLimited(string sub, string clientIp);
+    Task<bool> IsPostCreateRateLimitedAsync(string sub, string clientIp, bool isAgent = false);
 
-    void RecordSuccessfulPostCreate(string sub, string clientIp);
+    Task RecordSuccessfulPostCreateAsync(string sub, string clientIp, bool isAgent = false);
 
-    bool IsReplyCreateRateLimited(string sub, string clientIp);
+    Task<bool> IsReplyCreateRateLimitedAsync(string sub, string clientIp, bool isAgent = false);
 
-    void RecordSuccessfulReplyCreate(string sub, string clientIp);
+    Task RecordSuccessfulReplyCreateAsync(string sub, string clientIp, bool isAgent = false);
 }

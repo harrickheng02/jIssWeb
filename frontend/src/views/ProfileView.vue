@@ -1,51 +1,33 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getProfile, updateProfile } from '@/api/clients'
+import { useProfile } from '@/composables/useProfile'
 
-const loading = ref(false)
-const saving = ref(false)
-const form = reactive({
-  nickname: '',
-  birthDate: '',
-  gender: '',
-})
+const { loading, saving, form, loadProfile, saveProfile } = useProfile()
 
-async function loadProfile() {
-  loading.value = true
-  try {
-    const res = await getProfile()
-    if (!res.success || !res.data) throw new Error(res.message ?? '加载失败')
-    form.nickname = res.data.nickname ?? ''
-    form.gender = res.data.gender ?? ''
-    form.birthDate = res.data.birthDate ? res.data.birthDate.slice(0, 10) : ''
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message ?? e?.message ?? '加载失败')
-  } finally {
-    loading.value = false
+async function load() {
+  const res = await loadProfile()
+  if (!res.success) {
+    ElMessage.error(res.message ?? '加载失败')
   }
 }
 
 async function save() {
-  saving.value = true
-  try {
-    const res = await updateProfile({
-      nickname: form.nickname || undefined,
-      gender: form.gender || undefined,
-      birthDate: form.birthDate || undefined,
-    })
-    if (!res.success) throw new Error(res.message ?? '保存失败')
-    ElMessage.success('保存成功')
-    window.dispatchEvent(new CustomEvent('jiss-profile-updated'))
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message ?? e?.message ?? '保存失败')
-  } finally {
-    saving.value = false
+  const res = await saveProfile({
+    nickname: form.nickname || undefined,
+    gender: form.gender || undefined,
+    birthDate: form.birthDate || undefined,
+  })
+  if (!res.success) {
+    ElMessage.error(res.message ?? '保存失败')
+    return
   }
+  ElMessage.success('保存成功')
+  window.dispatchEvent(new CustomEvent('jiss-profile-updated'))
 }
 
 onMounted(() => {
-  void loadProfile()
+  void load()
 })
 </script>
 

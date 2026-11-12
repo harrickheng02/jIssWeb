@@ -26,6 +26,7 @@ public class ForumSearchRateLimitTests : IAsyncLifetime
             b.UseSetting("Mongo:DatabaseName", dbName);
             b.UseSetting("Forum:SearchRateLimit:MaxRequests", "2");
             b.UseSetting("Forum:SearchRateLimit:WindowSeconds", "60");
+            b.UseSetting("Forum:RateLimit:UseRedis", "false");
             b.ConfigureTestServices(services =>
             {
                 services.RemoveAll(typeof(IConnectionMultiplexer));

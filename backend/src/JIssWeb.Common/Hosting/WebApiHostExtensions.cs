@@ -111,6 +111,15 @@ public static class WebApiHostExtensions
                             }
                         }
 
+                        var accountType = context.Principal?.FindFirst(AccountTypeClaim.Name)?.Value;
+                        if (!string.IsNullOrWhiteSpace(accountType)
+                            && !AccountTypeClaim.IsValid(accountType))
+                        {
+                            logger.LogWarning("JWT invalid accountType claim value={Value}", accountType);
+                            context.Fail("invalid_token_account_type");
+                            return Task.CompletedTask;
+                        }
+
                         return Task.CompletedTask;
                     },
                     OnChallenge = async context =>

@@ -1,4 +1,6 @@
 using JIssWeb.Common.Options;
+using JIssWeb.Model.Api.Models;
+using JIssWeb.Model.Api.Mongo;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
@@ -9,6 +11,7 @@ namespace JIssWeb.Model.Api.Services;
 public sealed class ForumAuthorDisplayResolver
 {
     private readonly IMongoCollection<BsonDocument>? _profiles;
+    private readonly IMongoCollection<AgentPersonaRecord> _personas;
     private readonly ILogger<ForumAuthorDisplayResolver> _logger;
 
     public ForumAuthorDisplayResolver(
@@ -17,6 +20,8 @@ public sealed class ForumAuthorDisplayResolver
         ILogger<ForumAuthorDisplayResolver> logger)
     {
         _logger = logger;
+        var db = client.GetDatabase(opts.Value.DatabaseName);
+        _personas = db.GetCollection<AgentPersonaRecord>(AgentMongoSetup.PersonasCollectionName);
         var name = opts.Value.CustomerDatabaseName?.Trim();
         if (string.IsNullOrEmpty(name)) return;
         _profiles = client.GetDatabase(name).GetCollection<BsonDocument>("profiles");
@@ -30,32 +35,48 @@ public sealed class ForumAuthorDisplayResolver
         if (distinct.Count == 0)
             return new Dictionary<string, string>();
 
-        if (_profiles is null)
-            return distinct.ToDictionary(s => s, ForumDisplayName.ForSub, StringComparer.OrdinalIgnoreCase);
+        var map = distinct.ToDictionary(s => s, ForumDisplayName.ForSub, StringComparer.OrdinalIgnoreCase);
+
+        if (_profiles is not null)
+        {
+            try
+            {
+                var f = Builders<BsonDocument>.Filter;
+                var filter = f.Or(f.In("ownerUserId", distinct), f.In("OwnerUserId", distinct));
+                var docs = await _profiles.Find(filter).ToListAsync(ct);
+                foreach (var d in docs)
+                {
+                    var owner = TryGetOwnerId(d);
+                    if (string.IsNullOrEmpty(owner)) continue;
+                    var subKey = distinct.FirstOrDefault(s => string.Equals(s, owner, StringComparison.OrdinalIgnoreCase));
+                    if (subKey is null) continue;
+                    var nick = TryGetNickname(d);
+                    if (!string.IsNullOrWhiteSpace(nick))
+                        map[subKey] = nick.Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Customer profiles lookup failed; continuing with fallbacks.");
+            }
+        }
 
         try
         {
-            var f = Builders<BsonDocument>.Filter;
-            var filter = f.Or(f.In("ownerUserId", distinct), f.In("OwnerUserId", distinct));
-            var docs = await _profiles.Find(filter).ToListAsync(ct);
-            var map = distinct.ToDictionary(s => s, ForumDisplayName.ForSub, StringComparer.OrdinalIgnoreCase);
-            foreach (var d in docs)
+            var personas = await _personas.Find(x => distinct.Contains(x.Id)).ToListAsync(ct);
+            foreach (var persona in personas)
             {
-                var owner = TryGetOwnerId(d);
-                if (string.IsNullOrEmpty(owner)) continue;
-                var subKey = distinct.FirstOrDefault(s => string.Equals(s, owner, StringComparison.OrdinalIgnoreCase));
-                if (subKey is null) continue;
-                var nick = TryGetNickname(d);
-                map[subKey] = string.IsNullOrWhiteSpace(nick) ? ForumDisplayName.ForSub(subKey) : nick.Trim();
+                var nick = persona.Nickname?.Trim();
+                if (string.IsNullOrWhiteSpace(nick)) continue;
+                map[persona.Id] = nick;
             }
-
-            return map;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Customer profiles lookup failed; using default display names.");
-            return distinct.ToDictionary(s => s, ForumDisplayName.ForSub, StringComparer.OrdinalIgnoreCase);
+            _logger.LogWarning(ex, "Agent persona nickname lookup failed; keeping prior display names.");
         }
+
+        return map;
     }
 
     private static string? TryGetOwnerId(BsonDocument d)
@@ -69,16 +90,10 @@ public sealed class ForumAuthorDisplayResolver
 
     private static string? TryGetNickname(BsonDocument d)
     {
-        if (d.TryGetValue("nickname", out var v))
-        {
-            if (v.IsString) return v.AsString;
-        }
-
-        if (d.TryGetValue("Nickname", out v))
-        {
-            if (v.IsString) return v.AsString;
-        }
-
+        if (d.TryGetValue("nickname", out var v) && v.IsString)
+            return v.AsString;
+        if (d.TryGetValue("Nickname", out v) && v.IsString)
+            return v.AsString;
         return null;
     }
 }

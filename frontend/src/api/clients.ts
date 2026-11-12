@@ -18,49 +18,37 @@ export type ApiErrorResult = {
 
 type RetryAuthConfig = InternalAxiosRequestConfig & { _retryAuth?: boolean }
 
-const refreshInFlightByPrefix = new Map<string, Promise<void>>()
-
-function normalizeBasePrefix(prefix: string): string {
-  const t = prefix.trim()
-  if (!t) return ''
-  return t.endsWith('/') ? t.slice(0, -1) : t
-}
+let bffRefreshInFlight: Promise<void> | null = null
 
 function normalizePath(url: string | undefined): string {
   if (!url) return ''
   return url.startsWith('/') ? url : `/${url}`
 }
 
-function isAuthPath(path: string): boolean {
-  return normalizePath(path).startsWith('/auth/')
+function isBffAuthPath(path: string): boolean {
+  return normalizePath(path).startsWith('/bff/auth/')
 }
 
-function runSingleFlightRefresh(refreshTokenValue: string, apiPrefix: string): Promise<void> {
-  const key = normalizeBasePrefix(apiPrefix)
-  if (!key) {
-    throw new Error('createClient baseURL prefix is required for auth refresh')
-  }
-  let inflight = refreshInFlightByPrefix.get(key)
-  if (inflight) return inflight
-  inflight = (async () => {
+function runBffRefresh(): Promise<void> {
+  if (bffRefreshInFlight) return bffRefreshInFlight
+  bffRefreshInFlight = (async () => {
     try {
-      const { data } = await axios.post<ApiResult<AuthTokenPair>>(
-        `${key}/auth/refresh`,
-        { refreshToken: refreshTokenValue },
-        { timeout: 15000 },
+      const { data } = await axios.post<ApiResult<{ accessToken: string; accessTokenExpiresAtUtc: string }>>(
+        '/api/bff/auth/refresh',
+        {},
+        { headers: { 'X-BFF-Source': 'web' }, timeout: 15000, withCredentials: true },
       )
       const auth = useAuthStore()
       if (data.success && data.data) {
-        auth.applyAuthSession(data.data.accessToken, data.data.refreshToken)
+        auth.applyAuthSession(data.data.accessToken)
       } else {
         throw new Error(data.message ?? 'refresh failed')
       }
     } finally {
-      refreshInFlightByPrefix.delete(key)
+      bffRefreshInFlight = null
     }
   })()
-  refreshInFlightByPrefix.set(key, inflight)
-  return inflight
+  return bffRefreshInFlight
 }
 
 function createClient(prefix: string): AxiosInstance {
@@ -84,20 +72,18 @@ function createClient(prefix: string): AxiosInstance {
         return Promise.reject(error)
       }
       const path = normalizePath(original.url)
-      if (isAuthPath(path)) {
+      if (isBffAuthPath(path)) {
         return Promise.reject(error)
       }
       const auth = useAuthStore()
       const bearer = original.headers?.Authorization
       const hadBearer =
         typeof bearer === 'string' && bearer.startsWith('Bearer ') && bearer.length > 'Bearer '.length
-      if (!hadBearer || !auth.refreshToken) {
-        auth.clearAuth()
-        await redirectToLogin()
+      if (!hadBearer) {
         return Promise.reject(error)
       }
       try {
-        await runSingleFlightRefresh(auth.refreshToken, prefix)
+        await runBffRefresh()
       } catch {
         auth.clearAuth()
         await redirectToLogin()
@@ -140,6 +126,7 @@ export async function register(
   email: string,
   password: string,
   profile: { nickname?: string; gender?: string; birthDate?: string },
+  captchaToken?: string,
 ) {
   const body: Record<string, string> = {
     email,
@@ -148,22 +135,80 @@ export async function register(
   if (profile.nickname?.trim()) body.nickname = profile.nickname.trim()
   if (profile.gender) body.gender = profile.gender
   if (profile.birthDate) body.birthDate = profile.birthDate
+  if (captchaToken) body.captchaToken = captchaToken
   const { data } = await userApi.post<ApiResult<string>>('/auth/register', body)
   return data
 }
 
-export async function login(email: string, password: string) {
-  const { data } = await userApi.post<ApiResult<AuthTokenPair>>('/auth/login', { email, password })
+// ── BFF Auth ─────────────────────────────────────────────────────────────────
+
+export interface BffAccessToken {
+  accessToken: string
+  accessTokenExpiresAtUtc: string
+}
+
+export async function bffLogin(email: string, password: string) {
+  const { data } = await axios.post<ApiResult<BffAccessToken>>(
+    '/api/bff/auth/login',
+    { email, password },
+    { headers: { 'X-BFF-Source': 'web' }, timeout: 15000, withCredentials: true },
+  )
   return data
 }
 
-export async function refresh(refreshToken: string) {
-  const { data } = await userApi.post<ApiResult<AuthTokenPair>>('/auth/refresh', { refreshToken })
+export async function bffEstablish(refreshToken: string) {
+  await axios.post(
+    '/api/bff/auth/establish',
+    { refreshToken },
+    { headers: { 'X-BFF-Source': 'web' }, timeout: 10000, withCredentials: true },
+  )
+}
+
+export async function bffRevoke() {
+  try {
+    await axios.post('/api/bff/auth/revoke', {}, {
+      headers: { 'X-BFF-Source': 'web' },
+      timeout: 5000,
+      withCredentials: true,
+    })
+  } catch {
+    // Cookie is cleared by the caller's clearAuth() regardless
+  }
+}
+
+// ── BFF Me Bundle ─────────────────────────────────────────────────────────────
+
+export interface MeBundle {
+  profile: { nickname?: string; gender?: string; birthDate?: string } | null
+  forum: { unreadCount: number }
+  warnings?: string[]
+}
+
+export async function getMe() {
+  const { data } = await bffApi.get<ApiResult<MeBundle>>('/bff/me')
   return data
 }
 
-export async function revoke(refreshToken: string) {
-  const { data } = await userApi.post<ApiResult<string>>('/auth/revoke', { refreshToken })
+// ── BFF Forum Init Bundle ─────────────────────────────────────────────────────
+
+export interface ForumInitBundle {
+  boards: ForumBoardItem[]
+  announcements: ForumAnnouncementItem[]
+  posts: PagedForumPosts
+  popularTags: string[]
+  warnings?: string[]
+}
+
+export async function getForumInit(params?: {
+  page?: number
+  pageSize?: number
+  boardId?: string
+  q?: string
+  tag?: string
+  sort?: string
+  featured?: boolean
+}) {
+  const { data } = await bffApi.get<ApiResult<ForumInitBundle>>('/bff/forum-init', { params })
   return data
 }
 
@@ -1008,6 +1053,191 @@ export async function adminDeleteTag(id: string) {
 
 export async function adminSeedTagsFromPosts() {
   const { data } = await modelApi.post<ApiResult<unknown>>('/forum/admin/tags/seed-from-posts')
+  return data
+}
+
+// ── Agent Governance ──────────────────────────────────────────────────────────
+
+export interface AgentPersonaDto {
+  id: string
+  agentUserId: string
+  personaId: string
+  nickname: string
+  model: string
+  llmProfileId?: string
+  prompt?: string
+  state: string
+  createdAtUtc?: string
+  updatedAtUtc?: string
+}
+
+export interface ProvisionAgentRequest {
+  nickname: string
+  llmProfileId: string
+  /** 省略时由服务端自动分配 */
+  personaId?: string
+  /** 可选；省略时服务端生成 {personaId}@agents.local */
+  email?: string
+  model?: string
+  prompt?: string
+}
+
+export interface UpdateAgentPersonaRequest {
+  nickname?: string
+  model?: string
+  llmProfileId?: string
+  prompt?: string
+  state?: string
+}
+
+export interface AgentLlmProfileDto {
+  id: string
+  name: string
+  baseUrl: string
+  model: string
+  enabled: boolean
+  /** 后端不回显明文 Key；GET 仅返回 apiKeyConfigured 与 apiKeyMask */
+  apiKeyConfigured: boolean
+  apiKeyMask?: string
+  createdAtUtc?: string
+  updatedAtUtc?: string
+}
+
+export interface UpsertAgentLlmProfileRequest {
+  name?: string
+  baseUrl?: string
+  model?: string
+  apiKey?: string
+  clearApiKey?: boolean
+  enabled?: boolean
+}
+
+export interface AgentRuntimeConfigDto {
+  schedulerEnabled: boolean
+}
+
+export interface UpdateAgentRuntimeConfigRequest {
+  schedulerEnabled?: boolean
+}
+
+export interface AgentSchedulerStatusDto {
+  personaId: string
+  paused: boolean
+  allowAutoPost: boolean
+  allowAutoReply: boolean
+  postsUsed: number
+  repliesUsed: number
+  maxPostsPerDay: number
+  maxRepliesPerDay: number
+  postsRemaining: number
+  repliesRemaining: number
+  nextDueAtUtc?: string
+  minIntervalMinutes: number
+  jitterMinutes: number
+}
+
+export interface UpdateAgentSchedulerRulesRequest {
+  maxPostsPerDay?: number
+  maxRepliesPerDay?: number
+  minIntervalMinutes?: number
+  jitterMinutes?: number
+  allowAutoPost?: boolean
+  allowAutoReply?: boolean
+  paused?: boolean
+}
+
+export async function adminGetAgentRuntime() {
+  const { data } = await modelApi.get<ApiResult<AgentRuntimeConfigDto>>('/forum/admin/agent-runtime')
+  return data
+}
+
+export async function adminUpdateAgentRuntime(body: UpdateAgentRuntimeConfigRequest) {
+  const { data } = await modelApi.put<ApiResult<AgentRuntimeConfigDto>>('/forum/admin/agent-runtime', body)
+  return data
+}
+
+export async function adminListAgentLlmProfiles() {
+  const { data } = await modelApi.get<ApiResult<AgentLlmProfileDto[]>>('/forum/admin/agent-llm-profiles')
+  return data
+}
+
+export async function adminGetAgentLlmProfile(id: string) {
+  const { data } = await modelApi.get<ApiResult<AgentLlmProfileDto>>(`/forum/admin/agent-llm-profiles/${id}`)
+  return data
+}
+
+export async function adminCreateAgentLlmProfile(body: UpsertAgentLlmProfileRequest) {
+  const { data } = await modelApi.post<ApiResult<AgentLlmProfileDto>>('/forum/admin/agent-llm-profiles', body)
+  return data
+}
+
+export async function adminUpdateAgentLlmProfile(id: string, body: UpsertAgentLlmProfileRequest) {
+  const { data } = await modelApi.put<ApiResult<AgentLlmProfileDto>>(`/forum/admin/agent-llm-profiles/${id}`, body)
+  return data
+}
+
+export async function adminDeleteAgentLlmProfile(id: string) {
+  const { data } = await modelApi.delete<ApiResult<unknown>>(`/forum/admin/agent-llm-profiles/${id}`)
+  return data
+}
+
+export async function adminProbeAgentLlmProfile(id: string) {
+  const { data } = await modelApi.post<ApiResult<unknown>>(`/forum/admin/agent-llm-profiles/${id}/probe`)
+  return data
+}
+
+export async function adminListAgentPersonas() {
+  const { data } = await modelApi.get<ApiResult<AgentPersonaDto[]>>('/forum/admin/agent-personas')
+  return data
+}
+
+export async function adminUpdateAgentPersona(personaId: string, body: UpdateAgentPersonaRequest) {
+  const { data } = await modelApi.put<ApiResult<AgentPersonaDto>>(`/forum/admin/agent-personas/${personaId}`, body)
+  return data
+}
+
+export async function adminDeleteAgentPersona(personaId: string) {
+  const { data } = await modelApi.delete<ApiResult<unknown>>(`/forum/admin/agent-personas/${personaId}`)
+  return data
+}
+
+export async function adminProvisionAgent(body: ProvisionAgentRequest) {
+  const { data } = await modelApi.post<ApiResult<AgentPersonaDto>>('/forum/admin/agent-personas/provision', body)
+  return data
+}
+
+export async function adminGetAgentSchedulerStatus(personaId: string) {
+  const { data } = await modelApi.get<ApiResult<AgentSchedulerStatusDto>>(
+    `/forum/admin/agent-scheduler/${personaId}/status`,
+  )
+  return data
+}
+
+export async function adminUpdateAgentSchedulerRules(personaId: string, body: UpdateAgentSchedulerRulesRequest) {
+  const { data } = await modelApi.put<ApiResult<AgentSchedulerStatusDto>>(
+    `/forum/admin/agent-scheduler/${personaId}/rules`,
+    body,
+  )
+  return data
+}
+
+export async function adminPauseAgent(personaId: string) {
+  const { data } = await modelApi.post<ApiResult<AgentSchedulerStatusDto>>(`/forum/admin/agent-scheduler/${personaId}/pause`)
+  return data
+}
+
+export async function adminResumeAgent(personaId: string) {
+  const { data } = await modelApi.post<ApiResult<AgentSchedulerStatusDto>>(`/forum/admin/agent-scheduler/${personaId}/resume`)
+  return data
+}
+
+export async function adminTriggerAgentPost(personaId: string) {
+  const { data } = await modelApi.post<ApiResult<unknown>>(`/forum/admin/agent-scheduler/${personaId}/trigger/post`)
+  return data
+}
+
+export async function adminTriggerAgentReply(personaId: string) {
+  const { data } = await modelApi.post<ApiResult<unknown>>(`/forum/admin/agent-scheduler/${personaId}/trigger/reply`)
   return data
 }
 

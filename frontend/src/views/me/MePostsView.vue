@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { listMyForumPosts } from '@/api/clients'
 import ForumPostListCard from '@/components/forum/ForumPostListCard.vue'
-import { useMeForumPostList } from '@/composables/useMeForumPostList'
+import { useMeForumPosts } from '@/composables/useMeForumPosts'
 
 const router = useRouter()
-const { loading, error, items, page, totalPages, applyPostListPatch } = useMeForumPostList(listMyForumPosts)
+const { loading, error, items, page, totalPages, applyPostListPatch } = useMeForumPosts()
 
 function goPost(id: string) {
   void router.push({ name: 'post-detail', params: { id } })

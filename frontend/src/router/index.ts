@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, bcSyncReady } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,6 +37,12 @@ const router = createRouter({
           name: 'moderation-tags',
           meta: { requiresAuth: true, requiresModerate: true },
           component: () => import('../views/AdminTagsView.vue'),
+        },
+        {
+          path: 'agents',
+          name: 'moderation-agents',
+          meta: { requiresAuth: true, requiresModerate: true },
+          component: () => import('../views/ModerationAgentsView.vue'),
         },
       ],
     },
@@ -137,9 +143,11 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  await bcSyncReady
   const auth = useAuthStore()
   if (to.meta.requiresModerate && !auth.canModerate) return { name: 'home' }
+  if (to.meta.requiresAdmin && !auth.canAdmin) return { name: 'home' }
   if (!to.meta.requiresAuth) return true
   if (auth.token) return true
   return { name: 'auth' }
