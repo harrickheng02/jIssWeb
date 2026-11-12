@@ -3,6 +3,8 @@ using JIssWeb.Common.Options;
 using JIssWeb.Model.Api.Authorization;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
+using JIssWeb.Model.Api.Options;
+using JIssWeb.Model.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -13,15 +15,25 @@ namespace JIssWeb.Model.Api.Controllers;
 [ApiController]
 [Route("api/forum/admin/agent-personas")]
 [Authorize]
-[RequireForumAdmin]
+[RequireForumModerator]
 public sealed class AdminAgentPersonasController : ControllerBase
 {
     private readonly IMongoCollection<AgentPersonaRecord> _personas;
+    private readonly IMongoCollection<AgentSchedulerStateRecord> _schedulerStates;
+    private readonly IMongoCollection<AgentLlmProfileRecord> _profiles;
+    private readonly AgentSchedulerOptions _schedulerOptions;
+    private readonly IAgentUserInternalClient _agentUsers;
 
-    public AdminAgentPersonasController(IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions)
+    public AdminAgentPersonasController(
+        IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions, IOptions<AgentSchedulerOptions> schedulerOptions,
+        IAgentUserInternalClient agentUsers)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _personas = db.GetCollection<AgentPersonaRecord>(AgentMongoSetup.PersonasCollectionName);
+        _schedulerStates = db.GetCollection<AgentSchedulerStateRecord>(AgentMongoSetup.SchedulerStateCollectionName);
+        _profiles = db.GetCollection<AgentLlmProfileRecord>(AgentMongoSetup.LlmProfilesCollectionName);
+        _schedulerOptions = schedulerOptions.Value;
+        _agentUsers = agentUsers;
     }
 
     [HttpGet]
@@ -45,15 +57,24 @@ public sealed class AdminAgentPersonasController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ApiResult<AgentPersonaDto>>> Create([FromBody] CreateAgentPersonaRequest request)
     {
-        var personaId = request.PersonaId?.Trim();
+        var personaId = string.IsNullOrWhiteSpace(request.PersonaId)
+            ? $"persona-{Guid.NewGuid():N}"
+            : request.PersonaId.Trim();
         var agentUserId = request.AgentUserId?.Trim();
         var nickname = request.Nickname?.Trim();
-        var model = NormalizeModel(request.Model);
+        var llmProfileId = request.LlmProfileId?.Trim() ?? "";
+        var model = string.IsNullOrWhiteSpace(request.Model)
+            ? AgentModelIds.Deepseek
+            : NormalizeModel(request.Model);
 
-        if (string.IsNullOrWhiteSpace(personaId) || string.IsNullOrWhiteSpace(agentUserId) || string.IsNullOrWhiteSpace(nickname))
+        if (string.IsNullOrWhiteSpace(agentUserId) || string.IsNullOrWhiteSpace(nickname))
             return BadRequest(ApiResult<AgentPersonaDto>.Fail("参数无效", "INVALID_INPUT"));
         if (model is null)
             return BadRequest(ApiResult<AgentPersonaDto>.Fail("模型无效", "INVALID_MODEL"));
+        if (llmProfileId.Length == 0)
+            return BadRequest(ApiResult<AgentPersonaDto>.Fail("请选择 LLM 档案", "LLM_PROFILE_REQUIRED"));
+        if (!await _profiles.Find(x => x.Id == llmProfileId).AnyAsync())
+            return BadRequest(ApiResult<AgentPersonaDto>.Fail("LLM 档案不存在", "LLM_PROFILE_NOT_FOUND"));
 
         if (await _personas.Find(x => x.PersonaId == personaId).AnyAsync())
             return Conflict(ApiResult<AgentPersonaDto>.Fail("personaId 已存在", "PERSONA_ID_EXISTS"));
@@ -68,15 +89,15 @@ public sealed class AdminAgentPersonasController : ControllerBase
             PersonaId = personaId,
             Nickname = nickname,
             Model = model,
-            Personality = request.Personality?.Trim(),
-            Interests = NormalizeList(request.Interests),
-            PostingStyle = request.PostingStyle ?? new AgentPostingStyle(),
+            LlmProfileId = llmProfileId,
+            Prompt = request.Prompt?.Trim(),
             CreatedAtUtc = now,
         };
 
         try
         {
             await _personas.InsertOneAsync(record);
+            await _schedulerStates.InsertOneAsync(AgentSchedulerQuota.CreateDefault(record, _schedulerOptions, now));
         }
         catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
         {
@@ -114,6 +135,16 @@ public sealed class AdminAgentPersonasController : ControllerBase
             updates.Add(Builders<AgentPersonaRecord>.Update.Set(x => x.Model, model));
         }
 
+        if (request.LlmProfileId is not null)
+        {
+            var llmProfileId = request.LlmProfileId.Trim();
+            if (llmProfileId.Length == 0)
+                return BadRequest(ApiResult<AgentPersonaDto>.Fail("请选择 LLM 档案", "LLM_PROFILE_REQUIRED"));
+            if (!await _profiles.Find(x => x.Id == llmProfileId).AnyAsync())
+                return BadRequest(ApiResult<AgentPersonaDto>.Fail("LLM 档案不存在", "LLM_PROFILE_NOT_FOUND"));
+            updates.Add(Builders<AgentPersonaRecord>.Update.Set(x => x.LlmProfileId, llmProfileId));
+        }
+
         if (request.State is not null)
         {
             var state = request.State.Trim().ToLowerInvariant();
@@ -122,12 +153,8 @@ public sealed class AdminAgentPersonasController : ControllerBase
             updates.Add(Builders<AgentPersonaRecord>.Update.Set(x => x.State, state));
         }
 
-        if (request.Personality is not null)
-            updates.Add(Builders<AgentPersonaRecord>.Update.Set(x => x.Personality, request.Personality.Trim()));
-        if (request.Interests is not null)
-            updates.Add(Builders<AgentPersonaRecord>.Update.Set(x => x.Interests, NormalizeList(request.Interests)));
-        if (request.PostingStyle is not null)
-            updates.Add(Builders<AgentPersonaRecord>.Update.Set(x => x.PostingStyle, request.PostingStyle));
+        if (request.Prompt is not null)
+            updates.Add(Builders<AgentPersonaRecord>.Update.Set(x => x.Prompt, request.Prompt.Trim()));
         if (request.RelationshipMemory is not null)
             updates.Add(Builders<AgentPersonaRecord>.Update.Set(x => x.RelationshipMemory, request.RelationshipMemory));
         if (request.StanceLog is not null)
@@ -148,10 +175,45 @@ public sealed class AdminAgentPersonasController : ControllerBase
     [HttpDelete("{personaId}")]
     public async Task<ActionResult<ApiResult<object>>> Delete(string personaId)
     {
-        var result = await _personas.DeleteOneAsync(x => x.PersonaId == (personaId ?? "").Trim());
-        if (result.DeletedCount == 0)
+        var persona = await FindByPersonaId(personaId).FirstOrDefaultAsync();
+        if (persona is null)
             return NotFound(ApiResult<object>.Fail("人设不存在", "PERSONA_NOT_FOUND"));
+        if (!await _agentUsers.DisableAsync(persona.AgentUserId))
+            return StatusCode(StatusCodes.Status502BadGateway, ApiResult<object>.Fail("停用智能体账号失败", "AGENT_DISABLE_FAILED"));
+        await _personas.DeleteOneAsync(x => x.Id == persona.Id);
+        await _schedulerStates.DeleteOneAsync(x => x.Id == persona.AgentUserId);
         return Ok(ApiResult<object>.Ok(new { message = "删除成功" }));
+    }
+
+    [HttpPost("provision")]
+    public async Task<ActionResult<ApiResult<AgentPersonaDto>>> Provision([FromBody] ProvisionAgentRequest request)
+    {
+        var nickname = request.Nickname?.Trim();
+        if (string.IsNullOrWhiteSpace(nickname))
+            return BadRequest(ApiResult<AgentPersonaDto>.Fail("参数无效", "INVALID_INPUT"));
+
+        var personaId = string.IsNullOrWhiteSpace(request.PersonaId)
+            ? $"persona-{Guid.NewGuid():N}"
+            : request.PersonaId.Trim();
+        var email = request.Email?.Trim();
+        if (string.IsNullOrWhiteSpace(email))
+            email = $"{personaId}@agents.local";
+
+        var agent = await _agentUsers.CreateAsync(email, nickname);
+        if (agent is null)
+            return StatusCode(StatusCodes.Status502BadGateway, ApiResult<AgentPersonaDto>.Fail("智能体账号创建失败", "AGENT_PROVISION_FAILED"));
+        var create = await Create(new CreateAgentPersonaRequest
+        {
+            AgentUserId = agent.AgentUserId,
+            PersonaId = personaId,
+            Nickname = nickname,
+            Model = request.Model,
+            LlmProfileId = request.LlmProfileId,
+            Prompt = request.Prompt,
+        });
+        if (create.Result is ObjectResult failed && failed.StatusCode >= 400)
+            await _agentUsers.DisableAsync(agent.AgentUserId);
+        return create;
     }
 
     private IFindFluent<AgentPersonaRecord, AgentPersonaRecord> FindByPersonaId(string? personaId)
@@ -163,13 +225,6 @@ public sealed class AdminAgentPersonasController : ControllerBase
         return AgentModelIds.IsValid(normalized) ? normalized : null;
     }
 
-    private static List<string> NormalizeList(IEnumerable<string>? values)
-        => values?
-            .Select(x => x.Trim())
-            .Where(x => x.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList() ?? new List<string>();
-
     private static AgentPersonaDto ToDto(AgentPersonaRecord record) => new()
     {
         Id = record.Id,
@@ -177,14 +232,9 @@ public sealed class AdminAgentPersonasController : ControllerBase
         PersonaId = record.PersonaId,
         Nickname = record.Nickname,
         Model = record.Model,
-        Personality = record.Personality,
-        Interests = record.Interests,
-        PostingStyle = record.PostingStyle,
-        RelationshipMemory = record.RelationshipMemory,
-        StanceLog = record.StanceLog,
+        LlmProfileId = record.LlmProfileId,
+        Prompt = record.Prompt,
         Generation = record.Generation,
-        InheritedFrom = record.InheritedFrom,
-        ExperienceIds = record.ExperienceIds,
         SurvivalDays = record.SurvivalDays,
         State = record.State,
         CreatedAtUtc = record.CreatedAtUtc,
@@ -198,22 +248,30 @@ public sealed class CreateAgentPersonaRequest
     public string? PersonaId { get; set; }
     public string? Nickname { get; set; }
     public string? Model { get; set; }
-    public string? Personality { get; set; }
-    public List<string>? Interests { get; set; }
-    public AgentPostingStyle? PostingStyle { get; set; }
+    public string? LlmProfileId { get; set; }
+    public string? Prompt { get; set; }
 }
 
 public sealed class UpdateAgentPersonaRequest
 {
     public string? Nickname { get; set; }
     public string? Model { get; set; }
-    public string? Personality { get; set; }
-    public List<string>? Interests { get; set; }
-    public AgentPostingStyle? PostingStyle { get; set; }
+    public string? LlmProfileId { get; set; }
+    public string? Prompt { get; set; }
     public Dictionary<string, string>? RelationshipMemory { get; set; }
     public Dictionary<string, string>? StanceLog { get; set; }
     public int? SurvivalDays { get; set; }
     public string? State { get; set; }
+}
+
+public sealed class ProvisionAgentRequest
+{
+    public string? Email { get; set; }
+    public string? PersonaId { get; set; }
+    public string? Nickname { get; set; }
+    public string? Model { get; set; }
+    public string? LlmProfileId { get; set; }
+    public string? Prompt { get; set; }
 }
 
 public sealed class AgentPersonaDto
@@ -223,14 +281,9 @@ public sealed class AgentPersonaDto
     public string PersonaId { get; set; } = "";
     public string Nickname { get; set; } = "";
     public string Model { get; set; } = "";
-    public string? Personality { get; set; }
-    public List<string> Interests { get; set; } = new();
-    public AgentPostingStyle PostingStyle { get; set; } = new();
-    public Dictionary<string, string> RelationshipMemory { get; set; } = new();
-    public Dictionary<string, string> StanceLog { get; set; } = new();
+    public string? LlmProfileId { get; set; }
+    public string? Prompt { get; set; }
     public int Generation { get; set; }
-    public List<string> InheritedFrom { get; set; } = new();
-    public List<string> ExperienceIds { get; set; } = new();
     public int SurvivalDays { get; set; }
     public string State { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; }

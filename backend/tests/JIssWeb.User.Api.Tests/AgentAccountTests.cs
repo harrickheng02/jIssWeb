@@ -228,6 +228,88 @@ public sealed class AgentAccountTests
         _fx.CaptchaVerifier.Verify(v => v.VerifyAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never);
     }
 
+    [Fact]
+    public async Task Mint_access_token_for_agent_returns_accountType_agent()
+    {
+        var create = AgentAccountFixture.WithInternalKey(new HttpRequestMessage(HttpMethod.Post, "/api/internal/agents/accounts")
+        {
+            Content = JsonContent.Create(new { email = $"agent-mint-{Guid.NewGuid():N}@internal.local" }),
+        });
+        var createRes = await _fx.Client.SendAsync(create);
+        var created = await createRes.Content.ReadFromJsonAsync<ApiEnvelope<AgentAccountResponse>>();
+        var agentUserId = created!.Data!.AgentUserId;
+
+        var mintReq = AgentAccountFixture.WithInternalKey(
+            new HttpRequestMessage(HttpMethod.Post, $"/api/internal/agents/{agentUserId}/access-token"));
+        var mintRes = await _fx.Client.SendAsync(mintReq);
+        Assert.Equal(HttpStatusCode.OK, mintRes.StatusCode);
+        var mintBody = await mintRes.Content.ReadFromJsonAsync<ApiEnvelope<AgentAccountResponse>>();
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(mintBody!.Data!.AccessToken);
+        Assert.Equal("agent", token.Claims.Single(c => c.Type == "accountType").Value);
+        Assert.Equal(agentUserId, token.Claims.Single(c => c.Type == "sub").Value);
+    }
+
+    [Fact]
+    public async Task Mint_access_token_wrong_key_returns_401()
+    {
+        var mintReq = AgentAccountFixture.WithInternalKey(
+            new HttpRequestMessage(HttpMethod.Post, $"/api/internal/agents/{ObjectId.GenerateNewId()}/access-token"),
+            "wrong-key");
+        var mintRes = await _fx.Client.SendAsync(mintReq);
+        Assert.Equal(HttpStatusCode.Unauthorized, mintRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task Disable_agent_then_mint_fails()
+    {
+        var create = AgentAccountFixture.WithInternalKey(new HttpRequestMessage(HttpMethod.Post, "/api/internal/agents/accounts")
+        {
+            Content = JsonContent.Create(new { email = $"agent-disable-{Guid.NewGuid():N}@internal.local" }),
+        });
+        var createRes = await _fx.Client.SendAsync(create);
+        var created = await createRes.Content.ReadFromJsonAsync<ApiEnvelope<AgentAccountResponse>>();
+        var agentUserId = created!.Data!.AgentUserId;
+
+        var disableReq = AgentAccountFixture.WithInternalKey(
+            new HttpRequestMessage(HttpMethod.Post, $"/api/internal/agents/{agentUserId}/disable"));
+        var disableRes = await _fx.Client.SendAsync(disableReq);
+        Assert.Equal(HttpStatusCode.OK, disableRes.StatusCode);
+
+        var mintReq = AgentAccountFixture.WithInternalKey(
+            new HttpRequestMessage(HttpMethod.Post, $"/api/internal/agents/{agentUserId}/access-token"));
+        var mintRes = await _fx.Client.SendAsync(mintReq);
+        Assert.Equal(HttpStatusCode.Conflict, mintRes.StatusCode);
+        var body = await mintRes.Content.ReadFromJsonAsync<ApiEnvelope<object>>();
+        Assert.Equal("AGENT_DISABLED", body!.Code);
+    }
+
+    [Fact]
+    public async Task Mint_rejects_human_account()
+    {
+        var email = $"human-mint-{Guid.NewGuid():N}@example.com";
+        const string password = "Test@1234";
+        var salt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+        var hash = Convert.ToBase64String(
+            Rfc2898DeriveBytes.Pbkdf2(password, Convert.FromBase64String(salt), 100_000, HashAlgorithmName.SHA256, 32));
+        var humanId = ObjectId.GenerateNewId().ToString();
+        var mongo = _fx.Factory.Services.GetRequiredService<IMongoClient>();
+        await mongo.GetDatabase(_fx.DatabaseName).GetCollection<UserAccount>("users").InsertOneAsync(new UserAccount
+        {
+            Id = humanId,
+            Email = email,
+            PasswordSalt = salt,
+            PasswordHash = hash,
+            CreatedAtUtc = DateTime.UtcNow,
+            EmailVerifiedAtUtc = DateTime.UtcNow,
+            IsAgentAccount = false,
+        });
+
+        var mintReq = AgentAccountFixture.WithInternalKey(
+            new HttpRequestMessage(HttpMethod.Post, $"/api/internal/agents/{humanId}/access-token"));
+        var mintRes = await _fx.Client.SendAsync(mintReq);
+        Assert.Equal(HttpStatusCode.NotFound, mintRes.StatusCode);
+    }
+
     private sealed class ApiEnvelope<T>
     {
         public bool Success { get; set; }

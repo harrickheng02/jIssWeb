@@ -36,6 +36,12 @@ builder.Services.Configure<ForumReportRetentionOptions>(builder.Configuration.Ge
 builder.Services.Configure<ForumModerationAuditOptions>(builder.Configuration.GetSection(ForumModerationAuditOptions.SectionName));
 builder.Services.Configure<InternalServiceOptions>(builder.Configuration.GetSection(InternalServiceOptions.SectionName));
 builder.Services.Configure<UserServiceOptions>(builder.Configuration.GetSection(UserServiceOptions.SectionName));
+builder.Services.Configure<AgentSchedulerOptions>(builder.Configuration.GetSection(AgentSchedulerOptions.SectionName));
+builder.Services.PostConfigure<AgentSchedulerOptions>(o =>
+{
+    o.AllowedBoardIds ??= new();
+    o.DeepSeek ??= new DeepSeekOptions();
+});
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IUserSanctionClient, UserSanctionClient>((sp, client) =>
 {
@@ -44,6 +50,24 @@ builder.Services.AddHttpClient<IUserSanctionClient, UserSanctionClient>((sp, cli
     if (baseUrl.Length > 0)
         client.BaseAddress = new Uri(baseUrl + "/");
 });
+builder.Services.AddHttpClient<ILlmChatClient, DeepSeekChatClient>();
+builder.Services.AddHttpClient<IAgentUserInternalClient, AgentUserInternalClient>((sp, client) =>
+{
+    var baseUrl = sp.GetRequiredService<IOptions<UserServiceOptions>>().Value.BaseUrl?.Trim().TrimEnd('/');
+    if (!string.IsNullOrWhiteSpace(baseUrl))
+        client.BaseAddress = new Uri(baseUrl + "/");
+});
+builder.Services.AddHttpClient<IAgentForumHttpClient, AgentForumHttpClient>((sp, client) =>
+{
+    var baseUrl = sp.GetRequiredService<IOptions<AgentSchedulerOptions>>().Value.ForumBaseUrl?.Trim().TrimEnd('/');
+    if (!string.IsNullOrWhiteSpace(baseUrl))
+        client.BaseAddress = new Uri(baseUrl + "/");
+});
+builder.Services.AddSingleton<IAgentLlmConfigResolver, AgentLlmConfigResolver>();
+builder.Services.AddSingleton<AgentPromptBuilder>();
+builder.Services.AddSingleton<AgentHotPostSelector>();
+builder.Services.AddSingleton<AgentSchedulerEngine>();
+builder.Services.AddHostedService<AgentSchedulerBackgroundService>();
 builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
 builder.Services.Configure<ForumSoftDeleteOptions>(builder.Configuration.GetSection(ForumSoftDeleteOptions.SectionName));
 builder.Services.AddHostedService<DraftCleanupBackgroundService>();
@@ -101,6 +125,7 @@ var app = builder.Build();
 ForumMongoSetup.EnsureIndexes(app.Services);
 await ForumMongoSetup.EnsureStateFieldAsync(app.Services);
 await ForumMongoSetup.SeedInitialTagsAsync(app.Services);
+await AgentMongoSetup.MigrateLegacyLlmAsync(app.Services);
 
 if (app.Environment.IsDevelopment())
 {

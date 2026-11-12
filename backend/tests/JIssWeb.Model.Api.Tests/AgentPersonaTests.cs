@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using JIssWeb.Common.Options;
 using JIssWeb.Common.Security;
+using JIssWeb.Model.Api.Models;
+using JIssWeb.Model.Api.Mongo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -14,6 +16,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
 using StackExchange.Redis;
+using JIssWeb.Model.Api.Services;
 
 namespace JIssWeb.Model.Api.Tests;
 
@@ -23,11 +26,13 @@ public sealed class AgentPersonaIntegrationFixture : IAsyncLifetime
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     public HttpClient Client { get; private set; } = null!;
+    public Mock<IAgentUserInternalClient> AgentUsers { get; } = new();
 
     public async Task InitializeAsync()
     {
         _mongoRunner = MongoDbRunner.Start();
         var dbName = "agent_personas_" + Guid.NewGuid().ToString("N");
+        AgentUsers.Setup(x => x.DisableAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
@@ -36,10 +41,13 @@ public sealed class AgentPersonaIntegrationFixture : IAsyncLifetime
             b.UseSetting("Mongo:DatabaseName", dbName);
             b.UseSetting("Forum:Boards:0:Id", "general");
             b.UseSetting("Forum:Boards:0:Title", "综合");
+            b.UseSetting("AgentScheduler:Enabled", "false");
             b.ConfigureTestServices(services =>
             {
                 services.RemoveAll(typeof(IConnectionMultiplexer));
                 services.AddSingleton<IConnectionMultiplexer>(_ => Mock.Of<IConnectionMultiplexer>());
+                services.RemoveAll<IAgentUserInternalClient>();
+                services.AddSingleton<IAgentUserInternalClient>(AgentUsers.Object);
             });
         });
         Client = Factory.CreateClient();
@@ -88,17 +96,33 @@ public sealed class AgentPersonaTests
     private static HttpRequestMessage AdminReq(HttpMethod method, string url, string? jsonBody = null)
         => AuthReq(method, url, ForumRoleClaim.Admin, jsonBody);
 
-    private static string CreateJson(string personaId, string agentUserId, string model = "doubao")
+    private async Task<string> EnsureProfileAsync()
+    {
+        var id = Guid.NewGuid().ToString("N");
+        await _fx.Database().GetCollection<AgentLlmProfileRecord>(AgentMongoSetup.LlmProfilesCollectionName)
+            .InsertOneAsync(new AgentLlmProfileRecord
+            {
+                Id = id,
+                Name = $"profile-{id[..8]}",
+                BaseUrl = "https://api.deepseek.com",
+                ApiKey = "test-key-1234",
+                Model = "deepseek-chat",
+                Enabled = true,
+                CreatedAtUtc = DateTime.UtcNow,
+            });
+        return id;
+    }
+
+    private static string CreateJson(string personaId, string agentUserId, string llmProfileId, string model = "doubao")
     {
         return JsonSerializer.Serialize(new
         {
             personaId,
             agentUserId,
+            llmProfileId,
             nickname = $"Agent {personaId}",
             model,
-            personality = "calm",
-            interests = new[] { "coding", "forum" },
-            postingStyle = new { length = "short", emoji = "rare", catchphrases = new[] { "收到" } },
+            prompt = "冷静、爱写代码的论坛用户。",
         });
     }
 
@@ -130,23 +154,32 @@ public sealed class AgentPersonaTests
     }
 
     [Fact]
-    public async Task Member_and_moderator_cannot_manage_personas()
+    public async Task Member_cannot_manage_personas()
     {
-        var body = CreateJson($"persona-{Guid.NewGuid():N}", $"agent-{Guid.NewGuid():N}");
+        var profileId = await EnsureProfileAsync();
+        var body = CreateJson($"persona-{Guid.NewGuid():N}", $"agent-{Guid.NewGuid():N}", profileId);
 
         var member = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, BaseUrl, ForumRoleClaim.Member, body));
         Assert.Equal(HttpStatusCode.Forbidden, member.StatusCode);
+    }
 
-        var moderator = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, BaseUrl, ForumRoleClaim.Moderator, body));
-        Assert.Equal(HttpStatusCode.Forbidden, moderator.StatusCode);
+    [Fact]
+    public async Task Moderator_can_create_persona()
+    {
+        var profileId = await EnsureProfileAsync();
+        var personaId = $"persona-{Guid.NewGuid():N}";
+        var agentUserId = $"agent-{Guid.NewGuid():N}";
+        var response = await _fx.Client.SendAsync(AuthReq(HttpMethod.Post, BaseUrl, ForumRoleClaim.Moderator, CreateJson(personaId, agentUserId, profileId)));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
     [Fact]
     public async Task Admin_can_create_list_get_update_and_delete_persona()
     {
+        var profileId = await EnsureProfileAsync();
         var personaId = $"persona-{Guid.NewGuid():N}";
         var agentUserId = $"agent-{Guid.NewGuid():N}";
-        var create = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson(personaId, agentUserId)));
+        var create = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson(personaId, agentUserId, profileId)));
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
         var created = await ReadRootAsync(create);
@@ -154,6 +187,7 @@ public sealed class AgentPersonaTests
         Assert.Equal(agentUserId, data.GetProperty("id").GetString());
         Assert.Equal(agentUserId, data.GetProperty("agentUserId").GetString());
         Assert.Equal(personaId, data.GetProperty("personaId").GetString());
+        Assert.Equal(profileId, data.GetProperty("llmProfileId").GetString());
         Assert.Equal("active", data.GetProperty("state").GetString());
         Assert.Equal(1, data.GetProperty("generation").GetInt32());
         Assert.Equal(0, data.GetProperty("survivalDays").GetInt32());
@@ -180,7 +214,7 @@ public sealed class AgentPersonaTests
             nickname = "Updated Agent",
             model = "deepseek",
             state = "archived",
-            interests = new[] { "updated" },
+            prompt = "更新后的人设提示词。",
         });
         var update = await _fx.Client.SendAsync(AdminReq(HttpMethod.Put, $"{BaseUrl}/{personaId}", patch));
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
@@ -188,9 +222,11 @@ public sealed class AgentPersonaTests
         Assert.Equal("Updated Agent", updated.GetProperty("data").GetProperty("nickname").GetString());
         Assert.Equal("deepseek", updated.GetProperty("data").GetProperty("model").GetString());
         Assert.Equal("archived", updated.GetProperty("data").GetProperty("state").GetString());
+        Assert.Equal("更新后的人设提示词。", updated.GetProperty("data").GetProperty("prompt").GetString());
 
         var delete = await _fx.Client.SendAsync(AdminReq(HttpMethod.Delete, $"{BaseUrl}/{personaId}"));
         Assert.Equal(HttpStatusCode.OK, delete.StatusCode);
+        _fx.AgentUsers.Verify(x => x.DisableAsync(agentUserId, It.IsAny<CancellationToken>()), Times.Once);
 
         var afterDelete = await _fx.Client.SendAsync(AdminReq(HttpMethod.Get, $"{BaseUrl}/{personaId}"));
         Assert.Equal(HttpStatusCode.NotFound, afterDelete.StatusCode);
@@ -199,11 +235,12 @@ public sealed class AgentPersonaTests
     [Fact]
     public async Task Duplicate_personaId_returns_PERSONA_ID_EXISTS()
     {
+        var profileId = await EnsureProfileAsync();
         var personaId = $"persona-{Guid.NewGuid():N}";
-        var first = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson(personaId, $"agent-{Guid.NewGuid():N}")));
+        var first = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson(personaId, $"agent-{Guid.NewGuid():N}", profileId)));
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
-        var second = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson(personaId, $"agent-{Guid.NewGuid():N}")));
+        var second = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson(personaId, $"agent-{Guid.NewGuid():N}", profileId)));
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         Assert.Equal("PERSONA_ID_EXISTS", await ReadCodeAsync(second));
     }
@@ -211,11 +248,12 @@ public sealed class AgentPersonaTests
     [Fact]
     public async Task Duplicate_agentUserId_returns_AGENT_USER_ALREADY_BOUND()
     {
+        var profileId = await EnsureProfileAsync();
         var agentUserId = $"agent-{Guid.NewGuid():N}";
-        var first = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson($"persona-{Guid.NewGuid():N}", agentUserId)));
+        var first = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson($"persona-{Guid.NewGuid():N}", agentUserId, profileId)));
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
-        var second = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson($"persona-{Guid.NewGuid():N}", agentUserId)));
+        var second = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson($"persona-{Guid.NewGuid():N}", agentUserId, profileId)));
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         Assert.Equal("AGENT_USER_ALREADY_BOUND", await ReadCodeAsync(second));
     }
@@ -223,15 +261,16 @@ public sealed class AgentPersonaTests
     [Fact]
     public async Task Invalid_model_is_rejected_on_create_and_update()
     {
+        var profileId = await EnsureProfileAsync();
         var create = await _fx.Client.SendAsync(AdminReq(
             HttpMethod.Post,
             BaseUrl,
-            CreateJson($"persona-{Guid.NewGuid():N}", $"agent-{Guid.NewGuid():N}", "gpt")));
+            CreateJson($"persona-{Guid.NewGuid():N}", $"agent-{Guid.NewGuid():N}", profileId, "gpt")));
         Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
         Assert.Equal("INVALID_MODEL", await ReadCodeAsync(create));
 
         var personaId = $"persona-{Guid.NewGuid():N}";
-        var ok = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson(personaId, $"agent-{Guid.NewGuid():N}")));
+        var ok = await _fx.Client.SendAsync(AdminReq(HttpMethod.Post, BaseUrl, CreateJson(personaId, $"agent-{Guid.NewGuid():N}", profileId)));
         Assert.Equal(HttpStatusCode.Created, ok.StatusCode);
 
         var update = await _fx.Client.SendAsync(AdminReq(HttpMethod.Put, $"{BaseUrl}/{personaId}", "{\"model\":\"gpt\"}"));

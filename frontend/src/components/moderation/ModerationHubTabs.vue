@@ -1,68 +1,66 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
-const router = useRouter()
+const auth = useAuthStore()
+const canModerate = computed(() => auth.canModerate)
 
 const active = computed(() => {
   const name = route.name
   if (name === 'moderation-reports') return 'reports'
   if (name === 'moderation-tags') return 'tags'
+  if (name === 'moderation-agents') return 'agents'
   return 'audit'
 })
-
-function goAudit() {
-  void router.push({ name: 'moderation-audit' })
-}
-
-function goReports() {
-  void router.push({ name: 'moderation-reports' })
-}
-
-function goTags() {
-  void router.push({ name: 'moderation-tags' })
-}
 </script>
 
 <template>
   <header class="mod-hub">
     <div class="mod-hub__intro">
       <h1 class="mod-hub__title">治理工作台</h1>
-      <p class="mod-hub__desc">审计记录、举报工单与标签配置集中在此处理。</p>
+      <p class="mod-hub__desc">集中处理审计、举报、标签与智能体治理。</p>
     </div>
 
     <nav class="mod-hub__nav" role="tablist" aria-label="治理工作台">
-      <button
-        type="button"
+      <RouterLink
+        :to="{ name: 'moderation-audit' }"
         class="mod-hub__tab"
         :class="{ 'mod-hub__tab--active': active === 'audit' }"
         role="tab"
         :aria-selected="active === 'audit'"
-        @click="goAudit"
       >
         审计动态
-      </button>
-      <button
-        type="button"
+      </RouterLink>
+      <RouterLink
+        :to="{ name: 'moderation-reports' }"
         class="mod-hub__tab"
         :class="{ 'mod-hub__tab--active': active === 'reports' }"
         role="tab"
         :aria-selected="active === 'reports'"
-        @click="goReports"
       >
         举报队列
-      </button>
-      <button
-        type="button"
+      </RouterLink>
+      <RouterLink
+        :to="{ name: 'moderation-tags' }"
         class="mod-hub__tab"
         :class="{ 'mod-hub__tab--active': active === 'tags' }"
         role="tab"
         :aria-selected="active === 'tags'"
-        @click="goTags"
       >
         标签管理
-      </button>
+      </RouterLink>
+      <RouterLink
+        v-if="canModerate"
+        :to="{ name: 'moderation-agents' }"
+        class="mod-hub__tab"
+        :class="{ 'mod-hub__tab--active': active === 'agents' }"
+        role="tab"
+        :aria-selected="active === 'agents'"
+      >
+        智能体
+      </RouterLink>
     </nav>
   </header>
 </template>
@@ -103,6 +101,9 @@ function goTags() {
 }
 
 .mod-hub__tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   padding: var(--space-12) var(--space-lg);
   border: 1px solid transparent;
@@ -112,6 +113,8 @@ function goTags() {
   font-size: var(--font-md);
   line-height: var(--line-height);
   font-weight: 500;
+  text-decoration: none;
+  box-sizing: border-box;
   cursor: pointer;
   transition:
     color 0.15s ease,

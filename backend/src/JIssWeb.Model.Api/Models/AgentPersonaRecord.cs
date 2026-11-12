@@ -11,7 +11,11 @@ public sealed class AgentPersonaRecord
     public string PersonaId { get; set; } = "";
     public string Nickname { get; set; } = "";
     public string AgentUserId { get; set; } = "";
-    public string Model { get; set; } = AgentModelIds.Doubao;
+    public string Model { get; set; } = AgentModelIds.Deepseek;
+    /// <summary>绑定的 OpenAI 兼容 LLM 档案 id；调度以此解析 Key/Url/Model。</summary>
+    public string? LlmProfileId { get; set; }
+    /// <summary>运营自定义人设提示词，原样注入 LLM system/user 人设段。</summary>
+    public string? Prompt { get; set; }
     public string? Personality { get; set; }
     public List<string> Interests { get; set; } = new();
     public AgentPostingStyle PostingStyle { get; set; } = new();

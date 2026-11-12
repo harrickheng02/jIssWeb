@@ -156,6 +156,9 @@ services:
       Jwt__Audience: JIssWeb
       Jwt__Key: ${JWT_KEY}
       UserService__BaseUrl: ${MODEL_USER_API_URL:-http://user-api:5097}
+      # 容器内自调用须走服务名；调度默认关闭，避免容器启动即自动发帖
+      AgentScheduler__ForumBaseUrl: ${MODEL_FORUM_BASE_URL:-http://model-api:5099}
+      AgentScheduler__Enabled: "${AGENT_SCHEDULER_ENABLED:-false}"
       InternalService__ApiKey: ${INTERNAL_SERVICE_API_KEY:-dev-internal-service-key-change-me}
     volumes:
       - ./backend/src/JIssWeb.Model.Api/appsettings.Local.json:/app/appsettings.Local.json:ro

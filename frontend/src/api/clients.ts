@@ -1056,6 +1056,191 @@ export async function adminSeedTagsFromPosts() {
   return data
 }
 
+// ── Agent Governance ──────────────────────────────────────────────────────────
+
+export interface AgentPersonaDto {
+  id: string
+  agentUserId: string
+  personaId: string
+  nickname: string
+  model: string
+  llmProfileId?: string
+  prompt?: string
+  state: string
+  createdAtUtc?: string
+  updatedAtUtc?: string
+}
+
+export interface ProvisionAgentRequest {
+  nickname: string
+  llmProfileId: string
+  /** 省略时由服务端自动分配 */
+  personaId?: string
+  /** 可选；省略时服务端生成 {personaId}@agents.local */
+  email?: string
+  model?: string
+  prompt?: string
+}
+
+export interface UpdateAgentPersonaRequest {
+  nickname?: string
+  model?: string
+  llmProfileId?: string
+  prompt?: string
+  state?: string
+}
+
+export interface AgentLlmProfileDto {
+  id: string
+  name: string
+  baseUrl: string
+  model: string
+  enabled: boolean
+  /** 后端不回显明文 Key；GET 仅返回 apiKeyConfigured 与 apiKeyMask */
+  apiKeyConfigured: boolean
+  apiKeyMask?: string
+  createdAtUtc?: string
+  updatedAtUtc?: string
+}
+
+export interface UpsertAgentLlmProfileRequest {
+  name?: string
+  baseUrl?: string
+  model?: string
+  apiKey?: string
+  clearApiKey?: boolean
+  enabled?: boolean
+}
+
+export interface AgentRuntimeConfigDto {
+  schedulerEnabled: boolean
+}
+
+export interface UpdateAgentRuntimeConfigRequest {
+  schedulerEnabled?: boolean
+}
+
+export interface AgentSchedulerStatusDto {
+  personaId: string
+  paused: boolean
+  allowAutoPost: boolean
+  allowAutoReply: boolean
+  postsUsed: number
+  repliesUsed: number
+  maxPostsPerDay: number
+  maxRepliesPerDay: number
+  postsRemaining: number
+  repliesRemaining: number
+  nextDueAtUtc?: string
+  minIntervalMinutes: number
+  jitterMinutes: number
+}
+
+export interface UpdateAgentSchedulerRulesRequest {
+  maxPostsPerDay?: number
+  maxRepliesPerDay?: number
+  minIntervalMinutes?: number
+  jitterMinutes?: number
+  allowAutoPost?: boolean
+  allowAutoReply?: boolean
+  paused?: boolean
+}
+
+export async function adminGetAgentRuntime() {
+  const { data } = await modelApi.get<ApiResult<AgentRuntimeConfigDto>>('/forum/admin/agent-runtime')
+  return data
+}
+
+export async function adminUpdateAgentRuntime(body: UpdateAgentRuntimeConfigRequest) {
+  const { data } = await modelApi.put<ApiResult<AgentRuntimeConfigDto>>('/forum/admin/agent-runtime', body)
+  return data
+}
+
+export async function adminListAgentLlmProfiles() {
+  const { data } = await modelApi.get<ApiResult<AgentLlmProfileDto[]>>('/forum/admin/agent-llm-profiles')
+  return data
+}
+
+export async function adminGetAgentLlmProfile(id: string) {
+  const { data } = await modelApi.get<ApiResult<AgentLlmProfileDto>>(`/forum/admin/agent-llm-profiles/${id}`)
+  return data
+}
+
+export async function adminCreateAgentLlmProfile(body: UpsertAgentLlmProfileRequest) {
+  const { data } = await modelApi.post<ApiResult<AgentLlmProfileDto>>('/forum/admin/agent-llm-profiles', body)
+  return data
+}
+
+export async function adminUpdateAgentLlmProfile(id: string, body: UpsertAgentLlmProfileRequest) {
+  const { data } = await modelApi.put<ApiResult<AgentLlmProfileDto>>(`/forum/admin/agent-llm-profiles/${id}`, body)
+  return data
+}
+
+export async function adminDeleteAgentLlmProfile(id: string) {
+  const { data } = await modelApi.delete<ApiResult<unknown>>(`/forum/admin/agent-llm-profiles/${id}`)
+  return data
+}
+
+export async function adminProbeAgentLlmProfile(id: string) {
+  const { data } = await modelApi.post<ApiResult<unknown>>(`/forum/admin/agent-llm-profiles/${id}/probe`)
+  return data
+}
+
+export async function adminListAgentPersonas() {
+  const { data } = await modelApi.get<ApiResult<AgentPersonaDto[]>>('/forum/admin/agent-personas')
+  return data
+}
+
+export async function adminUpdateAgentPersona(personaId: string, body: UpdateAgentPersonaRequest) {
+  const { data } = await modelApi.put<ApiResult<AgentPersonaDto>>(`/forum/admin/agent-personas/${personaId}`, body)
+  return data
+}
+
+export async function adminDeleteAgentPersona(personaId: string) {
+  const { data } = await modelApi.delete<ApiResult<unknown>>(`/forum/admin/agent-personas/${personaId}`)
+  return data
+}
+
+export async function adminProvisionAgent(body: ProvisionAgentRequest) {
+  const { data } = await modelApi.post<ApiResult<AgentPersonaDto>>('/forum/admin/agent-personas/provision', body)
+  return data
+}
+
+export async function adminGetAgentSchedulerStatus(personaId: string) {
+  const { data } = await modelApi.get<ApiResult<AgentSchedulerStatusDto>>(
+    `/forum/admin/agent-scheduler/${personaId}/status`,
+  )
+  return data
+}
+
+export async function adminUpdateAgentSchedulerRules(personaId: string, body: UpdateAgentSchedulerRulesRequest) {
+  const { data } = await modelApi.put<ApiResult<AgentSchedulerStatusDto>>(
+    `/forum/admin/agent-scheduler/${personaId}/rules`,
+    body,
+  )
+  return data
+}
+
+export async function adminPauseAgent(personaId: string) {
+  const { data } = await modelApi.post<ApiResult<AgentSchedulerStatusDto>>(`/forum/admin/agent-scheduler/${personaId}/pause`)
+  return data
+}
+
+export async function adminResumeAgent(personaId: string) {
+  const { data } = await modelApi.post<ApiResult<AgentSchedulerStatusDto>>(`/forum/admin/agent-scheduler/${personaId}/resume`)
+  return data
+}
+
+export async function adminTriggerAgentPost(personaId: string) {
+  const { data } = await modelApi.post<ApiResult<unknown>>(`/forum/admin/agent-scheduler/${personaId}/trigger/post`)
+  return data
+}
+
+export async function adminTriggerAgentReply(personaId: string) {
+  const { data } = await modelApi.post<ApiResult<unknown>>(`/forum/admin/agent-scheduler/${personaId}/trigger/reply`)
+  return data
+}
+
 // ── Post / Reply self-edit ────────────────────────────────────────────────────
 
 export interface UpdateForumPostRequest {

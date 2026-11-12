@@ -505,6 +505,9 @@ public class AuthController : ControllerBase
         };
 
         await _users.InsertOneAsync(user);
+        var nickname = request.Nickname?.Trim();
+        if (!string.IsNullOrEmpty(nickname))
+            await UpsertProfileOnRegisterAsync(user.Id, nickname, null, null);
         var accessToken = CreateAccessToken(user);
         return Ok(ApiResult<AgentAccountCreatedDto>.Ok(new AgentAccountCreatedDto
         {
@@ -512,6 +515,51 @@ public class AuthController : ControllerBase
             AccessToken = accessToken.Token,
             AccessTokenExpiresAtUtc = accessToken.ExpiresAtUtc,
         }));
+    }
+
+    [HttpPost("/api/internal/agents/{agentUserId}/access-token")]
+    [RequireInternalApiKey]
+    public async Task<ActionResult<ApiResult<AgentAccessTokenDto>>> MintAgentAccessToken(string agentUserId)
+    {
+        var id = (agentUserId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(id))
+            return BadRequest(ApiResult<AgentAccessTokenDto>.Fail("agentUserId 无效", "INVALID_INPUT"));
+
+        var user = await _users.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (user is null || !user.IsAgentAccount)
+            return NotFound(ApiResult<AgentAccessTokenDto>.Fail("智能体账号不存在", "AGENT_NOT_FOUND"));
+        if (user.DisabledAtUtc is not null)
+            return Conflict(ApiResult<AgentAccessTokenDto>.Fail("智能体账号已停用", "AGENT_DISABLED"));
+
+        var accessToken = CreateAccessToken(user);
+        return Ok(ApiResult<AgentAccessTokenDto>.Ok(new AgentAccessTokenDto
+        {
+            AgentUserId = user.Id,
+            AccessToken = accessToken.Token,
+            AccessTokenExpiresAtUtc = accessToken.ExpiresAtUtc,
+        }));
+    }
+
+    [HttpPost("/api/internal/agents/{agentUserId}/disable")]
+    [RequireInternalApiKey]
+    public async Task<ActionResult<ApiResult<object>>> DisableAgentAccount(string agentUserId)
+    {
+        var id = (agentUserId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(id))
+            return BadRequest(ApiResult<object>.Fail("agentUserId 无效", "INVALID_INPUT"));
+
+        var user = await _users.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (user is null || !user.IsAgentAccount)
+            return NotFound(ApiResult<object>.Fail("智能体账号不存在", "AGENT_NOT_FOUND"));
+
+        if (user.DisabledAtUtc is null)
+        {
+            user.DisabledAtUtc = DateTime.UtcNow;
+            await _users.ReplaceOneAsync(x => x.Id == user.Id, user);
+            await RevokeAllRefreshSessionsForUserAsync(user.Id);
+        }
+
+        return Ok(ApiResult<object>.Ok(new { message = "已停用", agentUserId = user.Id }));
     }
 
     private async Task RevokeAllRefreshSessionsForUserAsync(string userId)
@@ -1155,6 +1203,7 @@ public class CreateAgentAccountRequest
 {
     public string? Email { get; set; }
     public string? PersonaId { get; set; }
+    public string? Nickname { get; set; }
 }
 
 public class AgentAccountCreatedDto
@@ -1188,6 +1237,16 @@ public class UserAccount
 
     /// <summary>When true, JWT includes <c>accountType: agent</c>; password login is rejected.</summary>
     public bool IsAgentAccount { get; set; }
+
+    /// <summary>When set, agent account is disabled; mint access token fails.</summary>
+    public DateTime? DisabledAtUtc { get; set; }
+}
+
+public class AgentAccessTokenDto
+{
+    public string AgentUserId { get; set; } = "";
+    public string AccessToken { get; set; } = "";
+    public DateTime AccessTokenExpiresAtUtc { get; set; }
 }
 
 public class RefreshSession
