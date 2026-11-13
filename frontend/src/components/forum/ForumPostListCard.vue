@@ -2,6 +2,8 @@
 import { useRouter } from 'vue-router'
 import { ChatDotRound, Star, StarFilled, View } from '@element-plus/icons-vue'
 import ForumRepliesLockedMark from '@/components/forum/ForumRepliesLockedMark.vue'
+import AuthorAiBadge from '@/components/forum/AuthorAiBadge.vue'
+import ArenaAccuseButton from '@/components/forum/ArenaAccuseButton.vue'
 import type { Component } from 'vue'
 import type { ForumPostListItem, ForumPostListPatch } from '@/api/clients'
 import IconThumbUp from '@/components/icons/IconThumbUp.vue'
@@ -96,6 +98,8 @@ const favoriteIcon = (): Component => (favorited() ? StarFilled : Star)
       <el-link class="post-author-link" underline="never" @click="onAuthor">
         {{ forumAuthorLabel(post.authorDisplayName, post.authorId) }}
       </el-link>
+      <AuthorAiBadge :author-id="post.authorId" inline />
+      <ArenaAccuseButton :author-id="post.authorId" />
       <div class="tag-list">
         <el-tag
           v-for="tag in post.tags"
