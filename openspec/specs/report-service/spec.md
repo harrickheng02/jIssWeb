@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+本规范为 `report-service` 能力的归档基线，汇总历次 OpenSpec 变更产出的 3 条需求及其验收场景（Scenario），作为后续变更的 MODIFIED / ADDED delta 的合并目标。
+
+## Requirements
 
 ### Requirement: Read-oriented API shell
 

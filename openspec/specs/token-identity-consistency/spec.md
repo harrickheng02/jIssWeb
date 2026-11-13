@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+本规范为 `token-identity-consistency` 能力的归档基线，汇总历次 OpenSpec 变更产出的 7 条需求及其验收场景（Scenario），作为后续变更的 MODIFIED / ADDED delta 的合并目标。
+
+## Requirements
 
 ### Requirement: Subject-first identity claim contract
 JWT payload MUST use `sub` as the primary and authoritative user identifier across services.

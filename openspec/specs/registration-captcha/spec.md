@@ -2,7 +2,7 @@
 
 > 源自变更：`forum-anti-spam-captcha`
 
-## 目的
+## Purpose
 
 为注册接口（`POST /api/auth/register`）接入 Cloudflare Turnstile CAPTCHA 验证，防止自动化批量注册垃圾账号。通过可配置开关支持开发环境旁路，通过 agent claim 桩支持后续 AI 智能体账号协议（#30）。
 

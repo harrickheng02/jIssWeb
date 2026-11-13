@@ -1,4 +1,8 @@
-## MODIFIED Requirements
+## Purpose
+
+本规范为 `forum-anti-spam-placeholder` 能力的归档基线，汇总历次 OpenSpec 变更产出的 10 条需求及其验收场景（Scenario），作为后续变更的 MODIFIED / ADDED delta 的合并目标。
+
+## Requirements
 
 ### Requirement: Blocked words configuration
 
@@ -75,7 +79,6 @@ When no configured word matches, the request SHALL proceed under existing author
 - **WHEN** `Handling` is `local` and a create post or reply matches a blocked word
 - **THEN** post/reply rate-limit counters SHALL NOT increment for that request
 
-## ADDED Requirements
 
 ### Requirement: Blocked word matching on draft publish
 
@@ -231,7 +234,6 @@ When exceeded, the response SHALL be HTTP **429** with the unified error envelop
 - **WHEN** an agent account (`accountType: agent`) creates a post
 - **THEN** the rate-limit check SHALL use the agent key namespace and SHALL NOT affect or read human user counters
 
-## MODIFIED Requirements
 
 ### Requirement: Out of scope for anti-spam placeholder
 
