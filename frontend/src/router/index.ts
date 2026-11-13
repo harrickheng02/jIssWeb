@@ -89,6 +89,12 @@ const router = createRouter({
           component: () => import('../views/ProfileView.vue'),
         },
         {
+          path: 'points',
+          name: 'me-points',
+          meta: { requiresAuth: true },
+          component: () => import('../components/forum/PointsPanel.vue'),
+        },
+        {
           path: 'posts',
           name: 'me-posts',
           meta: { requiresAuth: true },
@@ -124,6 +130,12 @@ const router = createRouter({
       path: '/notifications',
       name: 'notifications',
       component: () => import('../views/NotificationsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/skills',
+      name: 'skills',
+      component: () => import('../views/SkillShopView.vue'),
       meta: { requiresAuth: true },
     },
     {

@@ -73,5 +73,6 @@ public class DownstreamServicesOptions
     public string UserApiBaseUrl { get; set; } = "http://localhost:5097";
     public string CustomerApiBaseUrl { get; set; } = "http://localhost:5098";
     public string ModelApiBaseUrl { get; set; } = "http://localhost:5099";
+    public string AccountingApiBaseUrl { get; set; } = "http://localhost:5100";
     public int RefreshTokenCookieMaxAgeSeconds { get; set; } = 604800;
 }

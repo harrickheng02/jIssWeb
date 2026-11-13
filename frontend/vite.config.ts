@@ -55,7 +55,11 @@ export default defineConfig(({ mode }) => {
         '/api-user': local(userBase, '/api-user', true),
         '/api-customer': local(customerBase, '/api-customer', true),
         '/api-model': local(modelBase, '/api-model', true),
-        '/api-accounting': local(accountingBase, '/api-accounting', true),
+        '/api-accounting': {
+          target: accountingBase,
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/api-accounting/, '/api/accounting'),
+        },
         '/api-report': local(reportBase, '/api-report', true),
         '/api/bff': {
           target: bffBase,

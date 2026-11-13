@@ -126,6 +126,7 @@ services:
       DownstreamServices__UserApiBaseUrl: ${BFF_USER_API_URL:-http://user-api:5097}
       DownstreamServices__CustomerApiBaseUrl: ${BFF_CUSTOMER_API_URL:-http://customer-api:5098}
       DownstreamServices__ModelApiBaseUrl: ${BFF_MODEL_API_URL:-http://model-api:5099}
+      DownstreamServices__AccountingApiBaseUrl: ${BFF_ACCOUNTING_API_URL:-http://accounting-api:5100}
     depends_on:
       user-api:
         condition: service_started
@@ -192,6 +193,32 @@ services:
       redis:
         condition: service_healthy
 
+  accounting-api:
+    build:
+      context: .
+      dockerfile: docker/JIssWeb.Accounting.Api.Dockerfile
+    ports:
+      - "${ACCOUNTING_API_PORT:-5100}:${ACCOUNTING_API_CONTAINER_PORT:-5100}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Mongo__ConnectionString: ${MONGO_CONNECTION_STRING}
+      Mongo__DatabaseName: jissweb_model
+      Redis__ConnectionString: redis:6379
+      Redis__Password: ${REDIS_PASSWORD}
+      Redis__KeyPrefix: "accounting:"
+      Jwt__Issuer: JIssWeb
+      Jwt__Audience: JIssWeb
+      Jwt__Key: ${JWT_KEY}
+    volumes:
+      - ./backend/src/JIssWeb.Accounting.Api/appsettings.Local.json:/app/appsettings.Local.json:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   gateway-api:
     build:
       context: .
@@ -207,6 +234,7 @@ services:
       ReverseProxy__Clusters__customer-service__Destinations__d1__Address: ${GATEWAY_CUSTOMER_API_URL:-http://customer-api:5098/}
       ReverseProxy__Clusters__frontend-bff__Destinations__d1__Address: ${GATEWAY_BFF_URL:-http://frontend-bff:5095/}
       ReverseProxy__Clusters__model-service__Destinations__d1__Address: ${GATEWAY_MODEL_API_URL:-http://model-api:5099/}
+      ReverseProxy__Clusters__accounting-service__Destinations__d1__Address: ${GATEWAY_ACCOUNTING_API_URL:-http://accounting-api:5100/}
     depends_on:
       user-api:
         condition: service_started
@@ -215,6 +243,8 @@ services:
       frontend-bff:
         condition: service_started
       model-api:
+        condition: service_started
+      accounting-api:
         condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
