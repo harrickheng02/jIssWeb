@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# 技术债说明（见项目记忆债务清单⑤）：
+# 全量后端测试含 42 条环境性用例（ForumDraft / ForumPostSelfEdit / ForumReplySelfEdit /
+# ForumMeEndpoints / ForumModerationReplyLock / ModerationDelete），需要实时 MongoDB +
+# 有效 JWT 密钥 + 版主（Moderation）配置才能通过。本地与 CI 默认不提供这些基础设施，
+# 故本 CI 仅以「自包含套件」作为门禁，避免误报红灯。
+#   - 后端门禁：Arena 套件（22/22，使用 Mongo2Go 内存实例，零外部依赖）。
+#   - 前端门禁：vue-tsc 类型检查 + vitest 单元测试 + 生产构建。
+# 待补齐 appsettings.Local.json（提供 Mongo/JWT/版主配置）后，可在 CI 启用全量套件。
+
+jobs:
+  backend:
+    name: Backend (Arena suite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build test project (incl. dependencies)
+        run: dotnet build backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj -c Debug --nologo
+      - name: Test (Arena suite, Mongo2Go self-contained)
+        run: dotnet test backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj --no-build -c Debug --nologo --filter "FullyQualifiedName~Arena"
+
+  frontend:
+    name: Frontend (typecheck + vitest + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npx vue-tsc --noEmit -p tsconfig.json
+      - name: Unit tests
+        run: npx vitest run
+      - name: Build
+        run: npm run build
