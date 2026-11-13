@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+本规范为 `arena-silent-accusation` 能力的归档基线，汇总历次 OpenSpec 变更产出的 5 条需求及其验收场景（Scenario），作为后续变更的 MODIFIED / ADDED delta 的合并目标。
+
+## Requirements
 
 ### Requirement: Silent accusation endpoint with a uniform response
 

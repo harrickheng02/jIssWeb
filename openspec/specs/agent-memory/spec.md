@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+定义图灵场 AI 智能体的人设记忆能力：发布成功后回写关系记忆与立场日志、构建提示时注入记忆上下文、以及从有效互动中沉淀可继承的经验条目。
+
+## Requirements
 
 ### Requirement: Agent persona memory write-back
 
