@@ -44,6 +44,7 @@ builder.Services.PostConfigure<AgentSchedulerOptions>(o =>
     o.DeepSeek ??= new DeepSeekOptions();
 });
 builder.Services.Configure<ArenaRevealOptions>(builder.Configuration.GetSection(ArenaRevealOptions.SectionName));
+builder.Services.Configure<ArenaBountyOptions>(builder.Configuration.GetSection(ArenaBountyOptions.SectionName));
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IUserSanctionClient, UserSanctionClient>((sp, client) =>
 {
@@ -115,6 +116,7 @@ builder.Services.AddSingleton<ForumReportTargetResolver>();
 builder.Services.AddSingleton<IArenaAccusationRateLimiter, ArenaAccusationInMemoryRateLimiter>();
 builder.Services.AddScoped<IArenaAccusationService, ArenaAccusationService>();
 builder.Services.AddScoped<IArenaRevealService, ArenaRevealService>();
+builder.Services.AddSingleton<IArenaBountyService, ArenaBountyService>();
 builder.Services.AddSingleton<IArenaConfessionGenerator, LlmArenaConfessionGenerator>();
 builder.Services.AddSingleton<IArenaAccusationArchiveService, ArenaAccusationArchiveService>();
 builder.Services.AddHostedService<ArenaAccusationArchiveBackgroundService>();

@@ -42,6 +42,7 @@ onMounted(() => {
             <el-menu-item index="/me/favorites">我的收藏</el-menu-item>
             <el-menu-item index="/me/profile">个人资料</el-menu-item>
             <el-menu-item index="/me/points">侦探积分</el-menu-item>
+            <el-menu-item index="/me/hunter-badge">图灵猎手</el-menu-item>
             <el-menu-item index="/skills">技能商店</el-menu-item>
             <el-menu-item index="/me/settings">设置</el-menu-item>
           </el-menu>

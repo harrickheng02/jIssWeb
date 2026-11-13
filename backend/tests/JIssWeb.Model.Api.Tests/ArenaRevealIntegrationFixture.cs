@@ -42,7 +42,12 @@ public sealed class ArenaRevealIntegrationFixture : IAsyncLifetime
             ArenaMongoSetup.PointsEventsCollectionName,
             ForumMongoSetup.NotificationsCollectionName,
             ForumMongoSetup.PostsCollectionName,
+            ForumMongoSetup.AnnouncementsCollectionName,
             AgentMongoSetup.PersonasCollectionName,
+            ArenaMongoSetup.BountyStatesCollectionName,
+            ArenaMongoSetup.BountyRunsCollectionName,
+            ArenaMongoSetup.BountyMedalsCollectionName,
+            ArenaMongoSetup.HunterBadgesCollectionName,
         };
         foreach (var name in names)
             await db.GetCollection<BsonDocument>(name)

@@ -30,13 +30,18 @@ public class ArenaRevealServiceTests
         IOptions<MongoSettings> opts = new OptionsStub<MongoSettings>(
             new MongoSettings { DatabaseName = _fx.DatabaseName });
         IOptions<ArenaRevealOptions> arenaOpts = new OptionsStub<ArenaRevealOptions>(new ArenaRevealOptions());
+        // #34：默认 Enabled=false，悬赏能力零写入、积分恰好回落 50，既有断言无需改动。
+        IOptions<ArenaBountyOptions> bountyOpts = new OptionsStub<ArenaBountyOptions>(new ArenaBountyOptions());
+        IArenaBountyService bounty = new ArenaBountyService(
+            client, opts, bountyOpts, NullLogger<ArenaBountyService>.Instance);
         return new ArenaRevealService(
             client,
             opts,
             arenaOpts,
             new StubConfessionGenerator(ArenaConfessionTemplate.StaticBody("stub")),
             new PassBlockedWordFilter(),
-            NullLogger<ArenaRevealService>.Instance);
+            NullLogger<ArenaRevealService>.Instance,
+            bounty);
     }
 
     private IMongoCollection<ArenaRevealJobRecord> Jobs()

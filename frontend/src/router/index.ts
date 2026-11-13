@@ -95,6 +95,12 @@ const router = createRouter({
           component: () => import('../components/forum/PointsPanel.vue'),
         },
         {
+          path: 'hunter-badge',
+          name: 'me-hunter-badge',
+          meta: { requiresAuth: true },
+          component: () => import('../views/me/MeHunterBadgeView.vue'),
+        },
+        {
           path: 'posts',
           name: 'me-posts',
           meta: { requiresAuth: true },
