@@ -14,7 +14,7 @@ namespace JIssWeb.Model.Api.Services;
 /// 核心职责：
 /// 1) weekKey 原子领取（reveal_jobs 唯一索引，11000 视为已领取 → 整批不重复跑，D13）；
 /// 2) prepare：只读批量判 accountType（查 agent_personas）→ 不可变结算计划 → state=settled，零对外副作用；
-/// 3) commit：写积分事件 → 更新 tally / persona → 生成自白帖（arena_pending）→ 批量 +50 通知
+/// 3) commit：写积分事件 → 更新 tally / persona → 生成自白帖（arena_pending）→ 批量悬赏值奖励通知
 ///    （uniq_eventId 幂等）→ 单 CAS 置 completed（唯一对外可见性门禁）→ 翻帖 + 释放通知；
 /// 4) 批次状态机 settling → settled → revealing → completed 分阶段幂等，失败保留 in-progress 由续跑接管。
 /// </summary>
@@ -32,6 +32,7 @@ public sealed class ArenaRevealService : IArenaRevealService
     private readonly IArenaConfessionGenerator _confessionGenerator;
     private readonly IForumBlockedWordFilter _blockedWords;
     private readonly ILogger<ArenaRevealService> _logger;
+    private readonly IArenaBountyService _bounty;
 
     public ArenaRevealService(
         IMongoClient mongoClient,
@@ -39,7 +40,8 @@ public sealed class ArenaRevealService : IArenaRevealService
         IOptions<ArenaRevealOptions> arenaOptions,
         IArenaConfessionGenerator confessionGenerator,
         IForumBlockedWordFilter blockedWords,
-        ILogger<ArenaRevealService> logger)
+        ILogger<ArenaRevealService> logger,
+        IArenaBountyService bountyService)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _jobs = db.GetCollection<ArenaRevealJobRecord>(ArenaMongoSetup.RevealJobsCollectionName);
@@ -54,6 +56,7 @@ public sealed class ArenaRevealService : IArenaRevealService
         _confessionGenerator = confessionGenerator;
         _blockedWords = blockedWords;
         _logger = logger;
+        _bounty = bountyService;
     }
 
     public async Task<ClaimOutcome> TryClaimWeekAsync(string weekKey, CancellationToken cancellationToken = default)
@@ -85,6 +88,18 @@ public sealed class ArenaRevealService : IArenaRevealService
 
         try
         {
+            // #34：原子领取成功后、prepare 之前完成当周悬赏计算（按账号 × weekKey 幂等）。
+            // 计算失败 SHALL NOT 阻断当周揭露，降级为「本周不更新悬赏」，积分自动回落到基础分 50。
+            try
+            {
+                await _bounty.ComputeWeekAsync(weekKey, cancellationToken);
+            }
+            catch (Exception bountyEx)
+            {
+                _logger.LogWarning(bountyEx,
+                    "Arena bounty computation failed for week {WeekKey}; settlement continues with base points.", weekKey);
+            }
+
             var verdicts = await PrepareWeekAsync(weekKey, cancellationToken);
             await TransitionAsync(weekKey, ArenaRevealJobState.Settled, cancellationToken);
             await TransitionAsync(weekKey, ArenaRevealJobState.Revealing, cancellationToken);
@@ -169,6 +184,7 @@ public sealed class ArenaRevealService : IArenaRevealService
             .FirstAsync(cancellationToken);
         var jobId = job.Id;
         var confessionPostIds = new List<string>();
+        var totalPayout = 0; // #34 第二层封顶：仅用于运营告警，SHALL NOT 削减金额。
 
         foreach (var verdict in verdicts)
         {
@@ -208,6 +224,9 @@ public sealed class ArenaRevealService : IArenaRevealService
                 await _posts.InsertOneAsync(post, cancellationToken: cancellationToken);
                 confessionPostIds.Add(post.Id);
 
+                // #34：每位成功指认者各获全额悬赏值（不分摊、不除以人数、不截断名单）。
+                // type 与字段集合保持冻结，只放开 delta；缺省路径（灰度关闭 / 状态缺失 / 计算失败）恰好 50。
+                var bounty = await _bounty.GetBountyAsync(verdict.TargetUserId, weekKey, cancellationToken);
                 foreach (var acc in accusations)
                 {
                     var eventId = ArenaEventId.Derive(weekKey, acc.AccuserId, verdict.TargetUserId, ArenaPointsEventType.Hit);
@@ -216,16 +235,18 @@ public sealed class ArenaRevealService : IArenaRevealService
                         EventId = eventId,
                         UserId = acc.AccuserId,
                         Type = ArenaPointsEventType.Hit,
-                        Delta = 50,
+                        Delta = bounty,
                         TargetUserId = verdict.TargetUserId,
                         AccusationId = acc.Id,
                         WeekId = weekKey,
                         NotifyEligible = true,
                     }, cancellationToken);
 
-                    // +50 通知：uniq_eventId 幂等；BatchId 由门禁在 completed 后释放（D6/D9/D11）。
+                    // 悬赏值奖励通知：uniq_eventId 幂等；BatchId 由门禁在 completed 后释放（D6/D9/D11）。
                     await WriteHitNotificationAsync(jobId, eventId, acc.AccuserId, post, cancellationToken);
+                    await _bounty.RecordHunterBadgeAsync(acc.AccuserId, verdict.TargetUserId, weekKey, bounty, cancellationToken);
                 }
+                totalPayout += accusations.Count * bounty;
 
                 // tally → pending_reveal；persona → eliminated（AI 标记权威源，D8/G8）。
                 await _tallies.UpdateOneAsync(
@@ -278,6 +299,13 @@ public sealed class ArenaRevealService : IArenaRevealService
             Builders<ArenaRevealJobRecord>.Update.Set(x => x.ConfessionPostIds, confessionPostIds)
                 .Set(x => x.UpdatedAtUtc, DateTime.UtcNow),
             cancellationToken: cancellationToken);
+
+        // #34 第二层封顶：超额只记运营告警，SHALL NOT 削减任何已判定指认者的金额
+        // （削减会违反 #33 verdict 表「全部 counted 指认者 SHALL 获得 accusation_hit」与 eventId 幂等语义）。
+        if (_bounty.MaxPayoutPerWeek > 0 && totalPayout > _bounty.MaxPayoutPerWeek)
+            _logger.LogWarning(
+                "Arena bounty weekly payout {Payout} exceeds cap {Cap} for {WeekKey}; amounts are NOT reduced.",
+                totalPayout, _bounty.MaxPayoutPerWeek, weekKey);
     }
 
     /// <summary>

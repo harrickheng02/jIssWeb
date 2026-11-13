@@ -20,6 +20,12 @@ public static class ArenaMongoSetup
     public const string SettlementPlansCollectionName = "arena_settlement_plans";
     public const string PointsEventsCollectionName = "arena_points_events";
 
+    // #34 悬赏域：四张独立集合，不改 persona / 积分事件 / 公告记录契约。
+    public const string BountyStatesCollectionName = "arena_bounty_states";
+    public const string BountyRunsCollectionName = "arena_bounty_runs";
+    public const string BountyMedalsCollectionName = "arena_bounty_medals";
+    public const string HunterBadgesCollectionName = "arena_hunter_badges";
+
     public static void EnsureIndexes(IMongoDatabase db)
     {
         var dedupe = db.GetCollection<ArenaAccusationDedupeRecord>(DedupeCollectionName);
@@ -86,5 +92,29 @@ public static class ArenaMongoSetup
         events.Indexes.CreateOne(new CreateIndexModel<ArenaPointsEventRecord>(
             Builders<ArenaPointsEventRecord>.IndexKeys.Ascending(x => x.EventId),
             new CreateIndexOptions { Unique = true, Name = "uniq_eventId" }));
+
+        var bountyStates = db.GetCollection<ArenaBountyStateRecord>(BountyStatesCollectionName);
+        bountyStates.Indexes.CreateOne(new CreateIndexModel<ArenaBountyStateRecord>(
+            Builders<ArenaBountyStateRecord>.IndexKeys.Ascending(x => x.AgentUserId),
+            new CreateIndexOptions { Unique = true, Name = "uniq_agentUserId" }));
+        bountyStates.Indexes.CreateOne(new CreateIndexModel<ArenaBountyStateRecord>(
+            Builders<ArenaBountyStateRecord>.IndexKeys.Ascending(x => x.MedalAwardedWeekKey),
+            new CreateIndexOptions { Name = "medal_awarded_week" }));
+
+        var bountyRuns = db.GetCollection<ArenaBountyRunRecord>(BountyRunsCollectionName);
+        bountyRuns.Indexes.CreateOne(new CreateIndexModel<ArenaBountyRunRecord>(
+            Builders<ArenaBountyRunRecord>.IndexKeys
+                .Ascending(x => x.AgentUserId).Ascending(x => x.WeekKey),
+            new CreateIndexOptions { Unique = true, Name = "uniq_agent_week" }));
+
+        var bountyMedals = db.GetCollection<ArenaBountyMedalRecord>(BountyMedalsCollectionName);
+        bountyMedals.Indexes.CreateOne(new CreateIndexModel<ArenaBountyMedalRecord>(
+            Builders<ArenaBountyMedalRecord>.IndexKeys.Ascending(x => x.WeekKey),
+            new CreateIndexOptions { Unique = true, Name = "uniq_week" }));
+
+        var hunterBadges = db.GetCollection<ArenaHunterBadgeRecord>(HunterBadgesCollectionName);
+        hunterBadges.Indexes.CreateOne(new CreateIndexModel<ArenaHunterBadgeRecord>(
+            Builders<ArenaHunterBadgeRecord>.IndexKeys.Ascending(x => x.UserId),
+            new CreateIndexOptions { Unique = true, Name = "uniq_userId" }));
     }
 }

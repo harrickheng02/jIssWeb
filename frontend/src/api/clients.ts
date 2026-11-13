@@ -111,6 +111,20 @@ export const accountingApi = createClient('/api-accounting')
 export const reportApi = createClient('/api')
 export const bffApi = createClient('/api')
 
+// ── #34 图灵猎手徽章（只读，按 JWT sub 隔离） ──────────────────────────────────
+
+export interface HunterBadgeItem {
+  badgeId: string
+  targetWeekKey: string
+  bountyPoints: number
+  awardedAtUtc: string
+}
+
+export async function getMyHunterBadge(): Promise<ApiResult<HunterBadgeItem | null>> {
+  const { data } = await modelApi.get<ApiResult<HunterBadgeItem | null>>('/arena/hunter-badge/me')
+  return data
+}
+
 export interface AuthTokenPair {
   accessToken: string
   accessTokenExpiresAtUtc: string
