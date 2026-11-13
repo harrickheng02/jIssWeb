@@ -33,8 +33,14 @@ public static class AgentMongoSetup
             Builders<AgentExperienceRecord>.IndexKeys.Descending(x => x.Weight),
             new CreateIndexOptions { Name = "weight_desc" }));
         experiences.Indexes.CreateOne(new CreateIndexModel<AgentExperienceRecord>(
-            Builders<AgentExperienceRecord>.IndexKeys.Ascending(x => x.PersonaId).Descending(x => x.Weight),
-            new CreateIndexOptions { Name = "persona_weight" }));
+            Builders<AgentExperienceRecord>.IndexKeys.Ascending(x => x.SourcePersonaId).Descending(x => x.Weight),
+            new CreateIndexOptions { Name = "sourcePersona_weight" }));
+        experiences.Indexes.CreateOne(new CreateIndexModel<AgentExperienceRecord>(
+            Builders<AgentExperienceRecord>.IndexKeys.Ascending(x => x.InheritedBy),
+            new CreateIndexOptions { Name = "inheritedBy" }));
+        experiences.Indexes.CreateOne(new CreateIndexModel<AgentExperienceRecord>(
+            Builders<AgentExperienceRecord>.IndexKeys.Ascending(x => x.ExperienceId),
+            new CreateIndexOptions { Unique = true, Name = "uniq_experienceId" }));
 
         var states = db.GetCollection<AgentSchedulerStateRecord>(SchedulerStateCollectionName);
         states.Indexes.CreateOne(new CreateIndexModel<AgentSchedulerStateRecord>(
