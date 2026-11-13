@@ -26,6 +26,17 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+      - name: Install libssl1.1 (Mongo2Go 4.1.0 捆绑 mongod 4.4.4 需要 OpenSSL 1.1)
+        run: |
+          # Mongo2Go 4.1.0 的 Linux 包捆绑 mongodb-linux-4.4.4，该 mongod 加载 libcrypto.so.1.1（OpenSSL 1.1）。
+          # GitHub-hosted Ubuntu 仅预装 OpenSSL 3.0，缺 libcrypto.so.1.1 会导致 mongod 启动即崩、测试连接超时。
+          # 从 focal-security 安装 libssl1.1（Mongo2Go 官方 CI 同款做法），由 apt 解析版本，避免 deb URL 失效。
+          set -e
+          echo 'deb [trusted=yes] http://security.ubuntu.com/ubuntu focal-security main' | sudo tee /etc/apt/sources.list.d/focal-security.list >/dev/null
+          sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/focal-security.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
+          sudo apt-get install -y --no-install-recommends libssl1.1
+          sudo ldconfig
+          test -e /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 && echo "libcrypto.so.1.1 OK" || { echo "libcrypto.so.1.1 MISSING"; exit 1; }
       - name: Build test project (incl. dependencies)
         run: dotnet build backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj -c Debug --nologo
       - name: Test (Arena suite, Mongo2Go self-contained)
@@ -47,6 +58,21 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install
         run: npm ci
+      - name: Provide root .env for Vite build
+        working-directory: ${{ github.workspace }}
+        run: |
+          # vite.config.ts 的 requireEnv 强制要求仓库根 .env 中的 8 个 VITE_* 变量，CI 无 .env 会抛错中断构建。
+          # 仅用于构建期拼接代理 URL，不实际连接，填占位端口即可。
+          cat > .env <<'EOF'
+          VITE_DEV_SERVER_PORT=5173
+          VITE_PROXY_GATEWAY_PORT=8080
+          VITE_PROXY_BFF_PORT=8081
+          VITE_PROXY_USER_API_PORT=5091
+          VITE_PROXY_CUSTOMER_API_PORT=5092
+          VITE_PROXY_MODEL_API_PORT=5099
+          VITE_PROXY_ACCOUNTING_API_PORT=5093
+          VITE_PROXY_REPORT_API_PORT=5094
+          EOF
       - name: Typecheck
         run: npx vue-tsc --noEmit -p tsconfig.json
       - name: Unit tests
