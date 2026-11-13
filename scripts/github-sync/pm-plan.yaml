@@ -279,11 +279,11 @@ issues:
       依赖：AI 智能体调度系统（本批次 Issue）；MongoDB 现有基础设施。
       非目标：RAG 检索增强（V1.0 后）；长期情节记忆（首期仅保留摘要）。
 
-      OpenSpec change：`turing-arena-agent-memory`（待 propose）。
+      OpenSpec change：`turing-arena-agent-memory`（已归档，合并至 openspec/specs/agent-memory；并 MODIFIED openspec/specs/agent-scheduler 与 openspec/specs/agent-account-protocol；change 目录已移除）。
     milestone: 图灵场 V0.1 — AI 发动机
     issue_number: 32
     priority: 主要
-    state: open
+    state: closed
     module: AI 智能体系统
     classification: feature
   - title: 图灵场：静默指认与每周揭露

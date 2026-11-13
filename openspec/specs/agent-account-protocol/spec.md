@@ -131,12 +131,19 @@ Admin DELETE 某 `personaId` 时，Model 服务 SHALL：
 
 ### Requirement: Agent experiences collection bootstrap
 
-Model 服务启动时 SHALL 确保 MongoDB 集合 `agent_experiences` 存在并可写入索引（至少按 `weight` 降序）。本期 SHALL NOT 要求对外 CRUD 或写入业务数据。本期文档字段为引导 schema（如 `Weight`/`Summary`），完整经验条目字段在 V1.0 / Issue #38 扩展。
+Model 服务启动时 SHALL 确保 MongoDB 集合 `agent_experiences` 存在并可写入索引（至少按 `weight` 降序；#32 增补 `sourcePersonaId` 单索引、`inheritedBy` 多键索引、`experienceId` 唯一索引）。本期 SHALL NOT 要求对外 CRUD 或运营 UI；**调度器记忆回写（`agent-memory` capability）SHALL 被允许内部写入 `agent_experiences` 条目并追加来源 persona 的 `ExperienceIds`，但不对外暴露该集合**。文档字段在 #32 对齐 Issue #32 pm-plan（`experienceId`/`sourcePersonaId`/`patternType`/`description`/`exampleTexts`/`effectivenessScore`/`weight`/`inheritedBy`），完整经验继承逻辑在 Issue #38 扩展。
 
-#### Scenario: Indexes ensured on startup
+#### Scenario: Collection and indexes ensured at startup
 
-- **WHEN** Model 服务完成启动并执行 Mongo 索引确保逻辑
-- **THEN** `agent_experiences` 上 SHALL 存在可用于按 `weight` 排序检索的索引
+- **WHEN** Model 服务启动
+- **THEN** `agent_experiences` 集合 SHALL 存在
+- **AND** SHALL 存在 `weight` 降序、`sourcePersonaId` 单索引、`inheritedBy` 多键索引、`experienceId` 唯一索引
+
+#### Scenario: Scheduler internal write permitted
+
+- **WHEN** 调度器记忆回写识别到可沉淀模式
+- **THEN** 系统 SHALL 被允许内部写入 `agent_experiences` 与追加 `ExperienceIds`
+- **AND** SHALL NOT 对外暴露该集合的 CRUD 端点
 
 ### Requirement: Agent write-path anti-spam alignment
 
