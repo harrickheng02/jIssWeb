@@ -11,3 +11,5 @@ obj/
 *.log
 .tmpbuild/
 .history/
+# Claude Code 生成的 agent 工作树（含 .git 文件，会被 git 当嵌套仓库扫描，触发 CI post-job 128 噪声）
+.claude/worktrees/
