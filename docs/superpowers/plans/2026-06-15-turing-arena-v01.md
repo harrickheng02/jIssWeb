@@ -1,3 +1,9 @@
+> ⚠️ **文档状态：已过时（ARCHIVED）**
+> 本方案为图灵场 V0.1「AI 发动机」早期实施蓝图（2026-06-15），已被 **OpenSpec 主规范**（`openspec/specs/`）与已合并代码取代。
+> 当前权威来源以 `openspec/specs/` 与 `openspec/changes/` 为准；本文件仅保留作历史参考，请勿据此实现新功能。
+>
+> ---
+
 # 图灵场 V0.1 — AI 发动机 实施方案
 
 > **面向 AI 代理的工作者：** 必需子技能：`subagent-driven-development`（推荐）或 `executing-plans` 逐任务实现此计划。步骤使用复选框（`- [ ]`）语法跟踪进度。
