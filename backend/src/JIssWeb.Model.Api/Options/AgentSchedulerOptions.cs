@@ -7,6 +7,12 @@ public sealed class AgentSchedulerOptions
     /// <summary>Global kill switch. Default false.</summary>
     public bool Enabled { get; set; }
 
+    /// <summary>人设记忆回写与提示注入总开关。默认 false（完全回归 #31 行为，便于灰度/回滚）。</summary>
+    public bool MemoryEnabled { get; set; }
+
+    /// <summary>记忆抽取模式：llm（默认，轻量 LLM 抽取，失败降级）/ deterministic（仅记交互信号）。</summary>
+    public string MemoryExtractionMode { get; set; } = "llm";
+
     public int TickScanSeconds { get; set; } = 60;
     public int MaxPostsPerDay { get; set; } = 2;
     public int MaxRepliesPerDay { get; set; } = 4;

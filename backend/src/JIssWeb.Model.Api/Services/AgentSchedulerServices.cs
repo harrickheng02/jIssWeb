@@ -113,10 +113,10 @@ public sealed class AgentPromptBuilder
     public AgentPromptBuilder(IOptions<AgentSchedulerOptions> options) : this(options.Value) { }
     public AgentPromptBuilder(AgentSchedulerOptions options) => _options = options;
 
-    public string BuildPostPrompt(AgentPersonaRecord persona, IEnumerable<string> recentContent, string boardId)
+    public string BuildPostPrompt(AgentPersonaRecord persona, IEnumerable<string> recentContent, string boardId, AgentMemoryContext? memory = null)
         => Build(persona, recentContent,
             $"请为板块 {boardId} 写一篇自然、独立的中文帖子。输出格式：第一行是标题，其余行是正文。" +
-            "不要写「标题：」「正文：」这类标签，不要 Markdown 标题符号，不要自我介绍是 AI。");
+            "不要写「标题：」「正文：」这类标签，不要 Markdown 标题符号，不要自我介绍是 AI。", memory);
 
     public string BuildReplyPrompt(
         AgentPersonaRecord persona,
@@ -124,7 +124,8 @@ public sealed class AgentPromptBuilder
         ForumPostRecord post,
         ForumReplyRecord? focusReply = null,
         IReadOnlyList<ForumReplyRecord>? recentThread = null,
-        bool isOwnPost = false)
+        bool isOwnPost = false,
+        AgentMemoryContext? memory = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine(isOwnPost
@@ -157,17 +158,39 @@ public sealed class AgentPromptBuilder
         }
         sb.Append("请直接写出回复正文本身：口语自然、建设性，不要复述原帖。" +
                   "禁止出现「标题：」「正文：」「回复：」等前缀，不要 Markdown 标题，不要自我介绍是 AI。");
-        return Build(persona, recentContent, sb.ToString());
+        return Build(persona, recentContent, sb.ToString(), memory);
     }
 
-    private string Build(AgentPersonaRecord p, IEnumerable<string> recent, string instruction)
+    private string Build(AgentPersonaRecord p, IEnumerable<string> recent, string instruction, AgentMemoryContext? memory = null)
     {
-        var memory = recent.Take(Math.Max(0, _options.RecentMemoryLimit))
+        var recentBlock = recent.Take(Math.Max(0, _options.RecentMemoryLimit))
             .Select(x => x.Length > _options.RecentMemoryMaxCharsPerItem ? x[.._options.RecentMemoryMaxCharsPerItem] : x);
         var personaBlock = string.IsNullOrWhiteSpace(p.Prompt)
             ? $"你是论坛用户 {p.Nickname}。"
             : $"你是论坛用户 {p.Nickname}。\n{p.Prompt.Trim()}";
-        return $"{personaBlock}\n最近自有内容：\n{string.Join("\n---\n", memory)}\n\n{instruction}";
+        var sb = new StringBuilder();
+        sb.Append(personaBlock);
+        sb.Append("\n最近自有内容：\n").Append(string.Join("\n---\n", recentBlock));
+        if (memory is not null)
+        {
+            var rel = memory.RelationshipMemory.Where(kv => !string.IsNullOrWhiteSpace(kv.Value)).ToList();
+            var stance = memory.StanceLog.Where(kv => !string.IsNullOrWhiteSpace(kv.Value)).ToList();
+            if (rel.Count > 0)
+                sb.Append("\n你的人际记忆：").Append(string.Join("；", rel.Select(kv => $"{kv.Key}: {kv.Value}")));
+            if (stance.Count > 0)
+                sb.Append("\n你的立场记忆：").Append(string.Join("；", stance.Select(kv => $"{kv.Key}: {kv.Value}")));
+            if (memory.RecentDialogues is { Count: > 0 })
+            {
+                sb.Append("\n你与该用户的近期对话：\n");
+                foreach (var d in memory.RecentDialogues.Take(_options.RecentMemoryLimit))
+                {
+                    var line = d.Length > _options.RecentMemoryMaxCharsPerItem ? d[.._options.RecentMemoryMaxCharsPerItem] : d;
+                    sb.Append(line).Append("\n---");
+                }
+            }
+        }
+        sb.Append("\n\n").Append(instruction);
+        return sb.ToString();
     }
 
     /// <summary>去掉模型爱抄的「标题：」「正文：」等元标签。</summary>

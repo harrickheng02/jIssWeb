@@ -1,4 +1,5 @@
 using JIssWeb.Common.Options;
+using System.Linq;
 using JIssWeb.Model.Api.Models;
 using JIssWeb.Model.Api.Mongo;
 using JIssWeb.Model.Api.Options;
@@ -23,12 +24,13 @@ public sealed class AgentSchedulerEngine
     private readonly AgentHotPostSelector _hotPosts;
     private readonly IAgentUserInternalClient _users;
     private readonly IAgentForumHttpClient _forum;
+    private readonly AgentMemoryUpdater _memory;
     private readonly ILogger<AgentSchedulerEngine> _logger;
 
     public AgentSchedulerEngine(
         IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions, IOptions<AgentSchedulerOptions> options,
         IAgentLlmConfigResolver config, ILlmChatClient llm, AgentPromptBuilder prompts, AgentHotPostSelector hotPosts,
-        IAgentUserInternalClient users, IAgentForumHttpClient forum, ILogger<AgentSchedulerEngine> logger)
+        AgentMemoryUpdater memory, IAgentUserInternalClient users, IAgentForumHttpClient forum, ILogger<AgentSchedulerEngine> logger)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _personas = db.GetCollection<AgentPersonaRecord>(AgentMongoSetup.PersonasCollectionName);
@@ -36,7 +38,7 @@ public sealed class AgentSchedulerEngine
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
         _options = options.Value; _config = config; _llm = llm; _prompts = prompts; _hotPosts = hotPosts;
-        _users = users; _forum = forum; _logger = logger;
+        _memory = memory; _users = users; _forum = forum; _logger = logger;
     }
 
     public async Task TickAsync(CancellationToken ct = default)
@@ -116,6 +118,14 @@ public sealed class AgentSchedulerEngine
             }
             if (action == AgentScheduledAction.Post) state.PostsUsed++; else state.RepliesUsed++;
             await ScheduleNextAsync(state, now, null, ct);
+            try
+            {
+                await _memory.UpdateAsync(persona, action, outcome.TargetUserSub, outcome.Body ?? "", outcome.Board ?? "general", profile, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Memory update failed post-publish for {PersonaId}.", persona.PersonaId);
+            }
             return new(true);
         }
         catch (Exception ex)
@@ -126,7 +136,7 @@ public sealed class AgentSchedulerEngine
         }
     }
 
-    private readonly record struct PublishOutcome(bool Ok, string? Code = null);
+    private readonly record struct PublishOutcome(bool Ok, string? Code = null, string? Body = null, string? Board = null, string? TargetUserSub = null);
 
     private async Task<AgentScheduledAction?> SelectActionAsync(AgentPersonaRecord persona, AgentSchedulerStateRecord state, DateTime now, CancellationToken ct)
     {
@@ -147,12 +157,15 @@ public sealed class AgentSchedulerEngine
     private async Task<PublishOutcome> PublishPostAsync(AgentPersonaRecord persona, IReadOnlyList<string> recent, string token, ResolvedLlmProfile profile, CancellationToken ct)
     {
         var board = _options.AllowedBoardIds.FirstOrDefault() ?? "general";
-        var generated = await _llm.CompleteAsync(new("你是中文论坛写作助手。", _prompts.BuildPostPrompt(persona, recent, board), profile.ApiKey, profile.BaseUrl, profile.Model), ct);
+        AgentMemoryContext? mem = _options.MemoryEnabled
+            ? new AgentMemoryContext(persona.RelationshipMemory, persona.StanceLog, null)
+            : null;
+        var generated = await _llm.CompleteAsync(new("你是中文论坛写作助手。", _prompts.BuildPostPrompt(persona, recent, board, mem), profile.ApiKey, profile.BaseUrl, profile.Model), ct);
         var (title, body) = SplitPost(generated);
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
             return new(false, "EMPTY_GENERATION");
         var ok = await _forum.CreatePostAsync(token, title, body, board, ct);
-        return ok ? new(true) : new(false, "FORUM_PUBLISH_FAILED");
+        return ok ? new(true, Body: body, Board: board) : new(false, "FORUM_PUBLISH_FAILED");
     }
 
     private async Task<PublishOutcome> PublishReplyAsync(
@@ -175,8 +188,14 @@ public sealed class AgentSchedulerEngine
             : await _replies.Find(x => candidateIds.Contains(x.PostId) && x.State == "published").ToListAsync(ct);
         var target = _hotPosts.SelectReplyTarget(candidates, replies, persona.AgentUserId, now, windowDays);
         if (target is null) return new(false, "NO_REPLY_TARGET");
+        AgentMemoryContext? mem = _options.MemoryEnabled
+            ? new AgentMemoryContext(
+                persona.RelationshipMemory,
+                persona.StanceLog,
+                await GetRecentDialoguesAsync(persona.AgentUserId, target.Post.AuthorSubId, _options.RecentMemoryLimit, ct))
+            : null;
         var prompt = _prompts.BuildReplyPrompt(
-            persona, recent, target.Post, target.FocusReply, target.RecentThread, target.IsOwnPost);
+            persona, recent, target.Post, target.FocusReply, target.RecentThread, target.IsOwnPost, mem);
         var generated = await _llm.CompleteAsync(new("你是中文论坛写作助手。", prompt, profile.ApiKey, profile.BaseUrl, profile.Model), ct);
         var body = AgentPromptBuilder.SanitizeGeneratedText(generated);
         if (string.IsNullOrWhiteSpace(body))
@@ -185,7 +204,7 @@ public sealed class AgentSchedulerEngine
             return new(false, "EMPTY_GENERATION");
         }
         var ok = await _forum.CreateReplyAsync(token, target.Post.Id, body, ct);
-        return ok ? new(true) : new(false, "FORUM_PUBLISH_FAILED");
+        return ok ? new(true, Body: body, Board: target.Post.Board, TargetUserSub: target.Post.AuthorSubId) : new(false, "FORUM_PUBLISH_FAILED");
     }
 
     private async Task<IReadOnlyList<string>> RecentContentAsync(string agentUserId, CancellationToken ct)
@@ -193,6 +212,26 @@ public sealed class AgentSchedulerEngine
         var posts = await _posts.Find(x => x.AuthorSubId == agentUserId && x.State == "published").SortByDescending(x => x.CreatedAtUtc).Project(x => x.Body).ToListAsync(ct);
         var replies = await _replies.Find(x => x.AuthorSubId == agentUserId && x.State == "published").SortByDescending(x => x.CreatedAtUtc).Project(x => x.Body).ToListAsync(ct);
         return posts.Concat(replies).Take(_options.RecentMemoryLimit).ToList();
+    }
+
+    /// <summary>取 agent 与目标用户「最近 ≤limit 条相关对话」：双向聚合 forum_replies 后按时间倒序。</summary>
+    private async Task<IReadOnlyList<string>> GetRecentDialoguesAsync(string agentUserId, string targetUserSub, int limit, CancellationToken ct)
+    {
+        var agentPostIds = await _posts.Find(x => x.AuthorSubId == agentUserId && x.State == "published").Project(x => x.Id).ToListAsync(ct);
+        var repliesOnAgentPosts = agentPostIds.Count == 0
+            ? new List<ForumReplyRecord>()
+            : await _replies.Find(r => agentPostIds.Contains(r.PostId) && r.AuthorSubId == targetUserSub && r.State == "published")
+                .SortByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
+        var targetPostIds = await _posts.Find(x => x.AuthorSubId == targetUserSub && x.State == "published").Project(x => x.Id).ToListAsync(ct);
+        var repliesByAgent = targetPostIds.Count == 0
+            ? new List<ForumReplyRecord>()
+            : await _replies.Find(r => targetPostIds.Contains(r.PostId) && r.AuthorSubId == agentUserId && r.State == "published")
+                .SortByDescending(r => r.CreatedAtUtc).ToListAsync(ct);
+        return repliesOnAgentPosts.Concat(repliesByAgent)
+            .OrderByDescending(r => r.CreatedAtUtc)
+            .Take(limit)
+            .Select(r => $"[{r.AuthorSubId}] {r.Body}")
+            .ToList();
     }
 
     private async Task ScheduleNextAsync(AgentSchedulerStateRecord state, DateTime now, string? error, CancellationToken ct)

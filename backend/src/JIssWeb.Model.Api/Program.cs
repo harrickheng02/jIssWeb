@@ -68,6 +68,8 @@ builder.Services.AddHttpClient<IAgentForumHttpClient, AgentForumHttpClient>((sp,
 builder.Services.AddSingleton<IAgentLlmConfigResolver, AgentLlmConfigResolver>();
 builder.Services.AddSingleton<AgentPromptBuilder>();
 builder.Services.AddSingleton<AgentHotPostSelector>();
+builder.Services.AddSingleton<IAgentMemoryExtractor, LlmMemoryExtractor>();
+builder.Services.AddSingleton<AgentMemoryUpdater>();
 builder.Services.AddSingleton<AgentSchedulerEngine>();
 builder.Services.AddHostedService<AgentSchedulerBackgroundService>();
 builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
