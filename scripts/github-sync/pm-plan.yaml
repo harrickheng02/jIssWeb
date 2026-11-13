@@ -333,11 +333,11 @@ issues:
       依赖：静默指认与每周揭露（本批次 Issue）；站内通知基础设施。
       非目标：悬赏可转让或兑换（积分直接发放）；赛季制框架（V1.0 后）。
 
-      OpenSpec change：`turing-arena-bounty-medal`（propose 已落盘，apply 进行中）。
+      OpenSpec change：`turing-arena-bounty-medal`（已归档，主规范见 `openspec/specs/arena-bounty-medal`、`arena-points-events`、`arena-weekly-reveal`；change 目录已移除）。
     milestone: 图灵场 V0.2 — 游戏机制 MVP
     issue_number: 34
     priority: 主要
-    state: open
+    state: closed
     module: 游戏机制
     classification: feature
   - title: 图灵场：积分账本、侦探技能与 AIQI 指标
