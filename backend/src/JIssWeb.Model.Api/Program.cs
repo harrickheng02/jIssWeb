@@ -10,6 +10,7 @@ using JIssWeb.Model.Api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -124,6 +125,12 @@ builder.Services.AddSingleton<ForumEngagementLikeCountCache>(sp =>
 builder.Services.AddScoped<ForumEngagementService>();
 builder.Services.AddScoped<ForumModerationDeleteService>();
 builder.Services.AddScoped<IForumNotificationWriter, ForumNotificationWriter>();
+builder.Services.AddScoped<ArenaSkillEffectsService>(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    var opts = sp.GetRequiredService<IOptions<MongoSettings>>();
+    return new ArenaSkillEffectsService(client.GetDatabase(opts.Value.DatabaseName));
+});
 builder.Services.AddApplication();
 builder.Services.AddMongoInfrastructure(builder.Configuration);
 builder.Services.AddJIssWebCoreApi(builder.Configuration);

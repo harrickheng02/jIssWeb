@@ -107,7 +107,7 @@ function createClient(prefix: string): AxiosInstance {
 export const userApi = createClient('/api')
 export const customerApi = createClient('/api')
 export const modelApi = createClient('/api')
-export const accountingApi = createClient('/api')
+export const accountingApi = createClient('/api-accounting')
 export const reportApi = createClient('/api')
 export const bffApi = createClient('/api')
 

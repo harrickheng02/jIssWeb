@@ -368,11 +368,11 @@ issues:
       非目标：积分充值/购买（无商业化）；技能永久解锁（全部为一次性消耗品）。
 
 
-      OpenSpec change：`turing-arena-points-economy`（待 propose）。
+      OpenSpec change：`turing-arena-points-economy`（已归档，合并至 openspec/specs/arena-skill-shop 与 openspec/specs/arena-aiqi-metric）。
     milestone: 图灵场 V0.2 — 游戏机制 MVP
     issue_number: 35
     priority: 主要
-    state: open
+    state: closed
     module: 积分经济
     classification: feature
   - title: 推荐排序与运营报表出口
