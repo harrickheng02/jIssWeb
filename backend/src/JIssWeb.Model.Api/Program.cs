@@ -42,6 +42,7 @@ builder.Services.PostConfigure<AgentSchedulerOptions>(o =>
     o.AllowedBoardIds ??= new();
     o.DeepSeek ??= new DeepSeekOptions();
 });
+builder.Services.Configure<ArenaRevealOptions>(builder.Configuration.GetSection(ArenaRevealOptions.SectionName));
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IUserSanctionClient, UserSanctionClient>((sp, client) =>
 {
@@ -71,6 +72,7 @@ builder.Services.AddHostedService<AgentSchedulerBackgroundService>();
 builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
 builder.Services.Configure<ForumSoftDeleteOptions>(builder.Configuration.GetSection(ForumSoftDeleteOptions.SectionName));
 builder.Services.AddHostedService<DraftCleanupBackgroundService>();
+builder.Services.AddHostedService<ArenaRevealBackgroundService>();
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection(RedisSettings.SectionName));
 // Shared Redis connection — registered only when reachable.
 // Consumers resolve via GetService<IConnectionMultiplexer>() (returns null when absent → fail-open).
@@ -107,6 +109,12 @@ builder.Services.AddSingleton<IForumBlockedWordFilter, ForumBlockedWordFilter>()
 builder.Services.AddSingleton<IForumPostRateLimitService, ForumPostRateLimitService>();
 builder.Services.AddScoped<ForumAuthorDisplayResolver>();
 builder.Services.AddSingleton<ForumReportTargetResolver>();
+builder.Services.AddSingleton<IArenaAccusationRateLimiter, ArenaAccusationInMemoryRateLimiter>();
+builder.Services.AddScoped<IArenaAccusationService, ArenaAccusationService>();
+builder.Services.AddScoped<IArenaRevealService, ArenaRevealService>();
+builder.Services.AddSingleton<IArenaConfessionGenerator, LlmArenaConfessionGenerator>();
+builder.Services.AddSingleton<IArenaAccusationArchiveService, ArenaAccusationArchiveService>();
+builder.Services.AddHostedService<ArenaAccusationArchiveBackgroundService>();
 builder.Services.AddSingleton<ForumModerationAccessService>();
 builder.Services.AddSingleton<ForumEngagementLikeCountCache>(sp =>
     new ForumEngagementLikeCountCache(

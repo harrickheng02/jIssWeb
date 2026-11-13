@@ -18,6 +18,12 @@ public class ForumNotificationsController : ControllerBase
     private readonly IMongoCollection<InAppNotificationRecord> _notifications;
     private readonly ForumAuthorDisplayResolver _authorNames;
 
+    /// <summary>D6 门禁：未发布批次（BatchId 非空且 ReleasedAtUtc 未置位）的通知对读取路径不可见。</summary>
+    private static readonly FilterDefinition<InAppNotificationRecord> ReleasedGateFilter =
+        Builders<InAppNotificationRecord>.Filter.Or(
+            Builders<InAppNotificationRecord>.Filter.Eq(x => x.BatchId, null),
+            Builders<InAppNotificationRecord>.Filter.Ne(x => x.ReleasedAtUtc, null));
+
     public ForumNotificationsController(
         IMongoClient mongoClient,
         IOptions<MongoSettings> mongoOptions,
@@ -47,6 +53,8 @@ public class ForumNotificationsController : ControllerBase
             filter = Builders<InAppNotificationRecord>.Filter.And(
                 filter,
                 Builders<InAppNotificationRecord>.Filter.Eq(x => x.ReadAtUtc, null));
+        // D6 门禁：未发布批次（BatchId 非空且 ReleasedAtUtc 未置位）的通知对读取路径不可见。
+        filter = Builders<InAppNotificationRecord>.Filter.And(filter, ReleasedGateFilter);
 
         var total = await _notifications.CountDocumentsAsync(filter);
         var items = await _notifications.Find(filter)
@@ -83,7 +91,8 @@ public class ForumNotificationsController : ControllerBase
 
         var filter = Builders<InAppNotificationRecord>.Filter.And(
             Builders<InAppNotificationRecord>.Filter.Eq(x => x.RecipientSubId, sub),
-            Builders<InAppNotificationRecord>.Filter.Eq(x => x.ReadAtUtc, null));
+            Builders<InAppNotificationRecord>.Filter.Eq(x => x.ReadAtUtc, null),
+            ReleasedGateFilter);
         var count = await _notifications.CountDocumentsAsync(filter);
         return Ok(ApiResult<UnreadCountDto>.Ok(new UnreadCountDto { Count = (int)count }));
     }
@@ -128,7 +137,8 @@ public class ForumNotificationsController : ControllerBase
         var now = DateTime.UtcNow;
         var filter = Builders<InAppNotificationRecord>.Filter.And(
             Builders<InAppNotificationRecord>.Filter.Eq(x => x.RecipientSubId, sub),
-            Builders<InAppNotificationRecord>.Filter.Eq(x => x.ReadAtUtc, null));
+            Builders<InAppNotificationRecord>.Filter.Eq(x => x.ReadAtUtc, null),
+            ReleasedGateFilter);
         await _notifications.UpdateManyAsync(
             filter,
             Builders<InAppNotificationRecord>.Update.Set(x => x.ReadAtUtc, now));

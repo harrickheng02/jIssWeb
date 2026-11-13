@@ -94,6 +94,31 @@ public static class ForumMongoSetup
                     PartialFilterExpression = reportIdExists,
                 }));
 
+        // 图灵场揭露 +50 通知幂等（D9）：uniq_eventId 唯一索引（仅 EventId 存在时生效）。
+        const string eventIdIndexName = "uniq_eventId";
+        try { notifications.Indexes.DropOne(eventIdIndexName); }
+        catch { /* re-create on startup */ }
+        var eventIdExists = Builders<InAppNotificationRecord>.Filter.Exists(x => x.EventId);
+        notifications.Indexes.CreateOne(
+            new CreateIndexModel<InAppNotificationRecord>(
+                Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.EventId),
+                new CreateIndexOptions<InAppNotificationRecord>
+                {
+                    Unique = true,
+                    Name = eventIdIndexName,
+                    PartialFilterExpression = eventIdExists,
+                }));
+        // 门禁查询（D6）：按批次隐藏未发布通知。BatchId 存在时建索引，避免全表扫。
+        var batchIdExists = Builders<InAppNotificationRecord>.Filter.Exists(x => x.BatchId);
+        notifications.Indexes.CreateOne(
+            new CreateIndexModel<InAppNotificationRecord>(
+                Builders<InAppNotificationRecord>.IndexKeys.Ascending(x => x.BatchId),
+                new CreateIndexOptions<InAppNotificationRecord>
+                {
+                    Name = "batchId",
+                    PartialFilterExpression = batchIdExists,
+                }));
+
         var likes = db.GetCollection<ForumPostLikeRecord>(LikesCollectionName);
         var likeUnique = Builders<ForumPostLikeRecord>.IndexKeys.Ascending(x => x.PostId).Ascending(x => x.UserSubId);
         likes.Indexes.CreateOne(new CreateIndexModel<ForumPostLikeRecord>(likeUnique, new CreateIndexOptions { Unique = true }));
@@ -175,6 +200,7 @@ public static class ForumMongoSetup
         replies.Indexes.CreateOne(new CreateIndexModel<ForumReplyRecord>(replyStatePost, new CreateIndexOptions { Name = "reply_state_post" }));
 
         AgentMongoSetup.EnsureIndexes(db);
+        ArenaMongoSetup.EnsureIndexes(db);
     }
 
     public static async Task EnsureStateFieldAsync(IServiceProvider services)
