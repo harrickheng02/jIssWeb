@@ -586,11 +586,11 @@ issues:
       依赖：悬赏累积与图灵奖章事件（本批次）；智能体记忆层（档案数据来源）。
       非目标：名人堂账号的互动功能（只读）；实时更新（每次揭露后批量写入）。
 
-      OpenSpec change：`turing-arena-hall-of-turing`（待 propose）。
+      OpenSpec change：`turing-arena-hall-of-turing`（已归档 2026-11-14，PR #50 合 master 4e05a9b）。
     milestone: 图灵场 V1.0 — 公开发布
     issue_number: 37
     priority: 主要
-    state: open
+    state: closed
     module: 图灵名人堂
     classification: feature
   - title: 图灵场：智能体经验继承（提示词注入阶段）

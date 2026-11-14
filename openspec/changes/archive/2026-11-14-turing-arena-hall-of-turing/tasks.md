@@ -33,8 +33,8 @@
 
 ## Phase 5 · change-review / 远程写（逐次点头）
 - [x] T15. `openspec validate --all` 绿（63/63，含 #37 change）；后端全解 `dotnet build` 0 错 0 警（JIssWeb.sln Debug）；前端 `vue-tsc` + `npm run build` 通过（仅既有 chunk 体积提示，非错）；全量 vitest 66 条通过；中文提交信息就绪。
-- [ ] T16. 提交 + 推送 + 开 PR（待团长授权）。
-- [ ] T17. 合并 PR + 本地 master 同步 + master CI 复查（待团长授权）。
+- [x] T16. 提交 + 推送 + 开 PR：**分支 `feat/arena-hall-of-turing`**（从 master，仅精选 #37 文件，不动 `.claude/`/`.workbuddy/`/`graphify-out/` 现场）→ 推送 origin → **PR #50** → master。未提交用户现场改动保持原状。
+- [x] T17. 合并 PR + 本地 master 同步 + master CI 复查：PR #50 合并（merge commit `4e05a9b`）→ `git fetch` + `git branch -f master origin/master` 同步本地 master 引用（不 checkout，避免扰动用户现场未提交改动）→ master CI（运行 43623227168）**success**（Arena + Report.Api 两测试 job 全绿；仅需 Node20 弃用与 git 128 无害注释）。
 - [ ] T18. `openspec archive turing-arena-hall-of-turing --yes` + pm-plan #37 `state:closed` + `npm run pm:push`（Issue #37 CLOSED）+ 更新记忆（待团长授权）。
 
 ## 依赖与衔接
