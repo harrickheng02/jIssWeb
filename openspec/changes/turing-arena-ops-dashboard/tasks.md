@@ -1,6 +1,6 @@
 # 任务清单 · #36 运营仪表盘
 
-> 状态：T1–T17 已闭环（后端基础设施 → 聚合服务+端点 → 前端 → 测试 → 本地验证全绿）；T18–T20 远程写待团长逐次授权。
+> 状态：T1–T18 已闭环（后端基础设施 → 聚合服务+端点 → 前端 → 测试 → 本地验证全绿 → 提交+推送+PR #49）；T19–T20 远程写待团长逐次授权。
 > 遵循 spec-driven：TDD + Construction SOP。远程写（提交/推送/PR/合并/archive/pm:push）逐次点头。
 
 ## Phase 0 · explore（已完成）
@@ -32,7 +32,7 @@
 
 ## Phase 5 · change-review / 远程写（逐次点头）
 - [x] T17. `openspec validate --all` 62/62 绿；后端全解 solution 0 错 0 警；前端 vue-tsc + build 通过；代码注释与中文提交信息就绪（提交待 T18）。
-- [ ] T18. 提交 + 推送 + 开 PR（待团长授权）。
+- [x] T18. 提交 + 推送 + 开 PR（commit `5b6a894` + 分支 `feat/arena-ops-dashboard` + PR #49 → master）。
 - [ ] T19. 合并 PR + 本地 master 同步 + master CI 复查（待团长授权）。
 - [ ] T20. `openspec archive turing-arena-ops-dashboard --yes` + pm-plan #36 `state:closed` + `npm run pm:push`（Issue #36 CLOSED）+ 更新项目记忆（待团长授权）。
 
