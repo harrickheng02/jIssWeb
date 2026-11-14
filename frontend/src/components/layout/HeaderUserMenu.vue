@@ -41,6 +41,10 @@ function logout() {
 function goModeration() {
   void router.push({ name: 'moderation-audit' })
 }
+
+function goArenaDashboard() {
+  void router.push({ name: 'admin-arena-dashboard' })
+}
 </script>
 
 <template>
@@ -90,6 +94,10 @@ function goModeration() {
         </router-link>
         <button v-if="canModerate" type="button" class="user-pop-row" @click="goModeration">
           <span>治理</span>
+          <el-icon class="user-pop-row-icon"><ArrowRight /></el-icon>
+        </button>
+        <button v-if="canModerate" type="button" class="user-pop-row" @click="goArenaDashboard">
+          <span>运营仪表盘</span>
           <el-icon class="user-pop-row-icon"><ArrowRight /></el-icon>
         </button>
         <div class="user-pop-theme">

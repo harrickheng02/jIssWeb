@@ -158,6 +158,12 @@ const router = createRouter({
       path: '/admin/tags',
       redirect: { name: 'moderation-tags' },
     },
+    {
+      path: '/admin/arena-dashboard',
+      name: 'admin-arena-dashboard',
+      component: () => import('../views/AdminArenaDashboardView.vue'),
+      meta: { requiresAuth: true, requiresModerate: true },
+    },
   ],
 })
 
