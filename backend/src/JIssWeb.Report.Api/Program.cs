@@ -28,6 +28,10 @@ builder.Services.Configure<ArenaDashboardRevealOptions>(builder.Configuration.Ge
 builder.Services.AddScoped<IsAgentSubResolver>();
 builder.Services.AddScoped<IArenaDashboardService, ArenaDashboardService>();
 
+// 图灵名人堂（#37）：只读聚合出口，沿用同一 keyed 模型库。匿名端点（无 RequireForumModerator）。
+builder.Services.AddScoped<IHunterNameResolver, MaskedHunterNameResolver>();
+builder.Services.AddScoped<IHallOfTuringService, ArenaHallOfTuringService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
