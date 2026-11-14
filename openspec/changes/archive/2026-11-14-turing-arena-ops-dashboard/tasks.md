@@ -33,7 +33,7 @@
 ## Phase 5 · change-review / 远程写（逐次点头）
 - [x] T17. `openspec validate --all` 62/62 绿；后端全解 solution 0 错 0 警；前端 vue-tsc + build 通过；代码注释与中文提交信息就绪（提交待 T18）。
 - [x] T18. 提交 + 推送 + 开 PR（commit `5b6a894` + 分支 `feat/arena-ops-dashboard` + PR #49 → master）。
-- [ ] T19. 合并 PR + 本地 master 同步 + master CI 复查（待团长授权）。
+- [x] T19. 合并 PR #49（`gh api PUT .../merge` merge 方式，merge commit `2ae8aba`）+ 本地 `git switch master && git pull --ff-only` 同步（HEAD=`2ae8aba`）+ master CI 复查（run `43618192484` **success**：后端 Arena suite + Report.Api suite + 前端全绿；仅 Node20 弃用 / git128 post-job 无害警告）。
 - [ ] T20. `openspec archive turing-arena-ops-dashboard --yes` + pm-plan #36 `state:closed` + `npm run pm:push`（Issue #36 CLOSED）+ 更新项目记忆（待团长授权）。
 
 ## 依赖与衔接

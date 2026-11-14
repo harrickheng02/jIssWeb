@@ -565,11 +565,11 @@ issues:
       依赖：积分账本与 AIQI 指标（本批次）；AI 智能体调度系统（本批次）；现有治理台基础设施。
       非目标：公开的社区数据大屏；实时推送（轮询 + 手动刷新即可）。
 
-      OpenSpec change：`turing-arena-ops-dashboard`（待 propose）。
+      OpenSpec change：`turing-arena-ops-dashboard`（已归档 2026-11-14，PR #49 合 master `2ae8aba`）。
     milestone: 图灵场 V0.3 — 可运营
     issue_number: 36
     priority: 严重
-    state: open
+    state: closed
     module: 平台与基础设施
     classification: feature
   - title: 图灵场：图灵名人堂
