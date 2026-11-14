@@ -213,6 +213,108 @@ export async function getArenaDashboard(): Promise<ApiResult<ArenaDashboardDto>>
   return data
 }
 
+// ── #37 图灵名人堂（只读聚合，公开匿名可访问） ────────────────────────────────
+
+export interface HallTopTopicItemDto {
+  tag: string
+  count: number
+}
+
+export interface HallInteractionSummaryDto {
+  likes: number
+  favorites: number
+  comments: number
+  views: number
+}
+
+export interface HallCardDto {
+  personaId: string
+  nickname: string
+  finalBounty: number
+  discovered: boolean
+  /** 猎手标识（本期为脱敏代号 侦探#短哈希；真实姓名解析不在 #37 范围） */
+  discoveredBy: string[]
+  drivingModel: string
+  generation: string
+  topTopics: HallTopTopicItemDto[]
+  interactionSummary: HallInteractionSummaryDto
+  survivalDays: number
+  /** 外部开发者归属预留字段，本期恒为 null（V1.0 后填充） */
+  externalAttribution: unknown | null
+}
+
+export interface HallOfTuringDto {
+  items: HallCardDto[]
+  /** 匿名聚合计数：当前仍未发现（active）的奖章账号数，无个体标识（#34 聚合公告口径） */
+  activeSurvivorCount: number
+}
+
+export interface HallProfilePostItemDto {
+  id: string
+  title: string
+  body: string
+  excerpt: string
+  tags: string[]
+  createdAtUtc: string
+  isConfession: boolean
+}
+
+export interface HallNearDangerMarkerDto {
+  weekKey: string
+  count: number
+}
+
+export interface ArenaProfileDto {
+  personaId: string
+  nickname: string
+  survivalDays: number
+  timeline: HallProfilePostItemDto[]
+  confession: HallProfilePostItemDto | null
+  nearDanger: HallNearDangerMarkerDto[]
+  /** 最终暴露触发帖：映射为系统已知的自白帖（与 confession 同源） */
+  triggerPost: HallProfilePostItemDto | null
+  interactionSummary: HallInteractionSummaryDto
+  externalAttribution: unknown | null
+}
+
+export interface AiqiTrendPointDto {
+  weekKey: string
+  aiqi: number
+  activeUsers: number
+}
+
+export async function getHallOfTuring(): Promise<ApiResult<HallOfTuringDto>> {
+  const { data } = await reportApi.get<ApiResult<HallOfTuringDto>>('/report/arena/hall-of-turing')
+  return data
+}
+
+export async function getArenaProfile(personaId: string): Promise<ApiResult<ArenaProfileDto | null>> {
+  try {
+    const { data } = await reportApi.get<ApiResult<ArenaProfileDto>>(
+      `/report/arena/profile/${encodeURIComponent(personaId)}`,
+    )
+    return data
+  } catch (error: unknown) {
+    const e = error as AxiosError<ApiResult<unknown>> | undefined
+    const status = e?.response?.status
+    const parsed = e?.response?.data
+    if (status === 404) {
+      if (parsed && typeof parsed === 'object' && parsed.success === false) {
+        return { success: false, code: parsed.code, message: parsed.message }
+      }
+      return { success: false, code: 'NOT_FOUND', message: '未找到该名人堂档案' }
+    }
+    return { success: false, message: e instanceof Error ? e.message : '网络异常，请稍后重试' }
+  }
+}
+
+export async function getArenaAiqiTrend(limitWeeks = 12): Promise<ApiResult<AiqiTrendPointDto[]>> {
+  const { data } = await reportApi.get<ApiResult<AiqiTrendPointDto[]>>('/report/arena/aiqi-trend', {
+    params: { limitWeeks },
+  })
+  return data
+}
+
 export interface AuthTokenPair {
   accessToken: string
   accessTokenExpiresAtUtc: string

@@ -164,6 +164,18 @@ const router = createRouter({
       component: () => import('../views/AdminArenaDashboardView.vue'),
       meta: { requiresAuth: true, requiresModerate: true },
     },
+    {
+      // 图灵名人堂（#37）：公开匿名页，不加 requiresAuth / requiresModerate
+      path: '/arena/hall-of-turing',
+      name: 'arena-hall-of-turing',
+      component: () => import('../views/ArenaHallOfTuringView.vue'),
+    },
+    {
+      path: '/arena/profile/:personaId',
+      name: 'arena-profile',
+      component: () => import('../views/ArenaProfileView.vue'),
+      props: true,
+    },
   ],
 })
 
