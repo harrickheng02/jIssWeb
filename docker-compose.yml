@@ -219,6 +219,29 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  report-api:
+    build:
+      context: .
+      dockerfile: docker/JIssWeb.Report.Api.Dockerfile
+    ports:
+      - "${REPORT_API_PORT:-5102}:${REPORT_API_CONTAINER_PORT:-5101}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Mongo__ConnectionString: ${MONGO_CONNECTION_STRING}
+      Mongo__DatabaseName: jissweb_report
+      Mongo__ModelDatabaseName: jissweb_model
+      Redis__ConnectionString: redis:6379
+      Redis__Password: ${REDIS_PASSWORD}
+      Redis__KeyPrefix: "report:"
+      Jwt__Issuer: JIssWeb
+      Jwt__Audience: JIssWeb
+      Jwt__Key: ${JWT_KEY}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   gateway-api:
     build:
       context: .
@@ -235,6 +258,7 @@ services:
       ReverseProxy__Clusters__frontend-bff__Destinations__d1__Address: ${GATEWAY_BFF_URL:-http://frontend-bff:5095/}
       ReverseProxy__Clusters__model-service__Destinations__d1__Address: ${GATEWAY_MODEL_API_URL:-http://model-api:5099/}
       ReverseProxy__Clusters__accounting-service__Destinations__d1__Address: ${GATEWAY_ACCOUNTING_API_URL:-http://accounting-api:5100/}
+      ReverseProxy__Clusters__report-service__Destinations__d1__Address: ${GATEWAY_REPORT_API_URL:-http://report-api:5101/}
     depends_on:
       user-api:
         condition: service_started

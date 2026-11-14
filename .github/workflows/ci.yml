@@ -42,6 +42,12 @@ jobs:
       - name: Test (Arena suite, Mongo2Go self-contained)
         run: dotnet test backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj --no-build -c Debug --nologo --filter "FullyQualifiedName~Arena|FullyQualifiedName~Agent"
 
+      # #36 运营仪表盘：Report.Api 只读聚合套件（Mongo2Go 内存实例，零外部依赖，自包含）。
+      - name: Build Report.Api test project
+        run: dotnet build backend/tests/JIssWeb.Report.Api.Tests/JIssWeb.Report.Api.Tests.csproj -c Debug --nologo
+      - name: Test (Report.Api suite, Mongo2Go self-contained)
+        run: dotnet test backend/tests/JIssWeb.Report.Api.Tests/JIssWeb.Report.Api.Tests.csproj --no-build -c Debug --nologo
+
   frontend:
     name: Frontend (typecheck + vitest + build)
     runs-on: ubuntu-latest

@@ -125,6 +125,94 @@ export async function getMyHunterBadge(): Promise<ApiResult<HunterBadgeItem | nu
   return data
 }
 
+// ── #36 运营仪表盘（只读聚合，moderator/admin 可见） ──────────────────────────
+
+export interface LlmProfileHealthDto {
+  name: string
+  enabled: boolean
+  lastProbe: string | null
+}
+
+export interface PendingRevealItemDto {
+  jobId: string
+  targetPersonaId: string
+  state: string
+}
+
+export interface SystemHealthPanelDto {
+  schedulerStatus: 'healthy' | 'degraded'
+  schedulerLastTickAtUtc: string | null
+  llmProfiles: LlmProfileHealthDto[]
+  agentAliveCount: number
+  agentTotalCount: number
+  pendingReveal: PendingRevealItemDto[]
+}
+
+export interface EconomyPanelDto {
+  weeklyNetFlow: number
+  netFlowRatioPct: number
+  netFlowLevel: 'healthy' | 'warning' | 'danger'
+  pointsInjectionDensity: number
+  lastWeekDensity: number
+  aiqi: number
+  aiqiConfident: boolean
+}
+
+export interface LegendaryPreyItemDto {
+  personaId: string
+  survivedWeeks: number
+  currentBounty: number
+}
+
+export interface TopDetectiveItemDto {
+  userId: string
+  count: number
+}
+
+export interface GameplayPanelDto {
+  weeklyAccusations: number
+  nextRevealAtUtc: string
+  legendaryPrey: LegendaryPreyItemDto[]
+  topDetectives: TopDetectiveItemDto[]
+}
+
+export interface PendingReportItemDto {
+  reportId: string
+  reason: string | null
+}
+
+export interface AgentAlertItemDto {
+  personaId: string
+  type: 'error' | 'timeout'
+  detail: string | null
+}
+
+export interface QueuePanelDto {
+  pendingReports: PendingReportItemDto[]
+  agentAlerts: AgentAlertItemDto[]
+}
+
+export interface CommunityPanelDto {
+  weeklyActiveHumans: number
+  weeklyPostsTotal: number
+  weeklyPostsAi: number
+  weeklyPostsHuman: number
+}
+
+export interface ArenaDashboardDto {
+  generatedAtUtc: string
+  systemHealth: SystemHealthPanelDto
+  economy: EconomyPanelDto
+  gameplay: GameplayPanelDto
+  queue: QueuePanelDto
+  community: CommunityPanelDto
+}
+
+export async function getArenaDashboard(): Promise<ApiResult<ArenaDashboardDto>> {
+  const { data } = await reportApi.get<ApiResult<ArenaDashboardDto>>('/report/arena-dashboard')
+  return data
+}
+
 export interface AuthTokenPair {
   accessToken: string
   accessTokenExpiresAtUtc: string
