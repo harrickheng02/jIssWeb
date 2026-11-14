@@ -34,7 +34,7 @@
 - [x] T17. `openspec validate --all` 62/62 绿；后端全解 solution 0 错 0 警；前端 vue-tsc + build 通过；代码注释与中文提交信息就绪（提交待 T18）。
 - [x] T18. 提交 + 推送 + 开 PR（commit `5b6a894` + 分支 `feat/arena-ops-dashboard` + PR #49 → master）。
 - [x] T19. 合并 PR #49（`gh api PUT .../merge` merge 方式，merge commit `2ae8aba`）+ 本地 `git switch master && git pull --ff-only` 同步（HEAD=`2ae8aba`）+ master CI 复查（run `43618192484` **success**：后端 Arena suite + Report.Api suite + 前端全绿；仅 Node20 弃用 / git128 post-job 无害警告）。
-- [ ] T20. `openspec archive turing-arena-ops-dashboard --yes` + pm-plan #36 `state:closed` + `npm run pm:push`（Issue #36 CLOSED）+ 更新项目记忆（待团长授权）。
+- [x] T20. `openspec archive turing-arena-ops-dashboard --yes`（归档 `2026-11-14-turing-arena-ops-dashboard`，主规范 `arena-ops-dashboard` +7 Requirement）+ pm-plan #36 `state:closed` + `npm run pm:dry` 核对 + `npm run pm:push`（Issue #36 → CLOSED 已确认）+ 记忆更新；归档/计划同步 commit `c5da98b` 推送 master，`2ae8aba..c5da98b`。
 
 ## 依赖与衔接
 - 依赖 #35（积分账本/AIQI 落点就绪）、#31（调度）、#34（悬赏/猎手）、现有治理台与鉴权链路。
