@@ -33,5 +33,14 @@ public sealed class AgentExperienceRecord
     /// <summary>已继承该经验的后续 personaId 列表（多键索引）。</summary>
     public List<string> InheritedBy { get; set; } = new();
 
+    /// <summary>来源账号世代（#38 世代追踪）。旧文档缺省为 1。</summary>
+    public int Generation { get; set; } = 1;
+
+    /// <summary>话题上下文（#38 提取器产出的可选字段）。</summary>
+    public string? TopicContext { get; set; }
+
+    /// <summary>最近一次被新 persona 继承的 UTC 时间（#38 衰减奖励判定）。旧文档可空。</summary>
+    public DateTime? LastInheritedAtUtc { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 }

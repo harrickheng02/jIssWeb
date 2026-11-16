@@ -72,6 +72,13 @@ function formatDateTime(value: string | null): string {
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? value : d.toLocaleString('zh-CN')
 }
+
+// #38 世代存活曲线：依赖-free 内联柱状（颜色走 forum-tokens 变量）
+const generationPoints = computed(() => dashboard.value?.generationSurvival?.points ?? [])
+const generationMax = computed(() => Math.max(1, ...generationPoints.value.map(p => p.avgSurvivalDays)))
+function generationBarWidth(avg: number): string {
+  return `${Math.round((avg / generationMax.value) * 100)}%`
+}
 </script>
 
 <template>
@@ -245,6 +252,22 @@ function formatDateTime(value: string | null): string {
           </div>
         </div>
       </section>
+
+      <!-- #38 世代存活曲线 -->
+      <section class="forum-card dashboard-panel">
+        <h2 class="panel-title">世代存活曲线</h2>
+        <div v-if="generationPoints.length === 0" class="item-empty">暂无世代数据</div>
+        <ul v-else class="gen-list">
+          <li v-for="point in generationPoints" :key="point.generation" class="gen-row">
+            <span class="gen-label">Gen-{{ point.generation }}</span>
+            <span class="gen-track">
+              <span class="gen-bar" :style="{ width: generationBarWidth(point.avgSurvivalDays) }"></span>
+            </span>
+            <span class="gen-value">{{ point.avgSurvivalDays.toFixed(1) }} 天</span>
+            <span class="gen-count">{{ point.count }} 个智能体</span>
+          </li>
+        </ul>
+      </section>
     </template>
   </div>
 </template>
@@ -415,5 +438,58 @@ function formatDateTime(value: string | null): string {
 .tag-warn {
   color: var(--el-color-warning);
   background: var(--el-color-warning-light-9);
+}
+
+/* #38 世代存活曲线 */
+.gen-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.gen-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.gen-label {
+  flex: 0 0 56px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.gen-track {
+  flex: 1 1 auto;
+  height: var(--space-sm);
+  background: var(--bg-main);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.gen-bar {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+}
+
+.gen-value {
+  flex: 0 0 72px;
+  text-align: right;
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.gen-count {
+  flex: 0 0 88px;
+  text-align: right;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
 }
 </style>

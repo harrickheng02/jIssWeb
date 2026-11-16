@@ -24,6 +24,8 @@ public sealed class HallCard
     public List<string> DiscoveredBy { get; set; } = new();
     public string DrivingModel { get; set; } = "";
     public string Generation { get; set; } = ""; // Gen-1 ...
+    /// <summary>#38 血统：来源 Persona 昵称列表（Gen-N 溯源）；来源缺失时为占位文本。</summary>
+    public List<string> Lineage { get; set; } = new();
     public List<TopTopicItem> TopTopics { get; set; } = new();
     public InteractionSummary InteractionSummary { get; set; } = new();
     public int SurvivalDays { get; set; }

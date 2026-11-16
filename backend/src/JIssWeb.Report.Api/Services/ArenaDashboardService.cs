@@ -47,9 +47,38 @@ public sealed class ArenaDashboardService : IArenaDashboardService
             BuildEconomyAsync(vm.Economy, nowUtc, ct),
             BuildGameplayAsync(vm.Gameplay, nowUtc, currentWeekKey, ct),
             BuildQueueAsync(vm.Queue, ct),
-            BuildCommunityAsync(vm.Community, nowUtc, startOfWeekUtc, ct));
+            BuildCommunityAsync(vm.Community, nowUtc, startOfWeekUtc, ct),
+            BuildGenerationSurvivalAsync(vm.GenerationSurvival, nowUtc, ct));
 
         return vm;
+    }
+
+    // ── #38 世代存活曲线面板（只读） ──
+    private async Task BuildGenerationSurvivalAsync(GenerationSurvivalPanel panel, DateTimeOffset nowUtc, CancellationToken ct)
+    {
+        try
+        {
+            var personas = _db.GetCollection<DashboardAgentPersona>(DashboardCollectionNames.AgentPersonas);
+            var all = await personas.Find(Builders<DashboardAgentPersona>.Filter.Empty).ToListAsync(ct);
+            var points = all
+                .GroupBy(x => x.Generation <= 0 ? 1 : x.Generation)
+                .Select(g => new GenerationSurvivalPoint
+                {
+                    Generation = g.Key,
+                    Count = g.Count(),
+                    AvgSurvivalDays = Math.Round(g.Average(x => x.SurvivalDays > 0
+                        ? (double)x.SurvivalDays
+                        : Math.Max(0, (nowUtc.UtcDateTime - x.CreatedAtUtc).TotalDays)), 2),
+                })
+                .OrderBy(x => x.Generation)
+                .ToList();
+            panel.Points = points;
+        }
+        catch (Exception)
+        {
+            // 单面板失败降级为空，不阻断其余面板（只读纪律不变）。
+            panel.Points = new List<GenerationSurvivalPoint>();
+        }
     }
 
     // ── 系统健康面板 ──

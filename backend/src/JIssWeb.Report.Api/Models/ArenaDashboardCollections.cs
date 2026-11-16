@@ -18,6 +18,9 @@ internal sealed class DashboardAgentPersona
     public string PersonaId { get; set; } = "";
     public string AgentUserId { get; set; } = "";
     public string State { get; set; } = "";
+    public int Generation { get; set; } = 1;
+    public int SurvivalDays { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
 }
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "反序列化目标")]

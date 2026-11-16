@@ -113,10 +113,10 @@ public sealed class AgentPromptBuilder
     public AgentPromptBuilder(IOptions<AgentSchedulerOptions> options) : this(options.Value) { }
     public AgentPromptBuilder(AgentSchedulerOptions options) => _options = options;
 
-    public string BuildPostPrompt(AgentPersonaRecord persona, IEnumerable<string> recentContent, string boardId, AgentMemoryContext? memory = null)
+    public string BuildPostPrompt(AgentPersonaRecord persona, IEnumerable<string> recentContent, string boardId, AgentMemoryContext? memory = null, IReadOnlyList<AgentExperienceRecord>? inheritedExperiences = null)
         => Build(persona, recentContent,
             $"请为板块 {boardId} 写一篇自然、独立的中文帖子。输出格式：第一行是标题，其余行是正文。" +
-            "不要写「标题：」「正文：」这类标签，不要 Markdown 标题符号，不要自我介绍是 AI。", memory);
+            "不要写「标题：」「正文：」这类标签，不要 Markdown 标题符号，不要自我介绍是 AI。", memory, inheritedExperiences);
 
     public string BuildReplyPrompt(
         AgentPersonaRecord persona,
@@ -125,7 +125,8 @@ public sealed class AgentPromptBuilder
         ForumReplyRecord? focusReply = null,
         IReadOnlyList<ForumReplyRecord>? recentThread = null,
         bool isOwnPost = false,
-        AgentMemoryContext? memory = null)
+        AgentMemoryContext? memory = null,
+        IReadOnlyList<AgentExperienceRecord>? inheritedExperiences = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine(isOwnPost
@@ -158,10 +159,10 @@ public sealed class AgentPromptBuilder
         }
         sb.Append("请直接写出回复正文本身：口语自然、建设性，不要复述原帖。" +
                   "禁止出现「标题：」「正文：」「回复：」等前缀，不要 Markdown 标题，不要自我介绍是 AI。");
-        return Build(persona, recentContent, sb.ToString(), memory);
+        return Build(persona, recentContent, sb.ToString(), memory, inheritedExperiences);
     }
 
-    private string Build(AgentPersonaRecord p, IEnumerable<string> recent, string instruction, AgentMemoryContext? memory = null)
+    private string Build(AgentPersonaRecord p, IEnumerable<string> recent, string instruction, AgentMemoryContext? memory = null, IReadOnlyList<AgentExperienceRecord>? inheritedExperiences = null)
     {
         var recentBlock = recent.Take(Math.Max(0, _options.RecentMemoryLimit))
             .Select(x => x.Length > _options.RecentMemoryMaxCharsPerItem ? x[.._options.RecentMemoryMaxCharsPerItem] : x);
@@ -187,6 +188,26 @@ public sealed class AgentPromptBuilder
                     var line = d.Length > _options.RecentMemoryMaxCharsPerItem ? d[.._options.RecentMemoryMaxCharsPerItem] : d;
                     sb.Append(line).Append("\n---");
                 }
+            }
+        }
+        // #38 继承经验段：位于记忆段之后、生成指令之前；空则省略。
+        if (inheritedExperiences is { Count: > 0 })
+        {
+            sb.Append("\n以下是经社区验证的交流策略，请参考但不要照搬：\n");
+            foreach (var e in inheritedExperiences.Take(5))
+            {
+                var desc = e.Description.Length > _options.RecentMemoryMaxCharsPerItem
+                    ? e.Description[.._options.RecentMemoryMaxCharsPerItem]
+                    : e.Description;
+                sb.Append("- ").Append(desc);
+                if (e.ExampleTexts is { Count: > 0 })
+                {
+                    var sample = e.ExampleTexts[0];
+                    if (sample.Length > _options.RecentMemoryMaxCharsPerItem)
+                        sample = sample[.._options.RecentMemoryMaxCharsPerItem];
+                    sb.Append("（例：").Append(sample).Append("）");
+                }
+                sb.Append('\n');
             }
         }
         sb.Append("\n\n").Append(instruction);

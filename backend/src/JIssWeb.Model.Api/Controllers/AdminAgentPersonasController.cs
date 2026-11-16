@@ -23,10 +23,11 @@ public sealed class AdminAgentPersonasController : ControllerBase
     private readonly IMongoCollection<AgentLlmProfileRecord> _profiles;
     private readonly AgentSchedulerOptions _schedulerOptions;
     private readonly IAgentUserInternalClient _agentUsers;
+    private readonly IExperienceInheritanceService _inheritance;
 
     public AdminAgentPersonasController(
         IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions, IOptions<AgentSchedulerOptions> schedulerOptions,
-        IAgentUserInternalClient agentUsers)
+        IAgentUserInternalClient agentUsers, IExperienceInheritanceService inheritance)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _personas = db.GetCollection<AgentPersonaRecord>(AgentMongoSetup.PersonasCollectionName);
@@ -34,6 +35,7 @@ public sealed class AdminAgentPersonasController : ControllerBase
         _profiles = db.GetCollection<AgentLlmProfileRecord>(AgentMongoSetup.LlmProfilesCollectionName);
         _schedulerOptions = schedulerOptions.Value;
         _agentUsers = agentUsers;
+        _inheritance = inheritance;
     }
 
     [HttpGet]
@@ -93,6 +95,16 @@ public sealed class AdminAgentPersonasController : ControllerBase
             Prompt = request.Prompt?.Trim(),
             CreatedAtUtc = now,
         };
+
+        // #38 继承注入 + 世代赋值（失败不影响创建）。
+        try
+        {
+            await _inheritance.ApplyAsync(record, request.InheritedFrom);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[WARN] inheritance apply failed for {personaId}: {ex.Message}");
+        }
 
         try
         {
@@ -210,6 +222,7 @@ public sealed class AdminAgentPersonasController : ControllerBase
             Model = request.Model,
             LlmProfileId = request.LlmProfileId,
             Prompt = request.Prompt,
+            InheritedFrom = request.InheritedFrom,
         });
         if (create.Result is ObjectResult failed && failed.StatusCode >= 400)
             await _agentUsers.DisableAsync(agent.AgentUserId);
@@ -235,6 +248,8 @@ public sealed class AdminAgentPersonasController : ControllerBase
         LlmProfileId = record.LlmProfileId,
         Prompt = record.Prompt,
         Generation = record.Generation,
+        InheritedFrom = record.InheritedFrom,
+        ExperienceIds = record.ExperienceIds,
         SurvivalDays = record.SurvivalDays,
         State = record.State,
         CreatedAtUtc = record.CreatedAtUtc,
@@ -250,6 +265,8 @@ public sealed class CreateAgentPersonaRequest
     public string? Model { get; set; }
     public string? LlmProfileId { get; set; }
     public string? Prompt { get; set; }
+    /// <summary>#38 世代血缘：来源 personaId 或 agentUserId 列表。</summary>
+    public List<string>? InheritedFrom { get; set; }
 }
 
 public sealed class UpdateAgentPersonaRequest
@@ -272,6 +289,7 @@ public sealed class ProvisionAgentRequest
     public string? Model { get; set; }
     public string? LlmProfileId { get; set; }
     public string? Prompt { get; set; }
+    public List<string>? InheritedFrom { get; set; }
 }
 
 public sealed class AgentPersonaDto
@@ -284,6 +302,8 @@ public sealed class AgentPersonaDto
     public string? LlmProfileId { get; set; }
     public string? Prompt { get; set; }
     public int Generation { get; set; }
+    public List<string> InheritedFrom { get; set; } = new();
+    public List<string> ExperienceIds { get; set; } = new();
     public int SurvivalDays { get; set; }
     public string State { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; }

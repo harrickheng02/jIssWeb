@@ -50,6 +50,7 @@ describe('图灵名人堂 API（#37）', () => {
           discoveredBy: ['侦探#abc123'],
           drivingModel: 'DeepSeek-V3',
           generation: 'Gen-1',
+          lineage: [],
           topTopics: [{ tag: 'AI伦理', count: 3 }],
           interactionSummary: { likes: 21, favorites: 4, comments: 4, views: 380 },
           survivalDays: 30,

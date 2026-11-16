@@ -30,12 +30,14 @@ public sealed class ArenaBountyService : IArenaBountyService
     private readonly IMongoCollection<ForumAnnouncementRecord> _announcements;
     private readonly ArenaBountyOptions _options;
     private readonly ILogger<ArenaBountyService> _logger;
+    private readonly IAgentExperienceExtractor? _experienceExtractor;
 
     public ArenaBountyService(
         IMongoClient mongoClient,
         IOptions<MongoSettings> mongoOptions,
         IOptions<ArenaBountyOptions> bountyOptions,
-        ILogger<ArenaBountyService> logger)
+        ILogger<ArenaBountyService> logger,
+        IAgentExperienceExtractor? experienceExtractor = null)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _states = db.GetCollection<ArenaBountyStateRecord>(ArenaMongoSetup.BountyStatesCollectionName);
@@ -46,6 +48,7 @@ public sealed class ArenaBountyService : IArenaBountyService
         _announcements = db.GetCollection<ForumAnnouncementRecord>(ForumMongoSetup.AnnouncementsCollectionName);
         _options = bountyOptions.Value;
         _logger = logger;
+        _experienceExtractor = experienceExtractor;
     }
 
     public int MaxPayoutPerWeek => _options.MaxPayoutPerWeek;
@@ -101,11 +104,13 @@ public sealed class ArenaBountyService : IArenaBountyService
             var isLegendary = computation.SurvivedWeeks >= _options.MedalWeeks;
             var medalWeek = existing?.MedalAwardedWeekKey;
             var medalAt = existing?.MedalAwardedAtUtc;
+            var firstMedalThisRun = false;
             if (isLegendary && medalAt is null)
             {
                 // 下界 + 未发放标记：即使「恰好第 4 周」被 Skipped，后续补跑也能恰好发放一次。
                 medalWeek = weekKey;
                 medalAt = now;
+                firstMedalThisRun = true;
             }
 
             var survivorAt = existing?.SurvivorMarkedAtUtc;
@@ -132,6 +137,19 @@ public sealed class ArenaBountyService : IArenaBountyService
                 new ReplaceOptions { IsUpsert = true },
                 cancellationToken);
             processed++;
+
+            // #38 经验提取：仅在首次获发图灵奖章时触发；失败降级，绝不阻断结算。
+            if (firstMedalThisRun && _experienceExtractor is not null)
+            {
+                try
+                {
+                    await _experienceExtractor.ExtractAsync(persona.AgentUserId, medalWeek!, medalAt!.Value, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Experience extraction failed for {Agent} on medal {Week}; settlement unaffected.", persona.AgentUserId, medalWeek);
+                }
+            }
         }
 
         await PublishMedalAnnouncementAsync(weekKey, cancellationToken);

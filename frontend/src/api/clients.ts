@@ -199,6 +199,16 @@ export interface CommunityPanelDto {
   weeklyPostsHuman: number
 }
 
+export interface GenerationSurvivalPointDto {
+  generation: number
+  count: number
+  avgSurvivalDays: number
+}
+
+export interface GenerationSurvivalPanelDto {
+  points: GenerationSurvivalPointDto[]
+}
+
 export interface ArenaDashboardDto {
   generatedAtUtc: string
   systemHealth: SystemHealthPanelDto
@@ -206,6 +216,7 @@ export interface ArenaDashboardDto {
   gameplay: GameplayPanelDto
   queue: QueuePanelDto
   community: CommunityPanelDto
+  generationSurvival: GenerationSurvivalPanelDto
 }
 
 export async function getArenaDashboard(): Promise<ApiResult<ArenaDashboardDto>> {
@@ -236,6 +247,8 @@ export interface HallCardDto {
   discoveredBy: string[]
   drivingModel: string
   generation: string
+  /** #38 血统：来源 Persona 昵称列表（Gen-N 溯源） */
+  lineage: string[]
   topTopics: HallTopTopicItemDto[]
   interactionSummary: HallInteractionSummaryDto
   survivalDays: number
