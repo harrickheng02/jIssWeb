@@ -21,21 +21,19 @@ public sealed class AdminAgentPersonasController : ControllerBase
     private readonly IMongoCollection<AgentPersonaRecord> _personas;
     private readonly IMongoCollection<AgentSchedulerStateRecord> _schedulerStates;
     private readonly IMongoCollection<AgentLlmProfileRecord> _profiles;
-    private readonly AgentSchedulerOptions _schedulerOptions;
     private readonly IAgentUserInternalClient _agentUsers;
-    private readonly IExperienceInheritanceService _inheritance;
+    private readonly IAgentProvisioningService _provisioning;
 
     public AdminAgentPersonasController(
-        IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions, IOptions<AgentSchedulerOptions> schedulerOptions,
-        IAgentUserInternalClient agentUsers, IExperienceInheritanceService inheritance)
+        IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions,
+        IAgentUserInternalClient agentUsers, IAgentProvisioningService provisioning)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _personas = db.GetCollection<AgentPersonaRecord>(AgentMongoSetup.PersonasCollectionName);
         _schedulerStates = db.GetCollection<AgentSchedulerStateRecord>(AgentMongoSetup.SchedulerStateCollectionName);
         _profiles = db.GetCollection<AgentLlmProfileRecord>(AgentMongoSetup.LlmProfilesCollectionName);
-        _schedulerOptions = schedulerOptions.Value;
         _agentUsers = agentUsers;
-        _inheritance = inheritance;
+        _provisioning = provisioning;
     }
 
     [HttpGet]
@@ -59,68 +57,17 @@ public sealed class AdminAgentPersonasController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ApiResult<AgentPersonaDto>>> Create([FromBody] CreateAgentPersonaRequest request)
     {
-        var personaId = string.IsNullOrWhiteSpace(request.PersonaId)
-            ? $"persona-{Guid.NewGuid():N}"
-            : request.PersonaId.Trim();
-        var agentUserId = request.AgentUserId?.Trim();
-        var nickname = request.Nickname?.Trim();
-        var llmProfileId = request.LlmProfileId?.Trim() ?? "";
-        var model = string.IsNullOrWhiteSpace(request.Model)
-            ? AgentModelIds.Deepseek
-            : NormalizeModel(request.Model);
-
-        if (string.IsNullOrWhiteSpace(agentUserId) || string.IsNullOrWhiteSpace(nickname))
-            return BadRequest(ApiResult<AgentPersonaDto>.Fail("参数无效", "INVALID_INPUT"));
-        if (model is null)
-            return BadRequest(ApiResult<AgentPersonaDto>.Fail("模型无效", "INVALID_MODEL"));
-        if (llmProfileId.Length == 0)
-            return BadRequest(ApiResult<AgentPersonaDto>.Fail("请选择 LLM 档案", "LLM_PROFILE_REQUIRED"));
-        if (!await _profiles.Find(x => x.Id == llmProfileId).AnyAsync())
-            return BadRequest(ApiResult<AgentPersonaDto>.Fail("LLM 档案不存在", "LLM_PROFILE_NOT_FOUND"));
-
-        if (await _personas.Find(x => x.PersonaId == personaId).AnyAsync())
-            return Conflict(ApiResult<AgentPersonaDto>.Fail("personaId 已存在", "PERSONA_ID_EXISTS"));
-        if (await _personas.Find(x => x.Id == agentUserId).AnyAsync())
-            return Conflict(ApiResult<AgentPersonaDto>.Fail("agentUserId 已绑定", "AGENT_USER_ALREADY_BOUND"));
-
-        var now = DateTime.UtcNow;
-        var record = new AgentPersonaRecord
+        var outcome = await _provisioning.CreatePersonaAsync(new CreatePersonaCommand
         {
-            Id = agentUserId,
-            AgentUserId = agentUserId,
-            PersonaId = personaId,
-            Nickname = nickname,
-            Model = model,
-            LlmProfileId = llmProfileId,
-            Prompt = request.Prompt?.Trim(),
-            CreatedAtUtc = now,
-        };
-
-        // #38 继承注入 + 世代赋值（失败不影响创建）。
-        try
-        {
-            await _inheritance.ApplyAsync(record, request.InheritedFrom);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[WARN] inheritance apply failed for {personaId}: {ex.Message}");
-        }
-
-        try
-        {
-            await _personas.InsertOneAsync(record);
-            await _schedulerStates.InsertOneAsync(AgentSchedulerQuota.CreateDefault(record, _schedulerOptions, now));
-        }
-        catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
-        {
-            var detail = $"{ex.WriteError.Message} {ex.Message}";
-            if (detail.Contains("uniq_personaId", StringComparison.OrdinalIgnoreCase)
-                || detail.Contains("personaId", StringComparison.OrdinalIgnoreCase))
-                return Conflict(ApiResult<AgentPersonaDto>.Fail("personaId 已存在", "PERSONA_ID_EXISTS"));
-            return Conflict(ApiResult<AgentPersonaDto>.Fail("agentUserId 已绑定", "AGENT_USER_ALREADY_BOUND"));
-        }
-
-        return CreatedAtAction(nameof(Get), new { personaId = record.PersonaId }, ApiResult<AgentPersonaDto>.Ok(ToDto(record)));
+            AgentUserId = request.AgentUserId,
+            PersonaId = request.PersonaId,
+            Nickname = request.Nickname,
+            Model = request.Model,
+            LlmProfileId = request.LlmProfileId,
+            Prompt = request.Prompt,
+            InheritedFrom = request.InheritedFrom,
+        });
+        return MapProvisionOutcome(outcome);
     }
 
     [HttpPut("{personaId}")]
@@ -200,33 +147,33 @@ public sealed class AdminAgentPersonasController : ControllerBase
     [HttpPost("provision")]
     public async Task<ActionResult<ApiResult<AgentPersonaDto>>> Provision([FromBody] ProvisionAgentRequest request)
     {
-        var nickname = request.Nickname?.Trim();
-        if (string.IsNullOrWhiteSpace(nickname))
-            return BadRequest(ApiResult<AgentPersonaDto>.Fail("参数无效", "INVALID_INPUT"));
-
-        var personaId = string.IsNullOrWhiteSpace(request.PersonaId)
-            ? $"persona-{Guid.NewGuid():N}"
-            : request.PersonaId.Trim();
-        var email = request.Email?.Trim();
-        if (string.IsNullOrWhiteSpace(email))
-            email = $"{personaId}@agents.local";
-
-        var agent = await _agentUsers.CreateAsync(email, nickname);
-        if (agent is null)
-            return StatusCode(StatusCodes.Status502BadGateway, ApiResult<AgentPersonaDto>.Fail("智能体账号创建失败", "AGENT_PROVISION_FAILED"));
-        var create = await Create(new CreateAgentPersonaRequest
+        var outcome = await _provisioning.ProvisionAsync(new ProvisionAgentCommand
         {
-            AgentUserId = agent.AgentUserId,
-            PersonaId = personaId,
-            Nickname = nickname,
+            Email = request.Email,
+            PersonaId = request.PersonaId,
+            Nickname = request.Nickname,
             Model = request.Model,
             LlmProfileId = request.LlmProfileId,
             Prompt = request.Prompt,
             InheritedFrom = request.InheritedFrom,
         });
-        if (create.Result is ObjectResult failed && failed.StatusCode >= 400)
-            await _agentUsers.DisableAsync(agent.AgentUserId);
-        return create;
+        return MapProvisionOutcome(outcome);
+    }
+
+    private ActionResult<ApiResult<AgentPersonaDto>> MapProvisionOutcome(AgentProvisionOutcome outcome)
+    {
+        if (outcome.Success && outcome.Persona is not null)
+            return CreatedAtAction(nameof(Get), new { personaId = outcome.Persona.PersonaId },
+                ApiResult<AgentPersonaDto>.Ok(ToDto(outcome.Persona)));
+
+        var fail = ApiResult<AgentPersonaDto>.Fail(outcome.ErrorMessage ?? "操作失败", outcome.ErrorCode);
+        return outcome.HttpStatus switch
+        {
+            400 => BadRequest(fail),
+            409 => Conflict(fail),
+            StatusCodes.Status502BadGateway => StatusCode(StatusCodes.Status502BadGateway, fail),
+            _ => StatusCode(outcome.HttpStatus, fail),
+        };
     }
 
     private IFindFluent<AgentPersonaRecord, AgentPersonaRecord> FindByPersonaId(string? personaId)
@@ -250,6 +197,7 @@ public sealed class AdminAgentPersonasController : ControllerBase
         Generation = record.Generation,
         InheritedFrom = record.InheritedFrom,
         ExperienceIds = record.ExperienceIds,
+        RotationRunKey = record.RotationRunKey,
         SurvivalDays = record.SurvivalDays,
         State = record.State,
         CreatedAtUtc = record.CreatedAtUtc,
@@ -304,6 +252,7 @@ public sealed class AgentPersonaDto
     public int Generation { get; set; }
     public List<string> InheritedFrom { get; set; } = new();
     public List<string> ExperienceIds { get; set; } = new();
+    public string? RotationRunKey { get; set; }
     public int SurvivalDays { get; set; }
     public string State { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; }

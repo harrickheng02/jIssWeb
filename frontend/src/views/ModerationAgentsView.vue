@@ -2,21 +2,31 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
-import type { ApiResult, AgentLlmProfileDto, AgentPersonaDto, AgentSchedulerStatusDto } from '@/api/clients'
+import type {
+  ApiResult,
+  AgentLlmProfileDto,
+  AgentPersonaDto,
+  AgentRotationRunDto,
+  AgentRotationStatusDto,
+  AgentSchedulerStatusDto,
+} from '@/api/clients'
 import {
   adminCreateAgentLlmProfile,
   adminDeleteAgentLlmProfile,
   adminDeleteAgentPersona,
   adminGetAgentLlmProfile,
+  adminGetAgentRotationStatus,
   adminGetAgentSchedulerStatus,
   adminListAgentLlmProfiles,
   adminListAgentPersonas,
+  adminListAgentRotationRuns,
   adminPauseAgent,
   adminProbeAgentLlmProfile,
   adminProvisionAgent,
   adminResumeAgent,
   adminTriggerAgentPost,
   adminTriggerAgentReply,
+  adminTriggerAgentRotation,
   adminUpdateAgentLlmProfile,
   adminUpdateAgentPersona,
   adminUpdateAgentSchedulerRules,
@@ -27,6 +37,11 @@ const saving = ref(false)
 const personas = ref<AgentPersonaDto[]>([])
 const profiles = ref<AgentLlmProfileDto[]>([])
 const statuses = ref<Record<string, AgentSchedulerStatusDto>>({})
+
+// V0.3 账号轮换器：参赛池水位 + 最近运行记录
+const rotation = ref<AgentRotationStatusDto | null>(null)
+const rotationRuns = ref<AgentRotationRunDto[]>([])
+const rotationRunning = ref(false)
 
 const profileDialogVisible = ref(false)
 const profileEditingId = ref<string | null>(null)
@@ -67,6 +82,27 @@ const rulesForm = reactive({
 
 const enabledProfiles = computed(() => profiles.value.filter((p) => p.enabled))
 
+const meterWidth = computed(() => {
+  const r = rotation.value
+  if (!r || r.maxActiveAgents <= 0) return '0%'
+  const pct = Math.min(100, Math.max(0, (r.activeCount / r.maxActiveAgents) * 100))
+  return `${pct}%`
+})
+
+const poolBelowFloor = computed(() => Boolean(rotation.value && rotation.value.gap > 0))
+
+function triggerLabel(trigger: string) {
+  if (trigger === 'reveal') return '结算后'
+  if (trigger === 'daily') return '定时'
+  return '手动'
+}
+
+function formatRunTime(value?: string) {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString()
+}
+
 const profileNameById = computed(() => {
   const map: Record<string, string> = {}
   for (const p of profiles.value) map[p.id] = p.name
@@ -89,6 +125,9 @@ function presentError(error: unknown, fallback: string) {
     EMPTY_GENERATION: '模型未生成有效内容，请重试',
     FORUM_PUBLISH_FAILED: '论坛发布失败，请查看服务日志',
     NO_ACTION_AVAILABLE: '当前没有可执行的调度动作',
+    ROTATION_DISABLED: '账号轮换器未启用（AgentRotation:Enabled=false）',
+    ROTATION_ALREADY_RUNNING: '该触发已被处理，请稍后重试',
+    NICKNAME_EXHAUSTED: '无法生成唯一昵称，请调整前缀或重试',
   }
   ElMessage.error(messages[code ?? ''] ?? response?.message ?? (error instanceof Error ? error.message : fallback))
 }
@@ -134,7 +173,39 @@ async function loadPersonas() {
 }
 
 async function loadAll() {
-  await Promise.all([loadProfiles(), loadPersonas()])
+  await Promise.all([loadProfiles(), loadPersonas(), loadRotation()])
+}
+
+async function loadRotation() {
+  try {
+    const [status, runs] = await Promise.all([adminGetAgentRotationStatus(), adminListAgentRotationRuns(10)])
+    if (status.success && status.data) rotation.value = status.data
+    if (runs.success && runs.data) rotationRuns.value = runs.data
+  } catch (error) {
+    presentError(error, '加载参赛池水位失败')
+  }
+}
+
+async function triggerRotation() {
+  if (rotationRunning.value) return
+  rotationRunning.value = true
+  try {
+    const res = await adminTriggerAgentRotation()
+    if (!res.success || !res.data) {
+      ElMessage.error(res.message ?? '补齐失败')
+      return
+    }
+    ElMessage.success(
+      res.data.createdCount > 0
+        ? `已补建 ${res.data.createdCount} 个智能体`
+        : '当前无缺口，未补建新智能体',
+    )
+    await Promise.all([loadRotation(), loadPersonas()])
+  } catch (error) {
+    presentError(error, '补齐失败')
+  } finally {
+    rotationRunning.value = false
+  }
 }
 
 function openCreateProfile() {
@@ -531,6 +602,66 @@ onMounted(() => void loadAll())
       </el-table>
     </section>
 
+    <section class="forum-card agents__section">
+      <div class="agents__section-header">
+        <h2 class="agents__title">参赛池水位</h2>
+        <el-button
+          type="primary"
+          :loading="rotationRunning"
+          :disabled="!rotation || !rotation.enabled"
+          @click="triggerRotation"
+        >
+          立即补齐
+        </el-button>
+      </div>
+
+      <p v-if="rotation && !rotation.enabled" class="agents__hint">
+        账号轮换器未启用（AgentRotation:Enabled=false）；智能体被淘汰后不会自动补位。
+      </p>
+
+      <div v-if="rotation" class="agents__waterline">
+        <div class="agents__waterline-meta">
+          <span class="agents__quota">
+            活跃 {{ rotation.activeCount }} / 下限 {{ rotation.minActiveAgents }}
+          </span>
+          <span class="agents__muted">
+            上限 {{ rotation.maxActiveAgents }} · 单次最多 {{ rotation.maxPerRun }} · 缺口
+            {{ rotation.gap > 0 ? rotation.gap : 0 }}
+          </span>
+        </div>
+        <div
+          class="agents__meter"
+          role="progressbar"
+          :aria-valuenow="rotation.activeCount"
+          aria-valuemin="0"
+          :aria-valuemax="rotation.maxActiveAgents"
+          aria-label="参赛池水位"
+        >
+          <div
+            class="agents__meter-fill"
+            :class="{ 'agents__meter-fill--low': poolBelowFloor }"
+            :style="{ width: meterWidth }"
+          />
+        </div>
+      </div>
+
+      <el-table v-if="rotationRuns.length" :data="rotationRuns" class="agents__table" size="small">
+        <el-table-column label="时间" min-width="160">
+          <template #default="{ row }">{{ formatRunTime(row.startedAtUtc) }}</template>
+        </el-table-column>
+        <el-table-column label="触发" min-width="80">
+          <template #default="{ row }">{{ triggerLabel(row.trigger) }}</template>
+        </el-table-column>
+        <el-table-column prop="gapBefore" label="缺口" min-width="70" />
+        <el-table-column prop="createdCount" label="补建" min-width="70" />
+        <el-table-column prop="failedCount" label="失败" min-width="70" />
+        <el-table-column label="操作人" min-width="120">
+          <template #default="{ row }">{{ row.triggeredBySub || '系统' }}</template>
+        </el-table-column>
+      </el-table>
+      <p v-else class="agents__muted">暂无轮换记录。</p>
+    </section>
+
     <el-dialog v-model="profileDialogVisible" :title="profileEditingId ? '编辑模型配置' : '新建模型配置'">
       <el-form label-position="top">
         <el-form-item label="名称"><el-input v-model="profileForm.name" placeholder="例如 DeepSeek 主站" /></el-form-item>
@@ -680,6 +811,37 @@ onMounted(() => void loadAll())
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 var(--space-md);
+}
+
+.agents__waterline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.agents__waterline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.agents__meter {
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--border-color);
+  overflow: hidden;
+}
+
+.agents__meter-fill {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+
+.agents__meter-fill--low {
+  background: var(--el-color-danger);
 }
 
 .agents__table,

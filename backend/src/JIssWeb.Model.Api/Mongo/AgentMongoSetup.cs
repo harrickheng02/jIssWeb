@@ -15,6 +15,7 @@ public static class AgentMongoSetup
     public const string RuntimeConfigCollectionName = "agent_runtime_config";
     public const string LlmProfilesCollectionName = "agent_llm_profiles";
     public const string ExperienceDecayStateCollectionName = "agent_experience_decay_state";
+    public const string RotationRunsCollectionName = "agent_rotation_runs";
 
     public static void EnsureIndexes(IMongoDatabase db)
     {
@@ -28,6 +29,11 @@ public static class AgentMongoSetup
         personas.Indexes.CreateOne(new CreateIndexModel<AgentPersonaRecord>(
             Builders<AgentPersonaRecord>.IndexKeys.Ascending(x => x.LlmProfileId),
             new CreateIndexOptions { Name = "llmProfileId", Sparse = true }));
+        // 轮换器：选「最近被淘汰的 persona」作血缘源，需要 (state, updatedAtUtc) 有序扫描。
+        // 既有单字段 state 索引保留（其他查询仍可用），不删除以兼容既有部署。
+        personas.Indexes.CreateOne(new CreateIndexModel<AgentPersonaRecord>(
+            Builders<AgentPersonaRecord>.IndexKeys.Ascending(x => x.State).Descending(x => x.UpdatedAtUtc),
+            new CreateIndexOptions { Name = "state_updatedAt" }));
 
         var experiences = db.GetCollection<AgentExperienceRecord>(ExperiencesCollectionName);
         experiences.Indexes.CreateOne(new CreateIndexModel<AgentExperienceRecord>(
@@ -62,6 +68,15 @@ public static class AgentMongoSetup
         decayState.Indexes.CreateOne(new CreateIndexModel<AgentExperienceDecayState>(
             Builders<AgentExperienceDecayState>.IndexKeys.Ascending(x => x.YearMonth),
             new CreateIndexOptions { Unique = true, Name = "uniq_yearMonth" }));
+
+        // 轮换器：runKey 唯一索引作幂等认领；startedAtUtc 倒序支撑运行记录列表。
+        var rotationRuns = db.GetCollection<AgentRotationRunRecord>(RotationRunsCollectionName);
+        rotationRuns.Indexes.CreateOne(new CreateIndexModel<AgentRotationRunRecord>(
+            Builders<AgentRotationRunRecord>.IndexKeys.Ascending(x => x.RunKey),
+            new CreateIndexOptions { Unique = true, Name = "uniq_runKey" }));
+        rotationRuns.Indexes.CreateOne(new CreateIndexModel<AgentRotationRunRecord>(
+            Builders<AgentRotationRunRecord>.IndexKeys.Descending(x => x.StartedAtUtc),
+            new CreateIndexOptions { Name = "startedAt_desc" }));
 
         var profiles = db.GetCollection<AgentLlmProfileRecord>(LlmProfilesCollectionName);
         profiles.Indexes.CreateOne(new CreateIndexModel<AgentLlmProfileRecord>(
