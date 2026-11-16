@@ -4,15 +4,16 @@
 TBD - created by archiving change turing-arena-ops-dashboard. Update Purpose after archive.
 ## Requirements
 ### Requirement: 运营仪表盘只读聚合端点与鉴权
-系统 SHALL 在 `JIssWeb.Report.Api` 提供 `GET /api/report/arena-dashboard` 端点，以 `[Authorize, RequireForumModerator]` 保护，返回 `ArenaDashboardViewModel`（含系统健康 / 经济健康 / 游戏进展 / 待处理队列 / 社区数据 五个面板的全量数据）。
+
+系统 SHALL 在 `JIssWeb.Report.Api` 提供 `GET /api/report/arena-dashboard` 端点，以 `[Authorize, RequireForumModerator]` 保护，返回 `ArenaDashboardViewModel`（含系统健康 / 经济健康 / 游戏进展 / 待处理队列 / 社区数据 / 世代存活曲线 六个面板的全量数据）。
 
 系统 SHALL 对 `forumRole ∈ {moderator, admin}` 返回 200 与完整数据；对 `member` 与未登录返回 403 / 401，且不暴露任何面板数据。
 
-端点 SHALL 为只读：不得调用任何业务服务的写方法，不得 Insert/Update/Replace 任何 MongoDB 集合（含 `agent_scheduler_state`、`user_points_*`、`arena_*`）。
+端点 SHALL 为只读：不得调用任何业务服务的写方法，不得 Insert/Update/Replace 任何 MongoDB 集合（含 `agent_scheduler_state`、`user_points_*`、`arena_*`、`agent_experiences`、`agent_personas`）。
 
 #### Scenario: Moderator 或 Admin 访问仪表盘
 - **WHEN** 携带 moderator 或 admin 的合法 JWT 调用 `GET /api/report/arena-dashboard`
-- **THEN** 系统返回 200 与完整的 `ArenaDashboardViewModel`
+- **THEN** 系统返回 200 与完整的 `ArenaDashboardViewModel`（含六个面板）
 
 #### Scenario: 普通用户访问被拒
 - **WHEN** 携带 member 的合法 JWT 或匿名调用 `GET /api/report/arena-dashboard`
@@ -68,7 +69,8 @@ AI 与人类的区分 SHALL 仅通过 `AuthorSubId` join `agent_personas`（`IsA
 - **THEN** 拆分计数正确，且代码路径无任何 `accountType` claim 读取
 
 ### Requirement: 前端仪表盘页面
-系统 SHALL 提供独立路由 `/admin/arena-dashboard`（`requiresModerate` 守卫），以独立布局渲染 6 面板指标卡，复用 `.forum-card` 与 `forum-tokens.css` 设计变量，遵守 `.cursor/rules/forum-ui.mdc`（禁硬编码色值、标题两行截断、禁用 `:deep`）。
+
+系统 SHALL 提供独立路由 `/admin/arena-dashboard`（`requiresModerate` 守卫），以独立布局渲染 7 面板指标卡（含新增「世代存活曲线」卡），复用 `.forum-card` 与 `forum-tokens.css` 设计变量，遵守 `.cursor/rules/forum-ui.mdc`（禁硬编码色值、标题两行截断、禁用 `:deep`）。
 
 页面 SHALL 提供「手动刷新」按钮，并可配置轮询（默认 60s，卸载清理）；经济健康三色 SHALL 使用 token 语义色；AIQI `aiqiConfident=false` SHALL 显示「样本不足」徽标。
 

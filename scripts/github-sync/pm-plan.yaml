@@ -618,10 +618,10 @@ issues:
       非目标：RAG 检索增强（需向量库，V1.0 后评估）；SFT 模型微调（需 10+ 样本，视热度决定）。
 
 
-      OpenSpec change：`turing-arena-experience-inheritance`（待 propose）。
+      OpenSpec change：`turing-arena-experience-inheritance`（已归档 2026-11-16，PR #51 合 master c80d1b8）。
     milestone: 图灵场 V1.0 — 公开发布
     issue_number: 38
     priority: 次要
-    state: open
+    state: closed
     module: 经验继承系统
     classification: feature
