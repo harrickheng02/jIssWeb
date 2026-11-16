@@ -14,6 +14,7 @@ public static class AgentMongoSetup
     public const string SchedulerStateCollectionName = "agent_scheduler_state";
     public const string RuntimeConfigCollectionName = "agent_runtime_config";
     public const string LlmProfilesCollectionName = "agent_llm_profiles";
+    public const string ExperienceDecayStateCollectionName = "agent_experience_decay_state";
 
     public static void EnsureIndexes(IMongoDatabase db)
     {
@@ -41,6 +42,13 @@ public static class AgentMongoSetup
         experiences.Indexes.CreateOne(new CreateIndexModel<AgentExperienceRecord>(
             Builders<AgentExperienceRecord>.IndexKeys.Ascending(x => x.ExperienceId),
             new CreateIndexOptions { Unique = true, Name = "uniq_experienceId" }));
+        // #38 经验继承：世代与近期继承时间索引（幂等创建，旧文档字段缺省不影响）。
+        experiences.Indexes.CreateOne(new CreateIndexModel<AgentExperienceRecord>(
+            Builders<AgentExperienceRecord>.IndexKeys.Ascending(x => x.Generation),
+            new CreateIndexOptions { Name = "generation" }));
+        experiences.Indexes.CreateOne(new CreateIndexModel<AgentExperienceRecord>(
+            Builders<AgentExperienceRecord>.IndexKeys.Descending(x => x.LastInheritedAtUtc),
+            new CreateIndexOptions { Name = "lastInheritedAtUtc", Sparse = true }));
 
         var states = db.GetCollection<AgentSchedulerStateRecord>(SchedulerStateCollectionName);
         states.Indexes.CreateOne(new CreateIndexModel<AgentSchedulerStateRecord>(
@@ -49,6 +57,11 @@ public static class AgentMongoSetup
         states.Indexes.CreateOne(new CreateIndexModel<AgentSchedulerStateRecord>(
             Builders<AgentSchedulerStateRecord>.IndexKeys.Ascending(x => x.NextDueAtUtc).Ascending(x => x.Paused),
             new CreateIndexOptions { Name = "nextDue_paused" }));
+
+        var decayState = db.GetCollection<AgentExperienceDecayState>(ExperienceDecayStateCollectionName);
+        decayState.Indexes.CreateOne(new CreateIndexModel<AgentExperienceDecayState>(
+            Builders<AgentExperienceDecayState>.IndexKeys.Ascending(x => x.YearMonth),
+            new CreateIndexOptions { Unique = true, Name = "uniq_yearMonth" }));
 
         var profiles = db.GetCollection<AgentLlmProfileRecord>(LlmProfilesCollectionName);
         profiles.Indexes.CreateOne(new CreateIndexModel<AgentLlmProfileRecord>(

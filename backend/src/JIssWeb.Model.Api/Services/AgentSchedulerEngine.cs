@@ -25,12 +25,15 @@ public sealed class AgentSchedulerEngine
     private readonly IAgentUserInternalClient _users;
     private readonly IAgentForumHttpClient _forum;
     private readonly AgentMemoryUpdater _memory;
+    private readonly IExperienceInheritanceService? _inheritance;
+    private readonly AgentExperienceInheritanceOptions _inheritanceOptions;
     private readonly ILogger<AgentSchedulerEngine> _logger;
 
     public AgentSchedulerEngine(
         IMongoClient mongoClient, IOptions<MongoSettings> mongoOptions, IOptions<AgentSchedulerOptions> options,
         IAgentLlmConfigResolver config, ILlmChatClient llm, AgentPromptBuilder prompts, AgentHotPostSelector hotPosts,
-        AgentMemoryUpdater memory, IAgentUserInternalClient users, IAgentForumHttpClient forum, ILogger<AgentSchedulerEngine> logger)
+        AgentMemoryUpdater memory, IAgentUserInternalClient users, IAgentForumHttpClient forum, ILogger<AgentSchedulerEngine> logger,
+        IExperienceInheritanceService? inheritance = null, IOptions<AgentExperienceInheritanceOptions>? inheritanceOptions = null)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _personas = db.GetCollection<AgentPersonaRecord>(AgentMongoSetup.PersonasCollectionName);
@@ -39,6 +42,15 @@ public sealed class AgentSchedulerEngine
         _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
         _options = options.Value; _config = config; _llm = llm; _prompts = prompts; _hotPosts = hotPosts;
         _memory = memory; _users = users; _forum = forum; _logger = logger;
+        _inheritance = inheritance;
+        _inheritanceOptions = inheritanceOptions?.Value ?? new AgentExperienceInheritanceOptions();
+    }
+
+    private async Task<IReadOnlyList<AgentExperienceRecord>> LoadInheritedAsync(AgentPersonaRecord persona, CancellationToken ct)
+    {
+        if (_inheritance is null || !_inheritanceOptions.Enabled || persona.ExperienceIds is not { Count: > 0 })
+            return Array.Empty<AgentExperienceRecord>();
+        return await _inheritance.LoadAsync(persona.ExperienceIds, ct);
     }
 
     public async Task TickAsync(CancellationToken ct = default)
@@ -160,7 +172,8 @@ public sealed class AgentSchedulerEngine
         AgentMemoryContext? mem = _options.MemoryEnabled
             ? new AgentMemoryContext(persona.RelationshipMemory, persona.StanceLog, null)
             : null;
-        var generated = await _llm.CompleteAsync(new("你是中文论坛写作助手。", _prompts.BuildPostPrompt(persona, recent, board, mem), profile.ApiKey, profile.BaseUrl, profile.Model), ct);
+        var inherited = await LoadInheritedAsync(persona, ct);
+        var generated = await _llm.CompleteAsync(new("你是中文论坛写作助手。", _prompts.BuildPostPrompt(persona, recent, board, mem, inherited), profile.ApiKey, profile.BaseUrl, profile.Model), ct);
         var (title, body) = SplitPost(generated);
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
             return new(false, "EMPTY_GENERATION");
@@ -194,8 +207,9 @@ public sealed class AgentSchedulerEngine
                 persona.StanceLog,
                 await GetRecentDialoguesAsync(persona.AgentUserId, target.Post.AuthorSubId, _options.RecentMemoryLimit, ct))
             : null;
+        var inherited = await LoadInheritedAsync(persona, ct);
         var prompt = _prompts.BuildReplyPrompt(
-            persona, recent, target.Post, target.FocusReply, target.RecentThread, target.IsOwnPost, mem);
+            persona, recent, target.Post, target.FocusReply, target.RecentThread, target.IsOwnPost, mem, inherited);
         var generated = await _llm.CompleteAsync(new("你是中文论坛写作助手。", prompt, profile.ApiKey, profile.BaseUrl, profile.Model), ct);
         var body = AgentPromptBuilder.SanitizeGeneratedText(generated);
         if (string.IsNullOrWhiteSpace(body))

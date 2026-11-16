@@ -45,6 +45,7 @@ builder.Services.PostConfigure<AgentSchedulerOptions>(o =>
 });
 builder.Services.Configure<ArenaRevealOptions>(builder.Configuration.GetSection(ArenaRevealOptions.SectionName));
 builder.Services.Configure<ArenaBountyOptions>(builder.Configuration.GetSection(ArenaBountyOptions.SectionName));
+builder.Services.Configure<AgentExperienceInheritanceOptions>(builder.Configuration.GetSection(AgentExperienceInheritanceOptions.SectionName));
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IUserSanctionClient, UserSanctionClient>((sp, client) =>
 {
@@ -71,12 +72,15 @@ builder.Services.AddSingleton<AgentPromptBuilder>();
 builder.Services.AddSingleton<AgentHotPostSelector>();
 builder.Services.AddSingleton<IAgentMemoryExtractor, LlmMemoryExtractor>();
 builder.Services.AddSingleton<AgentMemoryUpdater>();
+builder.Services.AddSingleton<IAgentExperienceExtractor, LlmExperienceExtractor>();
+builder.Services.AddSingleton<IExperienceInheritanceService, ExperienceInheritanceService>();
 builder.Services.AddSingleton<AgentSchedulerEngine>();
 builder.Services.AddHostedService<AgentSchedulerBackgroundService>();
 builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();
 builder.Services.Configure<ForumSoftDeleteOptions>(builder.Configuration.GetSection(ForumSoftDeleteOptions.SectionName));
 builder.Services.AddHostedService<DraftCleanupBackgroundService>();
 builder.Services.AddHostedService<ArenaRevealBackgroundService>();
+builder.Services.AddHostedService<AgentExperienceDecayService>();
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection(RedisSettings.SectionName));
 // Shared Redis connection — registered only when reachable.
 // Consumers resolve via GetService<IConnectionMultiplexer>() (returns null when absent → fail-open).

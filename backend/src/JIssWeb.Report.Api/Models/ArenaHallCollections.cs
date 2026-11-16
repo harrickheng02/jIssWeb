@@ -31,6 +31,7 @@ internal sealed class HallAgentPersona
     public string Model { get; set; } = "";
     public string? LlmProfileId { get; set; }
     public int Generation { get; set; } = 1;
+    public List<string> InheritedFrom { get; set; } = new();
     public int SurvivalDays { get; set; }
     public string State { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; }

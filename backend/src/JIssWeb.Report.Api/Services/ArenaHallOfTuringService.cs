@@ -55,14 +55,33 @@ public sealed class ArenaHallOfTuringService : IHallOfTuringService
             .OrderByDescending(bs => bs.MedalAwardedAtUtc)
             .ToList();
 
+        // #38 血统来源昵称查找：一次性加载全部 persona（只读），按 personaId/agentUserId 解析。
+        var allPersonas = await personas.Find(Builders<HallAgentPersona>.Filter.Empty).ToListAsync(ct);
+
         var cards = new List<HallCard>(eliminated.Count);
         foreach (var bs in eliminated)
         {
             var p = personaByUser[bs.AgentUserId];
-            cards.Add(await BuildCardAsync(p, bs, ct));
+            var card = await BuildCardAsync(p, bs, ct);
+            card.Lineage = ResolveLineage(p, allPersonas);
+            cards.Add(card);
         }
         vm.Items = cards;
         return vm;
+    }
+
+    private static List<string> ResolveLineage(HallAgentPersona p, IReadOnlyList<HallAgentPersona> allPersonas)
+    {
+        if (p.InheritedFrom is not { Count: > 0 }) return new List<string>();
+        var names = new List<string>();
+        foreach (var src in p.InheritedFrom.Where(s => !string.IsNullOrWhiteSpace(s)))
+        {
+            var match = allPersonas.FirstOrDefault(x =>
+                string.Equals(x.PersonaId, src, StringComparison.Ordinal) ||
+                string.Equals(x.AgentUserId, src, StringComparison.Ordinal));
+            names.Add(match is null ? "来源未知" : match.Nickname);
+        }
+        return names;
     }
 
     private async Task<HallCard> BuildCardAsync(HallAgentPersona p, HallBountyState bs, CancellationToken ct)

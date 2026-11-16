@@ -31,6 +31,7 @@ describe('运营仪表盘 API（#36）', () => {
       gameplay: { weeklyAccusations: 0, nextRevealAtUtc: '2026-11-20T14:00:00Z', legendaryPrey: [], topDetectives: [] },
       queue: { pendingReports: [], agentAlerts: [] },
       community: { weeklyActiveHumans: 0, weeklyPostsTotal: 0, weeklyPostsAi: 0, weeklyPostsHuman: 0 },
+      generationSurvival: { points: [{ generation: 1, count: 2, avgSurvivalDays: 6.5 }] },
     }
     const get = vi.spyOn(reportApi, 'get').mockResolvedValue(ok(sample))
 
@@ -43,6 +44,23 @@ describe('运营仪表盘 API（#36）', () => {
       gameplay: { weeklyAccusations: 0 },
       queue: { pendingReports: [], agentAlerts: [] },
       community: { weeklyPostsTotal: 0 },
+      generationSurvival: { points: [{ generation: 1, count: 2, avgSurvivalDays: 6.5 }] },
     })
+  })
+
+  it('#38 世代存活曲线面板随响应透传', async () => {
+    const sample: ArenaDashboardDto = {
+      generatedAtUtc: '2026-11-17T00:00:00Z',
+      systemHealth: { schedulerStatus: 'healthy', schedulerLastTickAtUtc: null, llmProfiles: [], agentAliveCount: 0, agentTotalCount: 0, pendingReveal: [] },
+      economy: { weeklyNetFlow: 0, netFlowRatioPct: 0, netFlowLevel: 'healthy', pointsInjectionDensity: 0, lastWeekDensity: 0, aiqi: 0, aiqiConfident: false },
+      gameplay: { weeklyAccusations: 0, nextRevealAtUtc: '2026-11-20T14:00:00Z', legendaryPrey: [], topDetectives: [] },
+      queue: { pendingReports: [], agentAlerts: [] },
+      community: { weeklyActiveHumans: 0, weeklyPostsTotal: 0, weeklyPostsAi: 0, weeklyPostsHuman: 0 },
+      generationSurvival: { points: [{ generation: 1, count: 3, avgSurvivalDays: 5 }, { generation: 2, count: 1, avgSurvivalDays: 9.2 }] },
+    }
+    vi.spyOn(reportApi, 'get').mockResolvedValue(ok(sample))
+    const res = await getArenaDashboard()
+    expect(res.data?.generationSurvival.points).toHaveLength(2)
+    expect(res.data?.generationSurvival.points[1].avgSurvivalDays).toBe(9.2)
   })
 })
