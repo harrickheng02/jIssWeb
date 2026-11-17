@@ -14,6 +14,8 @@ on:
 #   - 后端门禁：Arena + Agent + 内容审核自包含套件（合并后实测 249 条，使用 Mongo2Go 内存
 #     实例，零外部依赖；含 #33 揭露/指认/技能、#31 AgentScheduler*、#32 AgentMemory*、
 #     V0.3 账号轮换器 AgentRotation*（由 ~Agent 命中）、V0.3 AI 版主 ContentModeration* 等）。
+#   - User.Api 门禁：44 条自包含套件（Mongo2Go + Moq；含 #30 CaptchaRegistration 与
+#     V0.3 注册护栏 RegistrationGate*）。此前未纳入 CI，本次随注册护栏补齐。
 #   - 前端门禁：vue-tsc 类型检查 + vitest 单元测试 + 生产构建。
 # 待补齐 appsettings.Local.json（提供 Mongo/JWT/版主配置）后，可在 CI 启用全量套件。
 #
@@ -46,6 +48,12 @@ jobs:
         run: dotnet build backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj -c Debug --nologo
       - name: Test (Arena + Agent + Moderation suite, Mongo2Go self-contained)
         run: dotnet test backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj --no-build -c Debug --nologo --filter "FullyQualifiedName~Arena|FullyQualifiedName~Agent|FullyQualifiedName~ContentModeration|FullyQualifiedName~DuplicateContentDetector|FullyQualifiedName~ModReviewQueue|FullyQualifiedName~LlmContentModerator|FullyQualifiedName~ForumVisibility|FullyQualifiedName~LlmChatRequestOptions"
+
+      # V0.3 注册护栏：User.Api 自包含套件（Mongo2Go + Moq，零外部依赖）。
+      - name: Build User.Api test project
+        run: dotnet build backend/tests/JIssWeb.User.Api.Tests/JIssWeb.User.Api.Tests.csproj -c Debug --nologo
+      - name: Test (User.Api suite, Mongo2Go self-contained)
+        run: dotnet test backend/tests/JIssWeb.User.Api.Tests/JIssWeb.User.Api.Tests.csproj --no-build -c Debug --nologo
 
       # #36 运营仪表盘：Report.Api 只读聚合套件（Mongo2Go 内存实例，零外部依赖，自包含）。
       - name: Build Report.Api test project

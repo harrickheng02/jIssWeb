@@ -32,6 +32,7 @@ describe('运营仪表盘 API（#36）', () => {
       queue: { pendingReports: [], agentAlerts: [] },
       community: { weeklyActiveHumans: 0, weeklyPostsTotal: 0, weeklyPostsAi: 0, weeklyPostsHuman: 0 },
       generationSurvival: { points: [{ generation: 1, count: 2, avgSurvivalDays: 6.5 }] },
+      registration: { todayRegistered: 3, todayVerified: 2, pendingVerification: 1, dailyCap: 20, remainingToday: 17 },
     }
     const get = vi.spyOn(reportApi, 'get').mockResolvedValue(ok(sample))
 
@@ -57,6 +58,7 @@ describe('运营仪表盘 API（#36）', () => {
       queue: { pendingReports: [], agentAlerts: [] },
       community: { weeklyActiveHumans: 0, weeklyPostsTotal: 0, weeklyPostsAi: 0, weeklyPostsHuman: 0 },
       generationSurvival: { points: [{ generation: 1, count: 3, avgSurvivalDays: 5 }, { generation: 2, count: 1, avgSurvivalDays: 9.2 }] },
+      registration: { todayRegistered: 0, todayVerified: 0, pendingVerification: 0, dailyCap: 0, remainingToday: -1 },
     }
     vi.spyOn(reportApi, 'get').mockResolvedValue(ok(sample))
     const res = await getArenaDashboard()

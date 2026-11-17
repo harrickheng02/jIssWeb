@@ -46,6 +46,7 @@ public class AuthController : ControllerBase
     private readonly ForumOptions _forum;
     private readonly ICaptchaVerifier _captchaVerifier;
     private readonly CaptchaSettings _captchaSettings;
+    private readonly RegistrationGate _registrationGate;
 
     public AuthController(
         IOptions<JwtSettings> jwtOptions,
@@ -60,6 +61,7 @@ public class AuthController : ControllerBase
         IConnectionMultiplexer redis,
         IVerificationEmailSender emailSender,
         ICaptchaVerifier captchaVerifier,
+        RegistrationGate registrationGate,
         ILogger<AuthController> logger)
     {
         _jwt = jwtOptions.Value;
@@ -69,6 +71,7 @@ public class AuthController : ControllerBase
         _loginSecurity = loginSecurityOptions.Value;
         _forum = forumOptions.Value;
         _captchaSettings = captchaOptions.Value;
+        _registrationGate = registrationGate;
         var database = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _users = database.GetCollection<UserAccount>("users");
         _refreshSessions = database.GetCollection<RefreshSession>("refresh_sessions");
@@ -90,8 +93,23 @@ public class AuthController : ControllerBase
             return BadRequest(ApiResult<string>.Fail("邮箱或密码无效", "INVALID_INPUT"));
         if (!PasswordStrongRegex.IsMatch(request.Password))
             return BadRequest(ApiResult<string>.Fail("密码强度不足", "WEAK_PASSWORD"));
+
+        // 总闸放在参数校验之后：非法请求仍应得到精确错误，而不是被总闸掩盖。
+        // 同时拦截「已存在未验证账号」的重发分支——否则该分支成为不需要总闸许可的发信通道。
+        // 既有未验证用户的恢复路径是 POST /auth/resend-verification，不受此处影响。
+        if (!_registrationGate.Enabled)
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResult<string>.Fail("暂未开放注册", "REGISTRATION_CLOSED"));
+
         if (await IsRateLimitedAsync("register", email, _emailVerification.RegisterPerMinuteLimit))
             return StatusCode(429, ApiResult<string>.Fail("请求过于频繁", "RATE_LIMITED"));
+
+        var gate = await _registrationGate.CheckAsync(GetClientIp());
+        if (gate.Blocked)
+        {
+            Response.Headers.RetryAfter = gate.RetryAfterSeconds.ToString();
+            return StatusCode(429, ApiResult<string>.Fail("今日注册名额已满", "REGISTRATION_DAILY_CAP_REACHED"));
+        }
 
         var captchaResult = await ValidateCaptchaAsync(request.CaptchaToken);
         if (captchaResult is not null)
@@ -146,6 +164,8 @@ public class AuthController : ControllerBase
         };
         await _users.InsertOneAsync(user);
         await UpsertProfileOnRegisterAsync(user.Id, requestedNickname, gender, birthDate);
+        // 账号已落库即消耗配额：即使后续发信失败，号也已经建成了。
+        await _registrationGate.RecordSuccessAsync(GetClientIp());
         try
         {
             await SendVerificationEmailAsync(user);
@@ -157,6 +177,19 @@ public class AuthController : ControllerBase
             return StatusCode(503, ApiResult<string>.Fail("验证邮件发送失败", "MAIL_SEND_FAILED"));
         }
         return Ok(ApiResult<string>.Ok("VERIFICATION_EMAIL_SENT"));
+    }
+
+    /// <summary>
+    /// 注册准入状态。匿名可访问，供注册页在挂载时决定渲染「未开放」还是表单，
+    /// 避免用户填完整张表单才发现被拒。不返回任何上限配置原值。
+    /// </summary>
+    [HttpGet("registration-status")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResult<RegistrationStatusDto>>> RegistrationStatus()
+    {
+        var remaining = await _registrationGate.RemainingTodayAsync();
+        return Ok(ApiResult<RegistrationStatusDto>.Ok(
+            new RegistrationStatusDto { Enabled = _registrationGate.Enabled, RemainingToday = remaining }));
     }
 
     [HttpPost("login")]
@@ -1277,6 +1310,13 @@ public class EmailVerificationSettings
 public class VerifyTokenResult
 {
     public string UserId { get; set; } = "";
+}
+
+/// <summary>注册准入状态。<see cref="RemainingToday"/> 为 -1 表示未设置全局日上限。</summary>
+public class RegistrationStatusDto
+{
+    public bool Enabled { get; set; }
+    public int RemainingToday { get; set; }
 }
 
 public class LoginSecuritySettings

@@ -79,6 +79,14 @@ const generationMax = computed(() => Math.max(1, ...generationPoints.value.map(p
 function generationBarWidth(avg: number): string {
   return `${Math.round((avg / generationMax.value) * 100)}%`
 }
+
+// 注册流入（V0.3 小范围开放注册）
+const registration = computed(() => dashboard.value?.registration)
+const registrationUsagePercent = computed(() => {
+  const r = registration.value
+  if (!r || r.dailyCap <= 0) return 0
+  return Math.min(100, Math.round((r.todayRegistered / r.dailyCap) * 100))
+})
 </script>
 
 <template>
@@ -267,6 +275,39 @@ function generationBarWidth(avg: number): string {
             <span class="gen-count">{{ point.count }} 个智能体</span>
           </li>
         </ul>
+      </section>
+
+      <!-- 注册流入（V0.3 小范围开放注册） -->
+      <section class="forum-card dashboard-panel">
+        <h2 class="panel-title">注册流入</h2>
+        <div class="metric-row">
+          <div class="metric">
+            <div class="metric-label">今日注册</div>
+            <div class="metric-value">{{ registration?.todayRegistered ?? 0 }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">今日已验证</div>
+            <div class="metric-value">{{ registration?.todayVerified ?? 0 }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">待验证（全库）</div>
+            <div class="metric-value">{{ registration?.pendingVerification ?? 0 }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">今日剩余名额</div>
+            <div class="metric-value">
+              {{ registration && registration.remainingToday >= 0 ? registration.remainingToday : '不限' }}
+            </div>
+          </div>
+        </div>
+        <div v-if="registration && registration.dailyCap > 0" class="gen-row">
+          <span class="gen-label">今日水位</span>
+          <span class="gen-track">
+            <span class="gen-bar" :style="{ width: `${registrationUsagePercent}%` }"></span>
+          </span>
+          <span class="gen-value">{{ registration.todayRegistered }} / {{ registration.dailyCap }}</span>
+        </div>
+        <div v-else class="item-empty">未设置全局日上限</div>
       </section>
     </template>
   </div>

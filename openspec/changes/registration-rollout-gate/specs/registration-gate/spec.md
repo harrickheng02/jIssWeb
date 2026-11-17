@@ -77,7 +77,7 @@
 
 ### Requirement: Anonymous registration status endpoint
 
-系统 SHALL 提供匿名可访问的 `GET /api/auth/registration-status`，返回 `{ enabled: boolean, remainingToday: number }`。当总闸关闭时 `remainingToday` SHALL 为 `0`。响应 SHALL NOT 包含 `DailyCap`、`PerIpDailyCap` 等配置原值，SHALL NOT 包含任何用户或 IP 维度信息。
+系统 SHALL 提供匿名可访问的 `GET /api/auth/registration-status`，返回 `{ enabled: boolean, remainingToday: number }`。当总闸关闭时 `remainingToday` SHALL 为 `0`。响应 SHALL NOT 包含 `DailyCap`、`PerIpDailyCap` 等配置原值，SHALL NOT 包含任何用户或 IP 维度信息。当 `DailyCap` 为 `0`（不限制）时 `remainingToday` SHALL 为 `-1`，避免与「名额用尽」的 `0` 混淆。
 
 #### Scenario: Status reflects closed switch
 
@@ -88,6 +88,12 @@
 
 - **WHEN** `Registration:Enabled` 为 `true` 且今日已成功注册 `k` 个账号
 - **THEN** `remainingToday` SHALL 为 `max(DailyCap - k, 0)`
+
+#### Scenario: Unlimited cap is distinguishable from exhausted quota
+
+- **WHEN** `Registration:Enabled` 为 `true` 且 `DailyCap` 为 `0`
+- **THEN** `remainingToday` SHALL 为 `-1`
+- **AND** 前端 SHALL 将 `-1` 展示为「不限」而非「0 个名额」
 
 #### Scenario: Status does not leak configuration
 

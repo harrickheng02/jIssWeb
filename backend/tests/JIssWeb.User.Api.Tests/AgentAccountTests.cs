@@ -40,6 +40,7 @@ public sealed class AgentAccountFixture : IAsyncLifetime
             b.UseSetting("Mongo:ConnectionString", _mongoRunner.ConnectionString);
             b.UseSetting("Mongo:DatabaseName", DatabaseName);
             b.UseSetting("Jwt:Key", "test-jwt-key-must-be-32-chars-minimum!!");
+            b.UseSetting("Registration:Enabled", "true"); // 本测试测 captcha 绕过，需显式开启总闸
             b.UseSetting("InternalService:ApiKey", InternalKey);
             b.UseSetting("Captcha:Enabled", "true");
             b.UseSetting("Captcha:SecretKey", "test-secret");

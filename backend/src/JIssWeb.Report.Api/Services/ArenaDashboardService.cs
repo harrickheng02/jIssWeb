@@ -21,16 +21,22 @@ public interface IArenaDashboardService
 public sealed class ArenaDashboardService : IArenaDashboardService
 {
     private readonly IMongoDatabase _db;
+    private readonly IMongoDatabase? _userDb;
     private readonly ArenaDashboardRevealOptions _revealOptions;
+    private readonly RegistrationDashboardOptions _registrationOptions;
     private readonly IsAgentSubResolver _isAgentSub;
 
     public ArenaDashboardService(
         [FromKeyedServices("arena-dashboard-model")] IMongoDatabase db,
         IOptions<ArenaDashboardRevealOptions> revealOptions,
-        IsAgentSubResolver isAgentSub)
+        IsAgentSubResolver isAgentSub,
+        [FromKeyedServices("arena-dashboard-user")] IMongoDatabase? userDb = null,
+        IOptions<RegistrationDashboardOptions>? registrationOptions = null)
     {
         _db = db;
+        _userDb = userDb;
         _revealOptions = revealOptions.Value;
+        _registrationOptions = registrationOptions?.Value ?? new RegistrationDashboardOptions();
         _isAgentSub = isAgentSub;
     }
 
@@ -48,9 +54,59 @@ public sealed class ArenaDashboardService : IArenaDashboardService
             BuildGameplayAsync(vm.Gameplay, nowUtc, currentWeekKey, ct),
             BuildQueueAsync(vm.Queue, ct),
             BuildCommunityAsync(vm.Community, nowUtc, startOfWeekUtc, ct),
-            BuildGenerationSurvivalAsync(vm.GenerationSurvival, nowUtc, ct));
+            BuildGenerationSurvivalAsync(vm.GenerationSurvival, nowUtc, ct),
+            BuildRegistrationAsync(vm.Registration, nowUtc, ct));
 
         return vm;
+    }
+
+    // ── 注册流入面板（只读，users 来自用户库） ──
+    private async Task BuildRegistrationAsync(RegistrationPanel panel, DateTimeOffset nowUtc, CancellationToken ct)
+    {
+        try
+        {
+            panel.DailyCap = _registrationOptions.DailyCap;
+            panel.RemainingToday = _registrationOptions.DailyCap > 0 ? _registrationOptions.DailyCap : -1;
+            if (_userDb is null)
+                return;
+
+            var tz = ResolveTimeZone(_registrationOptions.TimeZoneId);
+            var localToday = TimeZoneInfo.ConvertTime(nowUtc, tz).Date;
+            var todayUtc = new DateTimeOffset(localToday, tz.GetUtcOffset(localToday)).UtcDateTime;
+            var nextDayLocal = localToday.AddDays(1);
+            var nextDayUtc = new DateTimeOffset(nextDayLocal, tz.GetUtcOffset(nextDayLocal)).UtcDateTime;
+
+            var users = _userDb.GetCollection<DashboardUser>(DashboardCollectionNames.Users);
+            var all = await users.Find(Builders<DashboardUser>.Filter.Empty).ToListAsync(ct);
+            var today = all
+                .Where(x => x.CreatedAtUtc >= todayUtc && x.CreatedAtUtc < nextDayUtc)
+                .ToList();
+
+            panel.TodayRegistered = today.Count;
+            panel.TodayVerified = today.Count(x => x.EmailVerifiedAtUtc.HasValue);
+            panel.PendingVerification = all.Count(x => !x.EmailVerifiedAtUtc.HasValue);
+
+            if (_registrationOptions.DailyCap > 0)
+                panel.RemainingToday = Math.Max(_registrationOptions.DailyCap - panel.TodayRegistered, 0);
+        }
+        catch (Exception)
+        {
+            // 单面板失败降级为零值，不阻断其余面板（与 GenerationSurvival 同款纪律）。
+        }
+    }
+
+    private static TimeZoneInfo ResolveTimeZone(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return TimeZoneInfo.Utc;
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(id);
+        }
+        catch (Exception)
+        {
+            return TimeZoneInfo.Utc;
+        }
     }
 
     // ── #38 世代存活曲线面板（只读） ──

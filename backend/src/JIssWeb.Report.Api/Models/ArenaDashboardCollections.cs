@@ -153,4 +153,6 @@ internal static class DashboardCollectionNames
     public const string ForumPosts = "forum_posts";
     public const string ForumReplies = "forum_replies";
     public const string ForumReports = "forum_reports";
+    // 注册护栏：users 来自用户库（Mongo:UserDatabaseName），不是 model 库。
+    public const string Users = "users";
 }

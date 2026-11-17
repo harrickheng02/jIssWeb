@@ -19,12 +19,17 @@ builder.Services.AddJIssWebCoreApi(builder.Configuration);
 // 运营仪表盘：只读聚合层。连共享 Mongo 库（jissweb_model）聚合各集合，不得写入。
 var mongoConn = builder.Configuration["Mongo:ConnectionString"];
 var modelDbName = builder.Configuration["Mongo:ModelDatabaseName"] ?? "jissweb_model";
+var userDbName = builder.Configuration["Mongo:UserDatabaseName"] ?? "jissweb_user";
 if (!string.IsNullOrEmpty(mongoConn))
 {
     var mongoClient = new MongoClient(mongoConn);
     builder.Services.AddKeyedSingleton<IMongoDatabase>("arena-dashboard-model", mongoClient.GetDatabase(modelDbName));
+    // 注册流入面板：只读投影用户库，不引 User.Api 程序集、不发服务间 HTTP。
+    builder.Services.AddKeyedSingleton<IMongoDatabase>("arena-dashboard-user", mongoClient.GetDatabase(userDbName));
 }
 builder.Services.Configure<ArenaDashboardRevealOptions>(builder.Configuration.GetSection("ArenaReveal"));
+builder.Services.Configure<RegistrationDashboardOptions>(
+    builder.Configuration.GetSection(RegistrationDashboardOptions.SectionName));
 builder.Services.AddScoped<IsAgentSubResolver>();
 builder.Services.AddScoped<IArenaDashboardService, ArenaDashboardService>();
 

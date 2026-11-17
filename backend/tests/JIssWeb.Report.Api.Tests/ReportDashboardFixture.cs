@@ -15,6 +15,7 @@ public sealed class ReportDashboardFixture : IAsyncLifetime
 
     public string ConnectionString { get; private set; } = "";
     public string DatabaseName { get; private set; } = "";
+    public string UserDatabaseName { get; private set; } = "";
 
     // 13 个只读集合名（与 DashboardCollectionNames 一致；internal 不可跨程序集访问，此处稳定镜像）。
     private static readonly string[] Collections =
@@ -25,6 +26,12 @@ public sealed class ReportDashboardFixture : IAsyncLifetime
     };
 
     public IMongoDatabase Database() => new MongoClient(ConnectionString).GetDatabase(DatabaseName);
+    public IMongoDatabase UserDatabase() => new MongoClient(ConnectionString).GetDatabase(UserDatabaseName);
+
+    /// <summary>注册面板用：清空用户库的 users 集合。</summary>
+    public async Task ClearUsersAsync()
+        => await UserDatabase().GetCollection<BsonDocument>("users")
+            .DeleteManyAsync(FilterDefinition<BsonDocument>.Empty);
 
     /// <summary>
     /// 清空 13 个集合，使每个测试自包含、幂等于任意运行顺序与多次运行（与 Model.Api 的 ClearAsync 同款）。
@@ -41,6 +48,7 @@ public sealed class ReportDashboardFixture : IAsyncLifetime
         _runner = MongoDbRunner.Start();
         ConnectionString = _runner.ConnectionString;
         DatabaseName = "report_dashboard_" + Guid.NewGuid().ToString("N");
+        UserDatabaseName = "report_users_" + Guid.NewGuid().ToString("N");
         return Task.CompletedTask;
     }
 

@@ -24,6 +24,15 @@ builder.Services.Configure<LoginSecuritySettings>(builder.Configuration.GetSecti
 builder.Services.Configure<ForumOptions>(builder.Configuration.GetSection(ForumOptions.SectionName));
 builder.Services.Configure<InternalServiceOptions>(builder.Configuration.GetSection(InternalServiceOptions.SectionName));
 builder.Services.Configure<CaptchaSettings>(builder.Configuration.GetSection(CaptchaSettings.SectionName));
+builder.Services.Configure<RegistrationSettings>(builder.Configuration.GetSection(RegistrationSettings.SectionName));
+builder.Services.PostConfigure<RegistrationSettings>(o =>
+{
+    // 负值归零（0 表示该维度不限制）；空时区回落默认值，避免日界落到 UTC 造成「上午归零」。
+    if (o.DailyCap < 0) o.DailyCap = 0;
+    if (o.PerIpDailyCap < 0) o.PerIpDailyCap = 0;
+    if (string.IsNullOrWhiteSpace(o.TimeZoneId)) o.TimeZoneId = "Asia/Shanghai";
+});
+builder.Services.AddSingleton<RegistrationGate>();
 builder.Services.AddHttpClient("turnstile", c =>
     c.BaseAddress = new Uri("https://challenges.cloudflare.com"));
 builder.Services.AddSingleton<TurnstileCaptchaVerifier>();

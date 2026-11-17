@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import VueTurnstile from 'vue-turnstile'
-import { bffLogin, register } from '@/api/clients'
+import { bffLogin, getRegistrationStatus, register } from '@/api/clients'
+import type { RegistrationStatusDto } from '@/api/clients'
 import { useAuthStore } from '@/stores/auth'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useLegalUiStore } from '@/stores/legalUi'
@@ -21,6 +22,20 @@ const router = useRouter()
 const activeTab = ref<'login' | 'register'>('login')
 const loading = ref(false)
 const requestError = ref('')
+const registrationStatus = ref<RegistrationStatusDto | null>(null)
+const registrationClosed = computed(() => registrationStatus.value?.enabled === false)
+const registrationFull = computed(() =>
+  registrationStatus.value?.enabled === true && registrationStatus.value.remainingToday === 0,
+)
+
+onMounted(async () => {
+  try {
+    const res = await getRegistrationStatus()
+    if (res.success && res.data) registrationStatus.value = res.data
+  } catch {
+    // 状态查询失败不阻断注册页：后端仍会在提交时给出明确错误码。
+  }
+})
 
 const loginForm = reactive({
   email: '',
@@ -60,7 +75,9 @@ const canSubmitRegister = computed(() =>
       registerForm.password &&
       registerForm.confirmPassword &&
       registerForm.agreed &&
-      (!turnstileEnabled || registerForm.captchaToken),
+      (!turnstileEnabled || registerForm.captchaToken) &&
+      !registrationClosed.value &&
+      !registrationFull.value,
   ),
 )
 
@@ -102,6 +119,10 @@ function getAuthErrorMessage(code?: string, fallback?: string) {
       return '请完成人机验证后再提交'
     case 'CAPTCHA_INVALID':
       return '人机验证失败，请重试'
+    case 'REGISTRATION_CLOSED':
+      return '当前暂未开放注册'
+    case 'REGISTRATION_DAILY_CAP_REACHED':
+      return '今日注册名额已满，请明天再试'
     default:
       return fallback || '操作失败'
   }
@@ -313,6 +334,22 @@ async function doRegister() {
                   class="auth-page__alert"
                   :title="requestError"
                   type="error"
+                  :closable="false"
+                  show-icon
+                />
+                <el-alert
+                  v-if="registrationClosed"
+                  class="auth-page__alert"
+                  title="当前暂未开放注册"
+                  type="warning"
+                  :closable="false"
+                  show-icon
+                />
+                <el-alert
+                  v-else-if="registrationFull"
+                  class="auth-page__alert"
+                  title="今日注册名额已满，请明天再试"
+                  type="warning"
                   :closable="false"
                   show-icon
                 />
