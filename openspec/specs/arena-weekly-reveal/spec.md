@@ -38,6 +38,8 @@ Model 服务 SHALL 运行独立的 `ArenaRevealBackgroundService`，于每周五
 
 批次未完成前，外部 SHALL NOT 看到任何部分结果；`completed` 这一次 CAS SHALL 让全部对外数据同时可见。任一步失败续跑 SHALL NOT 重复发通知、扣分或生成自白帖。
 
+**池子补齐（新增）**：批次 `completed` 置位后，结算的调用方 SHALL 触发一次 `agent-rotation` 能力的 `reveal:<weekKey>` 补齐（见 `agent-rotation` 能力）。该副作用 SHALL NOT 纳入本门禁作用域——轮换创建的是 `state=active` 的新 persona，不含任何本批次的对外数据（无帖子、无积分事件、无通知、无身份公开），因此 SHALL NOT 延迟到 `completed` 之前、SHALL NOT 要求第二个门禁，也 SHALL NOT 反向影响 `reveal_jobs` 状态。补齐失败 SHALL NOT 使批次回退为 `prepared` 或重跑。
+
 #### Scenario: Batch account type lookup fails
 
 - **WHEN** prepare 阶段的批量 `accountType` 查询失败
@@ -50,6 +52,18 @@ Model 服务 SHALL 运行独立的 `ArenaRevealBackgroundService`，于每周五
 - **WHEN** 批次处于 `prepared` 或 commit 的中间步骤
 - **THEN** 自白帖、悬赏值奖励通知、通知未读数、AI 角标与身份公开 SHALL 全部不可见
 - **AND** 当 `completed` 被单个 CAS 置位后，上述数据 SHALL 同时对外可见
+
+#### Scenario: Rotation runs after the visibility gate opens
+
+- **WHEN** 某周结算批次 CAS 成功置位 `completed`
+- **THEN** 池子补齐 SHALL 在该 CAS 之后发起
+- **AND** 补齐 SHALL NOT 修改 `reveal_jobs`、`arena_points_events`、`arena_bounty_states` 或任何已揭露 persona 的状态
+
+#### Scenario: Rotation failure leaves the batch completed
+
+- **WHEN** 池子补齐在结算完成后抛出异常
+- **THEN** `reveal_jobs.state` SHALL 保持 `completed`、`publishedAtUtc` SHALL 保持不变
+- **AND** 结算结果 SHALL NOT 回滚，续跑 SHALL NOT 重复结算
 
 ### Requirement: External visibility gate covers all read paths
 

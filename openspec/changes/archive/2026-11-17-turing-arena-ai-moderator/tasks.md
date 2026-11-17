@@ -68,5 +68,5 @@
 
 ## Phase 8 · PR 与收尾
 
-- [ ] 8.1 提交（Conventional Commits 中文）、推送分支、开 PR、等 CI 双 job 通过、合并 master。
-- [ ] 8.2 `openspec archive turing-arena-ai-moderator --yes`；`pm-plan.yaml` 同步 V0.3 里程碑勾选与 OpenSpec 备注；推送归档提交。
+- [x] 8.1 提交（Conventional Commits 中文）、推送分支、开 PR、等 CI 双 job 通过、合并 master。
+- [x] 8.2 `openspec archive turing-arena-ai-moderator --yes`；`pm-plan.yaml` 同步 V0.3 里程碑勾选与 OpenSpec 备注；推送归档提交。
