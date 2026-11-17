@@ -1284,6 +1284,8 @@ export interface AgentPersonaDto {
   llmProfileId?: string
   prompt?: string
   state: string
+  /** V0.3 轮换器：由哪次轮换运行产生；手工创建时为空 */
+  rotationRunKey?: string
   createdAtUtc?: string
   updatedAtUtc?: string
 }
@@ -1420,6 +1422,49 @@ export async function adminDeleteAgentPersona(personaId: string) {
 
 export async function adminProvisionAgent(body: ProvisionAgentRequest) {
   const { data } = await modelApi.post<ApiResult<AgentPersonaDto>>('/forum/admin/agent-personas/provision', body)
+  return data
+}
+
+// ── Agent Rotation (V0.3) ─────────────────────────────────────────────────────
+
+export interface AgentRotationStatusDto {
+  enabled: boolean
+  activeCount: number
+  minActiveAgents: number
+  maxActiveAgents: number
+  maxPerRun: number
+  gap: number
+}
+
+export interface AgentRotationRunDto {
+  id: string
+  runKey: string
+  /** reveal | daily | manual */
+  trigger: string
+  gapBefore: number
+  createdCount: number
+  failedCount: number
+  activeCountAfter: number
+  startedAtUtc: string
+  completedAtUtc?: string
+  triggeredBySub?: string
+  failures: string[]
+}
+
+export async function adminGetAgentRotationStatus() {
+  const { data } = await modelApi.get<ApiResult<AgentRotationStatusDto>>('/forum/admin/agent-rotation/status')
+  return data
+}
+
+export async function adminListAgentRotationRuns(limit = 20) {
+  const { data } = await modelApi.get<ApiResult<AgentRotationRunDto[]>>('/forum/admin/agent-rotation/runs', {
+    params: { limit },
+  })
+  return data
+}
+
+export async function adminTriggerAgentRotation() {
+  const { data } = await modelApi.post<ApiResult<AgentRotationRunDto>>('/forum/admin/agent-rotation/run')
   return data
 }
 

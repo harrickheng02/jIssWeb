@@ -102,5 +102,13 @@ public sealed class ArenaRevealBackgroundService : BackgroundService
         var service = scope.ServiceProvider.GetRequiredService<IArenaRevealService>();
         var outcome = await service.RevealWeekAsync(weekKey, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation("Arena reveal week {WeekKey} outcome={Outcome}.", weekKey, outcome);
+
+        // V0.3 账号轮换器：仅在批次已完成（completed 门禁已放开）后补齐参赛池。
+        // 补齐钩子内部自吞异常，SHALL NOT 影响结算结果与 reveal_jobs 状态。
+        if (outcome != RevealOutcome.Processed) return;
+
+        var rotation = scope.ServiceProvider.GetService<IAgentRotationService>();
+        if (rotation is null) return;
+        await rotation.EnsureAfterRevealAsync(weekKey, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -24,6 +24,8 @@ public sealed class AgentPersonaRecord
     public int Generation { get; set; } = 1;
     public List<string> InheritedFrom { get; set; } = new();
     public List<string> ExperienceIds { get; set; } = new();
+    /// <summary>由哪次轮换运行产生（<c>agent_rotation_runs.runKey</c>）；运营手工创建的 persona 为空。</summary>
+    public string? RotationRunKey { get; set; }
     public int SurvivalDays { get; set; }
     public string State { get; set; } = AgentPersonaState.Active;
     public DateTime CreatedAtUtc { get; set; }
