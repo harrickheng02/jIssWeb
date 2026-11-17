@@ -10,6 +10,7 @@ const canModerate = computed(() => auth.canModerate)
 const active = computed(() => {
   const name = route.name
   if (name === 'moderation-reports') return 'reports'
+  if (name === 'moderation-review-queue') return 'review'
   if (name === 'moderation-tags') return 'tags'
   if (name === 'moderation-agents') return 'agents'
   return 'audit'
@@ -20,7 +21,7 @@ const active = computed(() => {
   <header class="mod-hub">
     <div class="mod-hub__intro">
       <h1 class="mod-hub__title">治理工作台</h1>
-      <p class="mod-hub__desc">集中处理审计、举报、标签与智能体治理。</p>
+      <p class="mod-hub__desc">集中处理审计、举报、内容复审、标签与智能体治理。</p>
     </div>
 
     <nav class="mod-hub__nav" role="tablist" aria-label="治理工作台">
@@ -41,6 +42,16 @@ const active = computed(() => {
         :aria-selected="active === 'reports'"
       >
         举报队列
+      </RouterLink>
+      <RouterLink
+        v-if="canModerate"
+        :to="{ name: 'moderation-review-queue' }"
+        class="mod-hub__tab"
+        :class="{ 'mod-hub__tab--active': active === 'review' }"
+        role="tab"
+        :aria-selected="active === 'review'"
+      >
+        内容复审
       </RouterLink>
       <RouterLink
         :to="{ name: 'moderation-tags' }"

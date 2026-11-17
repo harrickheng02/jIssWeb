@@ -21,6 +21,9 @@ public static class ForumMongoSetup
     public const string ReportsCollectionName = "forum_reports";
     public const string ReportEvidenceSnapshotsCollectionName = "forum_report_evidence_snapshots";
     public const string TagsCollectionName = "forum_tags";
+    public const string ModerationQueueCollectionName = "forum_moderation_queue";
+    public const string ContentHashesCollectionName = "forum_content_hashes";
+    public const string ModerationDailyCallsCollectionName = "forum_moderation_daily_calls";
 
     private static readonly Lazy<(string Title, string AuthorSubId)> PostSearchBsonFields = new(() =>
     {
@@ -199,8 +202,49 @@ public static class ForumMongoSetup
         var replyStatePost = Builders<ForumReplyRecord>.IndexKeys.Ascending(x => x.State).Ascending(x => x.PostId);
         replies.Indexes.CreateOne(new CreateIndexModel<ForumReplyRecord>(replyStatePost, new CreateIndexOptions { Name = "reply_state_post" }));
 
+        // AI 版主阶段一：复审队列 + 重复内容指纹。
+        EnsureModerationIndexes(db);
+
         AgentMongoSetup.EnsureIndexes(db);
         ArenaMongoSetup.EnsureIndexes(db);
+    }
+
+    /// <summary>AI 版主阶段一的集合索引；独立方法便于集成测试在隔离库中复用。</summary>
+    public static void EnsureModerationIndexes(IMongoDatabase db)
+    {
+        var moderationQueue = db.GetCollection<ForumModerationQueueRecord>(ModerationQueueCollectionName);
+        var queueUnique = Builders<ForumModerationQueueRecord>.IndexKeys
+            .Ascending(x => x.TargetType)
+            .Ascending(x => x.TargetId)
+            .Ascending(x => x.Source);
+        moderationQueue.Indexes.CreateOne(new CreateIndexModel<ForumModerationQueueRecord>(
+            queueUnique, new CreateIndexOptions { Unique = true, Name = "uniq_target_source" }));
+        var queueStatusCreated = Builders<ForumModerationQueueRecord>.IndexKeys
+            .Ascending(x => x.Status)
+            .Descending(x => x.CreatedAtUtc);
+        moderationQueue.Indexes.CreateOne(new CreateIndexModel<ForumModerationQueueRecord>(
+            queueStatusCreated, new CreateIndexOptions { Name = "status_created" }));
+        var queueAuthor = Builders<ForumModerationQueueRecord>.IndexKeys
+            .Ascending(x => x.AuthorSubId)
+            .Descending(x => x.CreatedAtUtc);
+        moderationQueue.Indexes.CreateOne(new CreateIndexModel<ForumModerationQueueRecord>(
+            queueAuthor, new CreateIndexOptions { Name = "author_created" }));
+
+        var contentHashes = db.GetCollection<ForumContentHashRecord>(ContentHashesCollectionName);
+        var hashWindow = Builders<ForumContentHashRecord>.IndexKeys
+            .Ascending(x => x.AuthorSubId)
+            .Ascending(x => x.Hash)
+            .Descending(x => x.CreatedAtUtc);
+        contentHashes.Indexes.CreateOne(new CreateIndexModel<ForumContentHashRecord>(
+            hashWindow, new CreateIndexOptions { Name = "author_hash_created" }));
+        var hashCreated = Builders<ForumContentHashRecord>.IndexKeys.Descending(x => x.CreatedAtUtc);
+        contentHashes.Indexes.CreateOne(new CreateIndexModel<ForumContentHashRecord>(
+            hashCreated, new CreateIndexOptions { Name = "created_desc" }));
+
+        var dailyCalls = db.GetCollection<ForumModerationDailyCallRecord>(ModerationDailyCallsCollectionName);
+        var dailyDay = Builders<ForumModerationDailyCallRecord>.IndexKeys.Ascending(x => x.Day);
+        dailyCalls.Indexes.CreateOne(new CreateIndexModel<ForumModerationDailyCallRecord>(
+            dailyDay, new CreateIndexOptions { Unique = true, Name = "uniq_day" }));
     }
 
     public static async Task EnsureStateFieldAsync(IServiceProvider services)

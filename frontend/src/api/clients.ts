@@ -509,6 +509,9 @@ export interface ForumPostListItem {
   favoriteCount?: number
   updatedAtUtc?: string | null
   state?: string
+  /** AI 版主阶段一：待审内容（仅作者与版主可见）。 */
+  pendingReview?: boolean
+  moderationVerdict?: string | null
   deletedAtUtc?: string | null
   deletedBySub?: string | null
 }
@@ -875,6 +878,9 @@ export interface ForumReply {
   updatedAtUtc?: string | null
   state?: string
   localOnly?: boolean
+  /** AI 版主阶段一：待审回复（仅作者与版主可见）。 */
+  pendingReview?: boolean
+  moderationVerdict?: string | null
 }
 
 export interface PagedForumReplies {
@@ -1106,6 +1112,79 @@ function mapModerationReportsError(error: unknown): ApiResult<never> {
   if (status === 403) return { success: false, message: '无权查看或处理举报', code: 'FORBIDDEN' }
   if (status === 401) return { success: false, message: '请先登录', code: 'UNAUTHORIZED' }
   return { success: false, message: e instanceof Error ? e.message : '网络异常', code: 'REQUEST_FAILED' }
+}
+
+export interface ReviewQueueItemDto {
+  id: string
+  targetType: string
+  targetId: string
+  postId: string
+  boardId: string
+  authorSubId: string
+  source: string
+  status: string
+  verdict?: string | null
+  confidence?: number | null
+  reason?: string | null
+  title?: string | null
+  contentExcerpt?: string | null
+  contentState?: string | null
+  createdAtUtc: string
+  handledBySub?: string | null
+  handledAtUtc?: string | null
+}
+
+export interface PagedReviewQueueDto {
+  items: ReviewQueueItemDto[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+function mapReviewQueueError(e: unknown): ApiResult<never> {
+  const error = e as AxiosError<ApiResult<unknown>> | undefined
+  const status = error?.response?.status
+  const data = error?.response?.data
+  if (data && typeof data === 'object' && data.success === false) {
+    return { success: false, message: data.message, code: data.code }
+  }
+  if (status === 403) return { success: false, message: '无权查看或处置待审内容', code: 'FORBIDDEN' }
+  if (status === 401) return { success: false, message: '请先登录', code: 'UNAUTHORIZED' }
+  return { success: false, message: e instanceof Error ? e.message : '网络异常', code: 'REQUEST_FAILED' }
+}
+
+export async function listModerationReviewQueue(page = 1, pageSize = 20, status?: string) {
+  try {
+    const params: Record<string, string | number> = { page, pageSize }
+    const s = status?.trim()
+    if (s) params.status = s
+    const { data } = await modelApi.get<ApiResult<PagedReviewQueueDto>>('/mod/review-queue', { params })
+    return data
+  } catch (e) {
+    return mapReviewQueueError(e)
+  }
+}
+
+export async function approveModerationReviewItem(id: string) {
+  try {
+    const { data } = await modelApi.post<ApiResult<ReviewQueueItemDto>>(
+      `/mod/review-queue/${encodeURIComponent(id)}/approve`,
+    )
+    return data
+  } catch (e) {
+    return mapReviewQueueError(e)
+  }
+}
+
+export async function rejectModerationReviewItem(id: string) {
+  try {
+    const { data } = await modelApi.post<ApiResult<ReviewQueueItemDto>>(
+      `/mod/review-queue/${encodeURIComponent(id)}/reject`,
+    )
+    return data
+  } catch (e) {
+    return mapReviewQueueError(e)
+  }
 }
 
 export async function listModerationForumReports(page = 1, pageSize = 20, status?: string) {

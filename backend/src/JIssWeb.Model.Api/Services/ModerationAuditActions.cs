@@ -2,6 +2,9 @@ namespace JIssWeb.Model.Api.Services;
 
 internal static class ModerationAuditActions
 {
+    internal const string ContentApprove = "content.approve";
+    internal const string ContentReject = "content.reject";
+
     internal static readonly HashSet<string> Known = new(StringComparer.Ordinal)
     {
         "post.setSticky",
@@ -21,6 +24,8 @@ internal static class ModerationAuditActions
         "report.acknowledge",
         "report.statusChange",
         "audit.export",
+        "content.approve",
+        "content.reject",
     };
 
     internal static bool TryParseQueryActions(IEnumerable<string>? rawValues, out List<string> actions, out string? invalid)

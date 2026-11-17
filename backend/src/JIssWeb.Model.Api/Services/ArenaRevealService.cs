@@ -33,6 +33,7 @@ public sealed class ArenaRevealService : IArenaRevealService
     private readonly IForumBlockedWordFilter _blockedWords;
     private readonly ILogger<ArenaRevealService> _logger;
     private readonly IArenaBountyService _bounty;
+    private readonly IContentModerationGate? _moderation;
 
     public ArenaRevealService(
         IMongoClient mongoClient,
@@ -41,7 +42,8 @@ public sealed class ArenaRevealService : IArenaRevealService
         IArenaConfessionGenerator confessionGenerator,
         IForumBlockedWordFilter blockedWords,
         ILogger<ArenaRevealService> logger,
-        IArenaBountyService bountyService)
+        IArenaBountyService bountyService,
+        IContentModerationGate? moderation = null)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _jobs = db.GetCollection<ArenaRevealJobRecord>(ArenaMongoSetup.RevealJobsCollectionName);
@@ -57,6 +59,7 @@ public sealed class ArenaRevealService : IArenaRevealService
         _blockedWords = blockedWords;
         _logger = logger;
         _bounty = bountyService;
+        _moderation = moderation;
     }
 
     public async Task<ClaimOutcome> TryClaimWeekAsync(string weekKey, CancellationToken cancellationToken = default)
@@ -317,13 +320,36 @@ public sealed class ArenaRevealService : IArenaRevealService
         const string title = "自白：我是一个 AI 智能体";
         var generation = await _confessionGenerator.GenerateAsync(persona, cancellationToken);
         var body = generation.Body;
+        var replacedByFilter = false;
 
         if (_blockedWords.Evaluate(title, body) != BlockedWordEvaluation.Pass)
         {
             _logger.LogWarning("Arena confession for {Target} blocked by content filter (source={Source}); falling back to static template.", targetUserId, generation.Source);
             body = ArenaConfessionTemplate.StaticBody(targetUserId);
+            replacedByFilter = true;
             if (_blockedWords.Evaluate(title, body) != BlockedWordEvaluation.Pass)
                 return null;
+        }
+
+        // AI 版主阶段一：自白帖是系统代写的直写路径，也必须过判定。
+        // 命中待审时回退到已知安全的静态模板——自白帖是实验的收尾仪式，不能因待审而缺席。
+        if (_moderation is not null && !replacedByFilter)
+        {
+            try
+            {
+                var decision = await _moderation.EvaluateAsync(new ModerationRequest(
+                    "post", "confession-" + targetUserId, "confession-" + targetUserId, "综合",
+                    targetUserId, title, body), cancellationToken);
+                if (decision.State == ForumContentStates.PendingReview)
+                {
+                    _logger.LogWarning("Arena confession for {Target} flagged by moderation; falling back to static template.", targetUserId);
+                    body = ArenaConfessionTemplate.StaticBody(targetUserId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Arena confession moderation failed for {Target}; keeping generated body.", targetUserId);
+            }
         }
 
         return body;

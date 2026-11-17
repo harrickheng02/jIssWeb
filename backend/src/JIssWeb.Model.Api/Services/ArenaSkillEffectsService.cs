@@ -28,13 +28,15 @@ public sealed class ArenaSkillEffectsService
     private readonly IMongoCollection<ForumPostRecord> _posts;
     private readonly IMongoCollection<ForumReplyRecord> _replies;
     private readonly IMongoCollection<ArenaInquiryTaskRecord> _inquiryTasks;
+    private readonly IContentModerationGate? _moderation;
 
-    public ArenaSkillEffectsService(IMongoDatabase db)
+    public ArenaSkillEffectsService(IMongoDatabase db, IContentModerationGate? moderation = null)
     {
         _inventory = db.GetCollection<SkillInventoryRecord>(InventoryCollection);
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
         _replies = db.GetCollection<ForumReplyRecord>(ForumMongoSetup.RepliesCollectionName);
         _inquiryTasks = db.GetCollection<ArenaInquiryTaskRecord>(InquiryTasksCollection);
+        _moderation = moderation;
     }
 
     /// <summary>调用者是否持有指定技能且未核销。</summary>
@@ -102,6 +104,22 @@ public sealed class ArenaSkillEffectsService
             CreatedAtUtc = now,
             State = ForumContentStates.Published,
         };
+        // AI 版主阶段一：公开质询绕过 Controller 直写，同样要过门禁；
+        // 门禁自身异常不外溢，绝不影响质询与回应任务的创建。
+        if (_moderation is not null)
+        {
+            try
+            {
+                var decision = await _moderation.EvaluateAsync(new ModerationRequest(
+                    "post", post.Id, post.Id, "综合", callerUserId, post.Title, post.Body), ct);
+                post.State = decision.State;
+            }
+            catch (Exception)
+            {
+                post.State = ForumContentStates.Published;
+            }
+        }
+
         await _posts.InsertOneAsync(post, cancellationToken: ct);
 
         await _inquiryTasks.InsertOneAsync(new ArenaInquiryTaskRecord
