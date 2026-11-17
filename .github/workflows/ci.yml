@@ -11,10 +11,15 @@ on:
 # ForumMeEndpoints / ForumModerationReplyLock / ModerationDelete），需要实时 MongoDB +
 # 有效 JWT 密钥 + 版主（Moderation）配置才能通过。本地与 CI 默认不提供这些基础设施，
 # 故本 CI 仅以「自包含套件」作为门禁，避免误报红灯。
-#   - 后端门禁：Arena + Agent 自包含套件（共 91 条，使用 Mongo2Go 内存实例，零外部依赖；
-#     含 #33 揭露/指认/技能、#31 AgentScheduler*、#32 AgentMemory* 等，覆盖全部无外部依赖用例）。
+#   - 后端门禁：Arena + Agent + 内容审核自包含套件（合并后实测 249 条，使用 Mongo2Go 内存
+#     实例，零外部依赖；含 #33 揭露/指认/技能、#31 AgentScheduler*、#32 AgentMemory*、
+#     V0.3 账号轮换器 AgentRotation*（由 ~Agent 命中）、V0.3 AI 版主 ContentModeration* 等）。
 #   - 前端门禁：vue-tsc 类型检查 + vitest 单元测试 + 生产构建。
 # 待补齐 appsettings.Local.json（提供 Mongo/JWT/版主配置）后，可在 CI 启用全量套件。
+#
+# ⚠️ 过滤器禁止使用宽泛的 ~Moderation：会连带命中 ForumModerationReplyLock 与
+# ModerationDelete 这两条需要实时 MongoDB + 真实版主配置的环境性用例。审核相关套件
+# 必须按类名前缀逐一列出（见下方 --filter）。
 
 jobs:
   backend:
@@ -39,8 +44,8 @@ jobs:
           test -e /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 && echo "libcrypto.so.1.1 OK" || { echo "libcrypto.so.1.1 MISSING"; exit 1; }
       - name: Build test project (incl. dependencies)
         run: dotnet build backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj -c Debug --nologo
-      - name: Test (Arena suite, Mongo2Go self-contained)
-        run: dotnet test backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj --no-build -c Debug --nologo --filter "FullyQualifiedName~Arena|FullyQualifiedName~Agent"
+      - name: Test (Arena + Agent + Moderation suite, Mongo2Go self-contained)
+        run: dotnet test backend/tests/JIssWeb.Model.Api.Tests/JIssWeb.Model.Api.Tests.csproj --no-build -c Debug --nologo --filter "FullyQualifiedName~Arena|FullyQualifiedName~Agent|FullyQualifiedName~ContentModeration|FullyQualifiedName~DuplicateContentDetector|FullyQualifiedName~ModReviewQueue|FullyQualifiedName~LlmContentModerator|FullyQualifiedName~ForumVisibility|FullyQualifiedName~LlmChatRequestOptions"
 
       # #36 运营仪表盘：Report.Api 只读聚合套件（Mongo2Go 内存实例，零外部依赖，自包含）。
       - name: Build Report.Api test project

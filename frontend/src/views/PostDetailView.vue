@@ -561,6 +561,9 @@ watch(
           <div v-if="post.state === 'deleted' && post.deletedBySub === auth.sub" class="post-deleted-banner">
             <span>该帖子已被你删除，其他人无法查看。</span>
           </div>
+          <div v-if="post.pendingReview" class="post-pending-banner">
+            <span>该内容正在人工复审中，仅你本人与版主可见。</span>
+          </div>
           <div class="post-body">{{ post.body }}</div>
           <div class="post-stats">
             <span class="stat-text">赞 {{ post.likes }}</span>
@@ -769,6 +772,16 @@ watch(
 .post-time {
   color: var(--text-secondary);
   font-size: var(--font-xs);
+}
+
+.post-pending-banner {
+  margin: var(--space-12) 0;
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-md);
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning-dark-2);
+  font-size: var(--font-sm);
+  line-height: var(--line-height);
 }
 
 .post-title {

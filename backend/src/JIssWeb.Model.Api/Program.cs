@@ -47,6 +47,16 @@ builder.Services.Configure<ArenaRevealOptions>(builder.Configuration.GetSection(
 builder.Services.Configure<ArenaBountyOptions>(builder.Configuration.GetSection(ArenaBountyOptions.SectionName));
 builder.Services.Configure<AgentExperienceInheritanceOptions>(builder.Configuration.GetSection(AgentExperienceInheritanceOptions.SectionName));
 builder.Services.Configure<AgentRotationOptions>(builder.Configuration.GetSection(AgentRotationOptions.SectionName));
+builder.Services.Configure<ForumContentModerationOptions>(builder.Configuration.GetSection(ForumContentModerationOptions.SectionName));
+builder.Services.PostConfigure<ForumContentModerationOptions>(o =>
+{
+    // 兜底：配置里写成空数组时回退到默认白名单，避免「开启后永不自动隐藏」的静默失效。
+    if (o.AutoHideVerdicts is null || o.AutoHideVerdicts.Count == 0)
+        o.AutoHideVerdicts = new ForumContentModerationOptions().AutoHideVerdicts;
+    if (o.TimeoutMs <= 0) o.TimeoutMs = 2500;
+    if (o.DailyLlmCallCap < 0) o.DailyLlmCallCap = 0;
+    if (o.DuplicateWindowHours <= 0) o.DuplicateWindowHours = 24;
+});
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IUserSanctionClient, UserSanctionClient>((sp, client) =>
 {
@@ -77,6 +87,10 @@ builder.Services.AddSingleton<IAgentExperienceExtractor, LlmExperienceExtractor>
 builder.Services.AddSingleton<IExperienceInheritanceService, ExperienceInheritanceService>();
 builder.Services.AddSingleton<IAgentProvisioningService, AgentProvisioningService>();
 builder.Services.AddSingleton<IAgentRotationService, AgentRotationService>();
+// AI 版主阶段一：ILlmChatClient 是 typed HttpClient（transient），故分类器与门禁同为 transient。
+builder.Services.AddTransient<IContentModerator, LlmContentModerator>();
+builder.Services.AddTransient<IDuplicateContentDetector, DuplicateContentDetector>();
+builder.Services.AddTransient<IContentModerationGate, ContentModerationGate>();
 builder.Services.AddSingleton<AgentSchedulerEngine>();
 builder.Services.AddHostedService<AgentSchedulerBackgroundService>();
 builder.Services.AddHostedService<ForumReportRetentionPurgeHostedService>();

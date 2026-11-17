@@ -12,7 +12,14 @@ using MongoDB.Driver;
 
 namespace JIssWeb.Model.Api.Services;
 
-public sealed record LlmChatRequest(string SystemPrompt, string UserPrompt, string ApiKey, string BaseUrl, string Model);
+/// <summary>
+/// LLM 请求。<paramref name="Temperature"/> / <paramref name="MaxTokens"/> 为可选：
+/// 为 null 时沿用既有默认（temperature 0.8、不传 max_tokens），保持调度器行为不变。
+/// 分类等需要确定性的场景显式传 0。
+/// </summary>
+public sealed record LlmChatRequest(
+    string SystemPrompt, string UserPrompt, string ApiKey, string BaseUrl, string Model,
+    double? Temperature = null, int? MaxTokens = null);
 public interface ILlmChatClient
 {
     Task<string> CompleteAsync(LlmChatRequest request, CancellationToken ct = default);
@@ -24,16 +31,20 @@ public sealed class DeepSeekChatClient(HttpClient http) : ILlmChatClient
     {
         using var message = new HttpRequestMessage(HttpMethod.Post, $"{request.BaseUrl.TrimEnd('/')}/chat/completions");
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", request.ApiKey);
-        message.Content = JsonContent.Create(new
+        var payload = new Dictionary<string, object?>
         {
-            model = request.Model,
-            messages = new[]
+            ["model"] = request.Model,
+            ["messages"] = new[]
             {
                 new { role = "system", content = request.SystemPrompt },
                 new { role = "user", content = request.UserPrompt },
             },
-            temperature = 0.8,
-        });
+            // 未显式指定时保持既有 0.8，既有调用方行为不变。
+            ["temperature"] = request.Temperature ?? 0.8,
+        };
+        if (request.MaxTokens is int maxTokens)
+            payload["max_tokens"] = maxTokens;
+        message.Content = JsonContent.Create(payload);
         using var response = await http.SendAsync(message, ct);
         response.EnsureSuccessStatusCode();
         using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));

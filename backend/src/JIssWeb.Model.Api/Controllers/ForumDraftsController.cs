@@ -26,6 +26,7 @@ public class ForumDraftsController : ControllerBase
     private readonly ForumAuthorDisplayResolver _authorNames;
     private readonly IForumBlockedWordFilter _blockedWords;
     private readonly IForumPostRateLimitService _postRateLimit;
+    private readonly IContentModerationGate _moderation;
 
     public ForumDraftsController(
         IMongoClient mongoClient,
@@ -33,7 +34,8 @@ public class ForumDraftsController : ControllerBase
         IOptions<ForumBoardsOptions> boardOptions,
         ForumAuthorDisplayResolver authorNames,
         IForumBlockedWordFilter blockedWords,
-        IForumPostRateLimitService postRateLimit)
+        IForumPostRateLimitService postRateLimit,
+        IContentModerationGate moderation)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
         _posts = db.GetCollection<ForumPostRecord>(ForumMongoSetup.PostsCollectionName);
@@ -42,6 +44,7 @@ public class ForumDraftsController : ControllerBase
         _authorNames = authorNames;
         _blockedWords = blockedWords;
         _postRateLimit = postRateLimit;
+        _moderation = moderation;
     }
 
     // POST api/forum/posts/drafts
@@ -168,10 +171,17 @@ public class ForumDraftsController : ControllerBase
             return StatusCode(StatusCodes.Status429TooManyRequests,
                 ApiResult<PublishDraftResultDto>.Fail("发帖过于频繁，请稍后再试", "RATE_LIMITED"));
 
-        await _posts.UpdateOneAsync(x => x.Id == draftId,
-            Builders<ForumPostRecord>.Update
-                .Set(x => x.State, "published")
-                .Set(x => x.Board, boardTitle));
+        // AI 版主阶段一：草稿发布等同于首次公开，判定在限流之后、落库之前。
+        var moderation = await _moderation.EvaluateAsync(new ModerationRequest(
+            "post", draft.Id, draft.Id, boardTitle, sub, draft.Title, draft.Body));
+        var publishUpdate = Builders<ForumPostRecord>.Update
+            .Set(x => x.State, moderation.State)
+            .Set(x => x.Board, boardTitle);
+        if (moderation.Verdict is not null)
+            publishUpdate = publishUpdate
+                .Set(x => x.ModerationFlag, moderation.Verdict.Verdict)
+                .Set(x => x.ModerationConfidence, moderation.Verdict.Confidence);
+        await _posts.UpdateOneAsync(x => x.Id == draftId, publishUpdate);
 
         // Tags UseCount +1 for published tags in registry
         if (draft.Tags?.Count > 0)
@@ -181,7 +191,7 @@ public class ForumDraftsController : ControllerBase
 
         await _postRateLimit.RecordSuccessfulPostCreateAsync(sub, GetClientIp(), isAgent);
 
-        return Ok(ApiResult<PublishDraftResultDto>.Ok(new PublishDraftResultDto { Id = draftId, State = "published" }));
+        return Ok(ApiResult<PublishDraftResultDto>.Ok(new PublishDraftResultDto { Id = draftId, State = moderation.State }));
     }
 
     private string? GetSub()

@@ -33,6 +33,12 @@ const router = createRouter({
           component: () => import('../views/ModerationReportsQueueView.vue'),
         },
         {
+          path: 'review-queue',
+          name: 'moderation-review-queue',
+          meta: { requiresAuth: true, requiresModerate: true },
+          component: () => import('../views/ModerationReviewQueueView.vue'),
+        },
+        {
           path: 'tags',
           name: 'moderation-tags',
           meta: { requiresAuth: true, requiresModerate: true },

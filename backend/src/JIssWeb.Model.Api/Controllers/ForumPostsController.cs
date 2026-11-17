@@ -35,6 +35,7 @@ public class ForumPostsController : ControllerBase
     private readonly IForumBlockedWordFilter _blockedWords;
     private readonly IForumPostRateLimitService _postRateLimit;
     private readonly IForumNotificationWriter _notificationWriter;
+    private readonly IContentModerationGate _moderation;
     private readonly ILogger<ForumPostsController> _logger;
 
     public ForumPostsController(
@@ -47,6 +48,7 @@ public class ForumPostsController : ControllerBase
         IForumBlockedWordFilter blockedWords,
         IForumPostRateLimitService postRateLimit,
         IForumNotificationWriter notificationWriter,
+        IContentModerationGate moderation,
         ILogger<ForumPostsController> logger)
     {
         var db = mongoClient.GetDatabase(mongoOptions.Value.DatabaseName);
@@ -62,6 +64,7 @@ public class ForumPostsController : ControllerBase
         _blockedWords = blockedWords;
         _postRateLimit = postRateLimit;
         _notificationWriter = notificationWriter;
+        _moderation = moderation;
         _logger = logger;
     }
 
@@ -183,9 +186,18 @@ public class ForumPostsController : ControllerBase
                 return NotFound(ApiResult<List<ReplyDto>>.Fail("未找到", "NOT_FOUND"));
         }
 
+        var replyRequesterId = TryGetAuthorId();
+        var isModerator = IsModeratorOrAdmin();
+        if (!ForumVisibility.CanViewPending(post.State, post.AuthorSubId, replyRequesterId, isModerator))
+            return NotFound(ApiResult<List<ReplyDto>>.Fail("未找到", "NOT_FOUND"));
+
+        // 待审回复只对作者本人与版主可见；其余读者仍走白名单式已发布过滤。
+        var pendingFilter = Builders<ForumReplyRecord>.Filter.Eq(x => x.State, ForumContentStates.PendingReview);
+        if (!isModerator)
+            pendingFilter &= Builders<ForumReplyRecord>.Filter.Eq(x => x.AuthorSubId, replyRequesterId ?? "\u0000");
         var replyFilter = Builders<ForumReplyRecord>.Filter.And(
-            ForumPostFilters.ReplyPublished(),
-            Builders<ForumReplyRecord>.Filter.Eq(x => x.PostId, postId));
+            Builders<ForumReplyRecord>.Filter.Eq(x => x.PostId, postId),
+            Builders<ForumReplyRecord>.Filter.Or(ForumPostFilters.ReplyPublished(), pendingFilter));
         var list = await _replies.Find(replyFilter)
             .SortBy(x => x.CreatedAtUtc)
             .ToListAsync();
@@ -212,6 +224,9 @@ public class ForumPostsController : ControllerBase
 
         var post = await _posts.Find(x => x.Id == postId).FirstOrDefaultAsync();
         if (post is null)
+            return NotFound(ApiResult<ReplyDto>.Fail("未找到", "NOT_FOUND"));
+
+        if (ForumVisibility.IsPendingReview(post.State))
             return NotFound(ApiResult<ReplyDto>.Fail("未找到", "NOT_FOUND"));
 
         if (post.RepliesLocked)
@@ -246,11 +261,26 @@ public class ForumPostsController : ControllerBase
             State = ForumContentStates.Published,
             CreatedAtUtc = DateTime.UtcNow,
         };
+
+        // AI 版主阶段一：判定在限流之后、落库之前；判定失败一律放行。
+        var moderation = await _moderation.EvaluateAsync(new ModerationRequest(
+            "reply", reply.Id, postId, post.Board, authorId, null, reply.Body));
+        reply.State = moderation.State;
+        if (moderation.Verdict is not null)
+        {
+            reply.ModerationFlag = moderation.Verdict.Verdict;
+            reply.ModerationConfidence = moderation.Verdict.Confidence;
+        }
+
         await _replies.InsertOneAsync(reply);
         await _postRateLimit.RecordSuccessfulReplyCreateAsync(authorId, GetClientIp(), isAgent);
-        await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, 1));
 
-        await _notificationWriter.WriteReplyNotificationAsync(post, reply);
+        // 待审回复不计入公开聚合，也不触发通知——否则公开评论数与实际可见内容不一致。
+        if (reply.State == ForumContentStates.Published)
+        {
+            await _posts.UpdateOneAsync(x => x.Id == postId, Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, 1));
+            await _notificationWriter.WriteReplyNotificationAsync(post, reply);
+        }
 
         var replyNames = await _authorNames.ResolveAsync(new[] { reply.AuthorSubId });
         return Ok(ApiResult<ReplyDto>.Ok(ForumDtoMapping.ToReplyDto(reply, replyNames)));
@@ -280,6 +310,13 @@ public class ForumPostsController : ControllerBase
         else if (post.State == "draft")
         {
             if (!string.Equals(post.AuthorSubId, requesterId, StringComparison.Ordinal))
+                return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
+            incrementView = false;
+        }
+        else if (ForumVisibility.IsPendingReview(post.State))
+        {
+            // AI 版主阶段一：待审内容仅作者与版主可见，其余一律 404（不泄漏存在性）。
+            if (!ForumVisibility.CanViewPending(post.State, post.AuthorSubId, requesterId, IsModeratorOrAdmin()))
                 return NotFound(ApiResult<PostDetailDto>.Fail("未找到", "NOT_FOUND"));
             incrementView = false;
         }
@@ -400,6 +437,26 @@ public class ForumPostsController : ControllerBase
             Builders<ForumReplyRecord>.Update
                 .Set(x => x.Body, request.Body.Trim())
                 .Set(x => x.UpdatedAtUtc, now));
+
+        // AI 版主阶段一：编辑后重新判定，只允许 published → pending_review 的单向降级；
+        // 已待审内容由运营者最终裁决，作者不能靠编辑自行「洗白」。
+        var replyModeration = await _moderation.EvaluateAsync(new ModerationRequest(
+            "reply", reply.Id, postId, post.Board, authorId, null, request.Body.Trim()));
+        if (replyModeration.Verdict is not null)
+        {
+            var replyUpdate = Builders<ForumReplyRecord>.Update
+                .Set(x => x.ModerationFlag, replyModeration.Verdict.Verdict)
+                .Set(x => x.ModerationConfidence, replyModeration.Verdict.Confidence);
+            if (reply.State == ForumContentStates.Published && replyModeration.State == ForumContentStates.PendingReview)
+            {
+                replyUpdate = replyUpdate.Set(x => x.State, ForumContentStates.PendingReview);
+                // 转入待审后不再计入公开评论数。
+                await _posts.UpdateOneAsync(
+                    x => x.Id == postId && x.CommentCount > 0,
+                    Builders<ForumPostRecord>.Update.Inc(x => x.CommentCount, -1));
+            }
+            await _replies.UpdateOneAsync(x => x.Id == replyId, replyUpdate);
+        }
 
         var updated = await _replies.Find(x => x.Id == replyId).FirstOrDefaultAsync();
         var names = await _authorNames.ResolveAsync(new[] { updated!.AuthorSubId });
@@ -581,6 +638,24 @@ public class ForumPostsController : ControllerBase
         if (newTags is not null)
             updateDef = updateDef.Set(x => x.Tags, newTags);
 
+        // AI 版主阶段一：编辑后重新判定，只允许 published → pending_review 的单向降级。
+        // 草稿不在此路径判定（草稿发布走 PublishDraft）。
+        if (post.State == ForumContentStates.Published)
+        {
+            var effectiveTitle = !string.IsNullOrWhiteSpace(request.Title) ? request.Title.Trim() : post.Title;
+            var effectiveBody = !string.IsNullOrWhiteSpace(request.Body) ? request.Body.Trim() : post.Body;
+            var postModeration = await _moderation.EvaluateAsync(new ModerationRequest(
+                "post", post.Id, post.Id, post.Board, authorId, effectiveTitle, effectiveBody));
+            if (postModeration.Verdict is not null)
+            {
+                updateDef = updateDef
+                    .Set(x => x.ModerationFlag, postModeration.Verdict.Verdict)
+                    .Set(x => x.ModerationConfidence, postModeration.Verdict.Confidence);
+                if (postModeration.State == ForumContentStates.PendingReview)
+                    updateDef = updateDef.Set(x => x.State, ForumContentStates.PendingReview);
+            }
+        }
+
         await _posts.UpdateOneAsync(x => x.Id == postId, updateDef);
 
         // Tags UseCount delta update
@@ -669,6 +744,19 @@ public class ForumPostsController : ControllerBase
             Tags = tagsResult.Tags!,
             CreatedAtUtc = now,
         };
+
+        // AI 版主阶段一：判定在屏蔽词与限流之后、落库之前；判定失败一律放行。
+        var moderation = await _moderation.EvaluateAsync(new ModerationRequest(
+            "post", doc.Id, doc.Id,
+            string.IsNullOrWhiteSpace(request.BoardId) ? boardResolved.Title! : request.BoardId.Trim(),
+            authorId, doc.Title, doc.Body));
+        doc.State = moderation.State;
+        if (moderation.Verdict is not null)
+        {
+            doc.ModerationFlag = moderation.Verdict.Verdict;
+            doc.ModerationConfidence = moderation.Verdict.Confidence;
+        }
+
         await _posts.InsertOneAsync(doc);
         await _postRateLimit.RecordSuccessfulPostCreateAsync(authorId, GetClientIp(), isAgent);
 
@@ -678,7 +766,7 @@ public class ForumPostsController : ControllerBase
                 Builders<ForumTagRecord>.Filter.In(x => x.Name, tagsResult.Tags!),
                 Builders<ForumTagRecord>.Update.Inc(x => x.UseCount, 1));
 
-        return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto { Id = doc.Id, State = ForumContentStates.Published }));
+        return Ok(ApiResult<CreatePostResultDto>.Ok(new CreatePostResultDto { Id = doc.Id, State = doc.State }));
     }
 
     private static FilterDefinition<ForumPostRecord> BuildKeywordFilter(string keyword)
@@ -886,6 +974,10 @@ public class PostListItemDto
     public bool FavoritedByMe { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }
     public string State { get; set; } = "published";
+    /// <summary>AI 版主阶段一：内容处于待审（仅作者与版主可见）。</summary>
+    public bool PendingReview { get; set; }
+    /// <summary>AI 版主阶段一：命中的判定类别，仅待审内容返回。</summary>
+    public string? ModerationVerdict { get; set; }
     public DateTime? DeletedAtUtc { get; set; }
     public string? DeletedBySub { get; set; }
 }
@@ -949,6 +1041,9 @@ public class ReplyDto
     public string Body { get; set; } = "";
     public string State { get; set; } = ForumContentStates.Published;
     public bool LocalOnly { get; set; }
+    /// <summary>AI 版主阶段一：回复处于待审（仅作者与版主可见）。</summary>
+    public bool PendingReview { get; set; }
+    public string? ModerationVerdict { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }
 }

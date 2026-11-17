@@ -24,6 +24,8 @@ internal static class ForumDtoMapping
         Views = p.ViewCount,
         UpdatedAtUtc = p.UpdatedAtUtc,
         State = p.State,
+        PendingReview = p.State == ForumContentStates.PendingReview,
+        ModerationVerdict = p.State == ForumContentStates.PendingReview ? p.ModerationFlag : null,
         DeletedAtUtc = p.DeletedAtUtc,
         DeletedBySub = p.DeletedBySub,
     };
@@ -48,6 +50,8 @@ internal static class ForumDtoMapping
         Views = p.ViewCount,
         UpdatedAtUtc = p.UpdatedAtUtc,
         State = p.State,
+        PendingReview = p.State == ForumContentStates.PendingReview,
+        ModerationVerdict = p.State == ForumContentStates.PendingReview ? p.ModerationFlag : null,
         DeletedAtUtc = p.DeletedAtUtc,
         DeletedBySub = p.DeletedBySub,
     };
@@ -60,6 +64,8 @@ internal static class ForumDtoMapping
         AuthorDisplayName = Display(r.AuthorSubId, names),
         Body = r.Body,
         State = r.State,
+        PendingReview = r.State == ForumContentStates.PendingReview,
+        ModerationVerdict = r.State == ForumContentStates.PendingReview ? r.ModerationFlag : null,
         CreatedAtUtc = r.CreatedAtUtc,
         UpdatedAtUtc = r.UpdatedAtUtc,
     };

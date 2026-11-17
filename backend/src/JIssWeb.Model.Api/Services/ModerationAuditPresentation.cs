@@ -24,6 +24,8 @@ internal static class ModerationAuditPresentation
             "user.mute" => "账号禁言",
             "user.unmute" => "解除禁言",
             "audit.export" => "导出审计记录",
+            "content.approve" => "通过待审内容",
+            "content.reject" => "驳回并删除待审内容",
             _ => "操作",
         };
     }

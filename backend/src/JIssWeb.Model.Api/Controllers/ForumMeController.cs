@@ -52,8 +52,10 @@ public class ForumMeController : ControllerBase
             return Unauthorized(ApiResult<PagedPostsDto>.Fail("未授权", "UNAUTHORIZED"));
         }
 
+        // AI 版主阶段一：作者自己的待审内容在「我的帖子」里可见（带 pendingReview 标记）。
         var filter = Builders<ForumPostRecord>.Filter.And(
-            ForumPostFilters.Published(),
+            Builders<ForumPostRecord>.Filter.In(x => x.State,
+                new[] { ForumContentStates.Published, ForumContentStates.PendingReview }),
             Builders<ForumPostRecord>.Filter.Eq(x => x.AuthorSubId, sub));
         var total = await _posts.CountDocumentsAsync(filter);
         var items = await _posts.Find(filter)
@@ -102,8 +104,10 @@ public class ForumMeController : ControllerBase
             return Unauthorized(ApiResult<PagedRepliesDto>.Fail("未授权", "UNAUTHORIZED"));
         }
 
+        // AI 版主阶段一：作者自己的待审回复在「我的回复」里可见（带 pendingReview 标记）。
         var filter = Builders<ForumReplyRecord>.Filter.And(
-            ForumPostFilters.ReplyPublished(),
+            Builders<ForumReplyRecord>.Filter.In(x => x.State,
+                new[] { ForumContentStates.Published, ForumContentStates.PendingReview }),
             Builders<ForumReplyRecord>.Filter.Eq(x => x.AuthorSubId, sub));
         var total = await _replies.CountDocumentsAsync(filter);
         var items = await _replies.Find(filter)
