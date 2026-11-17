@@ -13,6 +13,19 @@ public sealed class ArenaDashboardViewModel
     public QueuePanel Queue { get; set; } = new();
     public CommunityPanel Community { get; set; } = new();
     public GenerationSurvivalPanel GenerationSurvival { get; set; } = new();
+    public RegistrationPanel Registration { get; set; } = new();
+}
+
+/// <summary>注册流入（V0.3 小范围开放注册）。全部来自 users 集合的只读投影。</summary>
+public sealed class RegistrationPanel
+{
+    public int TodayRegistered { get; set; }
+    public int TodayVerified { get; set; }
+    public int PendingVerification { get; set; }
+    public int DailyCap { get; set; }
+
+    /// <summary>-1 表示未设置全局日上限（不限制）。</summary>
+    public int RemainingToday { get; set; } = -1;
 }
 
 /// <summary>#38 世代存活曲线：按 agent_personas.Generation 分组的只读聚合。</summary>

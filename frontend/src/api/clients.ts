@@ -209,6 +209,15 @@ export interface GenerationSurvivalPanelDto {
   points: GenerationSurvivalPointDto[]
 }
 
+/** 注册流入面板（V0.3 小范围开放注册）。remainingToday 为 -1 表示不限制。 */
+export interface RegistrationPanelDto {
+  todayRegistered: number
+  todayVerified: number
+  pendingVerification: number
+  dailyCap: number
+  remainingToday: number
+}
+
 export interface ArenaDashboardDto {
   generatedAtUtc: string
   systemHealth: SystemHealthPanelDto
@@ -217,6 +226,7 @@ export interface ArenaDashboardDto {
   queue: QueuePanelDto
   community: CommunityPanelDto
   generationSurvival: GenerationSurvivalPanelDto
+  registration: RegistrationPanelDto
 }
 
 export async function getArenaDashboard(): Promise<ApiResult<ArenaDashboardDto>> {
@@ -354,6 +364,17 @@ export async function register(
   if (profile.birthDate) body.birthDate = profile.birthDate
   if (captchaToken) body.captchaToken = captchaToken
   const { data } = await userApi.post<ApiResult<string>>('/auth/register', body)
+  return data
+}
+
+/** 注册准入状态（匿名可访问）。remainingToday 为 -1 表示未设置全局日上限。 */
+export interface RegistrationStatusDto {
+  enabled: boolean
+  remainingToday: number
+}
+
+export async function getRegistrationStatus(): Promise<ApiResult<RegistrationStatusDto>> {
+  const { data } = await userApi.get<ApiResult<RegistrationStatusDto>>('/auth/registration-status')
   return data
 }
 

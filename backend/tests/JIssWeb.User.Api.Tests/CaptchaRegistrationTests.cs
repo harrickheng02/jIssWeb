@@ -40,6 +40,8 @@ public sealed class CaptchaRegistrationFixture : IAsyncLifetime
             b.UseSetting("Mongo:ConnectionString", _mongoRunner.ConnectionString);
             b.UseSetting("Mongo:DatabaseName", dbName);
             b.UseSetting("Jwt:Key", "test-jwt-key-must-be-32-chars-minimum!!");
+            // 这些用例测的是验证码行为，需显式开启注册总闸（生产默认关闭）
+            b.UseSetting("Registration:Enabled", "true");
             // mock Redis — register endpoint uses it for rate-limiting
             b.ConfigureServices(services =>
             {
@@ -73,6 +75,8 @@ public sealed class CaptchaRegistrationFixture : IAsyncLifetime
             b.UseSetting("Mongo:ConnectionString", _mongoRunner!.ConnectionString);
             b.UseSetting("Mongo:DatabaseName", "captcha_reg_" + Guid.NewGuid().ToString("N"));
             b.UseSetting("Jwt:Key", "test-jwt-key-must-be-32-chars-minimum!!");
+            // 这些用例测的是验证码行为，需显式开启注册总闸（生产默认关闭）
+            b.UseSetting("Registration:Enabled", "true");
             b.UseSetting("Captcha:Enabled", captchaEnabled ? "true" : "false");
             b.UseSetting("Captcha:SecretKey", "test-secret");
             b.ConfigureServices(services =>
